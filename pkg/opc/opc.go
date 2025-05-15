@@ -11,7 +11,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"gotest.tools/v3/icmd"
 )
 
@@ -135,7 +135,7 @@ func AssertClientVersion(binary string) {
 		}
 
 	default:
-		fmt.Errorf("Unknown binary or client")
+		Fail("unknown binary or client")
 	}
 }
 
@@ -157,7 +157,7 @@ func AssertServerVersion(binary string) {
 			}
 		}
 	default:
-		fmt.Errorf("Unknown binary or client")
+		Fail("unknown binary or client")
 	}
 
 }
@@ -250,7 +250,7 @@ func GetOpcPacInfoInstall() (*PacInfoInstall, error) {
 
 	// Verify install version is not empty
 	if pacInfo.PipelinesAsCode.InstallVersion == "" {
-		return nil, Fail(fmt.Sprintf("output of 'opc pac info install' is empty or missing Pipelines as Code information"))
+		return nil, fmt.Errorf("output of 'opc pac info install' is empty or missing Pipelines as Code information")
 	}
 
 	return &pacInfo, nil
@@ -262,7 +262,7 @@ func HubSearch(resource string) error {
 
 	if !strings.Contains(output, resource) {
 		log.Printf("Resource %q not found in opc hub search", resource)
-		return Fail(fmt.Sprintf("hub search failed for %s", resource))
+		return fmt.Errorf("hub search failed for %s", resource)
 	}
 	return nil
 }
@@ -278,7 +278,7 @@ func GetOpcPrList(pipelineRunName, namespace string) ([]PipelineRunList, error) 
 
 	// Ensure output isn't empty
 	if len(lines) < 2 {
-		return nil, Fail(fmt.Sprintf("unexpected pipelinerun output %s", output))
+		return nil, fmt.Errorf("unexpected pipelinerun output %s", output)
 	}
 
 	var runs []PipelineRunList
@@ -332,7 +332,7 @@ func resourceExists(output, resourceName string) bool {
 func VerifyResourceListMatchesName(resourceType, name, namespace string) (string, error) {
 	output := cmd.MustSucceed("opc", resourceType, "list", "-n", namespace).Stdout()
 	if !resourceExists(output, name) {
-		return "", Fail(fmt.Sprintf("%s %q not found in namespace %q", resourceType, name, namespace))
+		return "", fmt.Errorf("%s %q not found in namespace %q", resourceType, name, namespace)
 	}
 	return output, nil
 }

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/clients"
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/opc"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/tektoncd/operator/test/utils"
 )
 
@@ -130,4 +130,18 @@ func GetSuiteData(key string) interface{} {
 	mu.RLock()
 	defer mu.RUnlock()
 	return suiteStore[key]
+}
+
+// SetClients stores the clients for the scenario.
+func SetClients(cs *clients.Clients) {
+	mu.Lock()
+	defer mu.Unlock()
+	scenarioStore["clients"] = cs
+}
+
+// SetNamespace stores the namespace for the scenario.
+func SetNamespace(ns string) {
+	mu.Lock()
+	defer mu.Unlock()
+	scenarioStore["namespace"] = ns
 }

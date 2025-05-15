@@ -94,10 +94,6 @@ func NewClients(configPath string, clusterName, namespace string) (*Clients, err
 		return nil, fmt.Errorf("failed to create pipeline clientset from config file at %s: %s", configPath, err)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to create resource clientset from config file at %s: %s", configPath, err)
-	}
-
 	clients.TriggersClient, err = triggersclientset.NewForConfig(clients.KubeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create triggers clientset from config file at %s: %s", configPath, err)
