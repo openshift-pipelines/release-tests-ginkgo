@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift-pipelines/release-tests/pkg/cmd"
+	"github.com/srivickynesh/release-tests-ginkgo/pkg/cmd"
 	"github.com/srivickynesh/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests/pkg/store"
+	"github.com/srivickynesh/release-tests-ginkgo/pkg/store"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,16 +18,16 @@ import (
 
 // Create resources using oc command
 func Create(path_dir, namespace string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "create", "-f", config.Path(path_dir), "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "create", "-f", config.Path(path_dir), "-n", namespace).Stdout())
 }
 
 // Create resources using remote path using oc command
 func CreateRemote(remote_path, namespace string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "create", "-f", remote_path, "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "create", "-f", remote_path, "-n", namespace).Stdout())
 }
 
 func Apply(path_dir, namespace string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "apply", "-f", config.Path(path_dir), "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "apply", "-f", config.Path(path_dir), "-n", namespace).Stdout())
 }
 
 // Delete resources using oc command
@@ -35,33 +35,33 @@ func Delete(path_dir, namespace string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s", cmd.MustSuccedIncreasedTimeout(time.Second*300, "oc", "delete", "-f", config.Path(path_dir), "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceedIncreasedTimeout(time.Second*300, "oc", "delete", "-f", config.Path(path_dir), "-n", namespace).Stdout())
 }
 
 // CreateNewProject Helps you to create new project
 func CreateNewProject(ns string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "new-project", ns).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "new-project", ns).Stdout())
 }
 
 // DeleteProject Helps you to delete new project
 func DeleteProject(ns string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "delete", "project", ns).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "delete", "project", ns).Stdout())
 }
 
 func DeleteProjectIgnoreErors(ns string) {
-	log.Printf("output: %s", cmd.Run("oc", "delete", "project", ns).Stdout())
+	log.Printf("output: %s\n", cmd.Run("oc", "delete", "project", ns).Stdout())
 }
 
 func LinkSecretToSA(secretname, sa, namespace string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "secret", "link", "serviceaccount/"+sa, "secrets/"+secretname, "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "secret", "link", "serviceaccount/"+sa, "secrets/"+secretname, "-n", namespace).Stdout())
 }
 
 func CreateSecretWithSecretToken(secretname, namespace string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "create", "secret", "generic", secretname, "--from-literal=secretToken="+ "dummy-token", "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "create", "secret", "generic", secretname, "--from-literal=secretToken="+"dummy-token", "-n", namespace).Stdout())
 }
 
 func EnableTLSConfigForEventlisteners(namespace string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "label", "namespace", namespace, "operator.tekton.dev/enable-annotation=enabled").Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "label", "namespace", namespace, "operator.tekton.dev/enable-annotation=enabled").Stdout())
 }
 
 func VerifyKubernetesEventsForEventListener(namespace string) {
@@ -74,12 +74,12 @@ func VerifyKubernetesEventsForEventListener(namespace string) {
 }
 
 func UpdateTektonConfig(patch_data string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "patch", "tektonconfig", "config", "-p", patch_data, "--type=merge").Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "patch", "tektonconfig", "config", "-p", patch_data, "--type=merge").Stdout())
 }
 
 func UpdateTektonConfigwithInvalidData(patch_data, errorMessage string) {
 	result := cmd.Run("oc", "patch", "tektonconfig", "config", "-p", patch_data, "--type=merge")
-	log.Printf("Output: %s", result.Stdout())
+	log.Printf("Output: %s\n", result.Stdout())
 	Expect(result.ExitCode).To(Equal(1),
 		"Expected exit code 1 but got %d", result.ExitCode)
 
@@ -88,30 +88,30 @@ func UpdateTektonConfigwithInvalidData(patch_data, errorMessage string) {
 }
 
 func AnnotateNamespace(namespace, annotation string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "annotate", "namespace", namespace, annotation).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "annotate", "namespace", namespace, annotation).Stdout())
 }
 
 func AnnotateNamespaceIgnoreErrors(namespace, annotation string) {
-	log.Printf("output: %s", cmd.Run("oc", "annotate", "namespace", namespace, annotation).Stdout())
+	log.Printf("output: %s\n", cmd.Run("oc", "annotate", "namespace", namespace, annotation).Stdout())
 }
 
 func RemovePrunerConfig() {
-	cmd.Run("oc", "patch", "tektonconfig", "config", "-p", "[{ \"op\": \"remove\", \"path\": \"/spec/pruner\" }]", "--type=json")
+	cmd.Run("oc", "patch", "tektonconfig", "config", "-p", `[{ "op": "remove", "path": "/spec/pruner" }]`, "--type=json")
 }
 
 func LabelNamespace(namespace, label string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "label", "namespace", namespace, label).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "label", "namespace", namespace, label).Stdout())
 }
 
 func DeleteResource(resourceType, name string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s", cmd.MustSuccedIncreasedTimeout(time.Second*300, "oc", "delete", resourceType, name, "-n", store.Namespace()).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceedIncreasedTimeout(time.Second*300, "oc", "delete", resourceType, name, "-n", store.Namespace()).Stdout())
 }
 
 func DeleteResourceInNamespace(resourceType, name, namespace string) {
-	log.Printf("output: %s", cmd.MustSucceed("oc", "delete", resourceType, name, "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "delete", resourceType, name, "-n", namespace).Stdout())
 }
 
 func CheckProjectExists(projectName string) bool {
@@ -143,20 +143,20 @@ func EnableConsolePlugin() {
 			Fail(fmt.Sprintf("Could not parse consoles.operator.openshift.io CR: %v", err))
 		}
 
-		if slices.Contains(plugins, "dummy-plugin") {
+		if slices.Contains(plugins, config.ConsolePluginDeployment) {
 			log.Printf("Pipelines console plugin is already enabled.")
 			return
 		}
 	}
 
-	plugins = append(plugins, "dummy-plugin")
+	plugins = append(plugins, config.ConsolePluginDeployment)
 
-	patch_data := "{\"spec\":{\"plugins\":[\"" + strings.Join(plugins, "\",\"") + "\"]}}"
+	patch_data := fmt.Sprintf(`{"spec":{"plugins":["%s"]}}`, strings.Join(plugins, `","`))
 	cmd.MustSucceed("oc", "patch", "consoles.operator.openshift.io", "cluster", "-p", patch_data, "--type=merge").Stdout()
 }
 
 func GetSecretsData(secretName, namespace string) string {
-	return cmd.MustSucceed("oc", "get", "secrets", secretName, "-n", namespace, "-o", "jsonpath=\"{.data}\"").Stdout()
+	return cmd.MustSucceed("oc", "get", "secrets", secretName, "-n", namespace, "-o", "jsonpath={.data}").Stdout()
 }
 
 func CreateChainsImageRegistrySecret(dockerConfig string) {
@@ -165,7 +165,7 @@ func CreateChainsImageRegistrySecret(dockerConfig string) {
 
 func CopySecret(secretName string, sourceNamespace string, destNamespace string) {
 	secretJson := cmd.MustSucceed("oc", "get", "secret", secretName, "-n", sourceNamespace, "-o", "json").Stdout()
-	cmdOutput := cmd.MustSucceed("bash", "-c", fmt.Sprintf(`echo '%s' | jq 'del(.metadata[\"namespace\", \"creationTimestamp\", \"resourceVersion\", \"selfLink\", \"uid\", \"annotations\"]) | .data |= with_entries(if .key == \"github-auth-key\" then .key = \"token\" else . end)'`, secretJson)).Stdout()
+	cmdOutput := cmd.MustSucceed("bash", "-c", fmt.Sprintf(`echo '%s' | jq 'del(.metadata["namespace", "creationTimestamp", "resourceVersion", "selfLink", "uid", "annotations"]) | .data |= with_entries(if .key == "github-auth-key" then .key = "token" else . end)'`, secretJson)).Stdout()
 	cmd.MustSucceed("bash", "-c", fmt.Sprintf(`echo '%s' | kubectl apply -n %s -f -`, cmdOutput, destNamespace)).Stdout()
 	log.Printf("Successfully copied secret %s from %s to %s", secretName, sourceNamespace, destNamespace)
 }

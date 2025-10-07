@@ -9,7 +9,6 @@ require (
 	github.com/onsi/gomega v1.29.0
 	github.com/openshift-pipelines/manual-approval-gate v0.2.2
 	github.com/openshift-pipelines/pipelines-as-code v0.27.2
-	github.com/openshift-pipelines/release-tests v0.0.0-20250509122825-94ba39df192b
 	github.com/openshift/client-go v0.0.0-20240523113335-452272e0496d
 	github.com/operator-framework/operator-lifecycle-manager v0.22.0
 	github.com/tektoncd/operator v0.75.0
@@ -42,12 +41,10 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dmotylev/goproperties v0.0.0-20140630191356-7cbffbaada47 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.0 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
-	github.com/getgauge-contrib/gauge-go v0.4.0 // indirect
-	github.com/getgauge/common v0.0.0-20211105093448-e0aee1ccb217 // indirect
+	github.com/fatih/color v1.17.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect

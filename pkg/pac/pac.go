@@ -10,6 +10,7 @@ import (
 	"time"
 
 	cli "github.com/srivickynesh/release-tests-ginkgo/pkg/clients"
+	"github.com/srivickynesh/release-tests-ginkgo/pkg/cmd"
 	"github.com/srivickynesh/release-tests-ginkgo/pkg/config"
 	"github.com/srivickynesh/release-tests-ginkgo/pkg/k8s"
 	"github.com/srivickynesh/release-tests-ginkgo/pkg/oc"
@@ -18,17 +19,20 @@ import (
 	"github.com/xanzy/go-gitlab"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
-	errors "k8s.io/apimachinery/pkg/api/errors" // Added import
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	errors "k8s.io/apimachinery/pkg/api/errors" // Added import
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+
 	pacv1alpha1 "github.com/openshift-pipelines/pipelines-as-code/pkg/apis/pipelinesascode/v1alpha1"
 )
 
 const (
 	webhookConfigName = "gitlab-webhook-config"
-	targetURL         = "http://localhost:8080"
+	targetURL         = "http://pipelines-as-code-controller.openshift-pipelines:8080"
 )
 
 const (
@@ -97,22 +101,14 @@ func SetupSmeeDeployment() {
 }
 
 func getNewSmeeURL() (string, error) {
-	result := map[string]interface{}{
-		"Stdout": "https://smee.io/new",
-		"Stderr": "",
-		"Error":  "(none)",
+	res := cmd.Run("curl", "-s", "https://smee.io/new")
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("failed to get a new Smee URL: %s", res.Stderr())
 	}
-
-	if result["Error"] != "(none)" {
-		return "", fmt.Errorf("failed to create SmeeURL: %v", result["Stderr"])
-	}
-
-	smeeURL := strings.TrimSpace(result["Stdout"].(string))
-
+	smeeURL := strings.TrimSpace(res.Stdout())
 	if smeeURL == "" {
-		return "", fmt.Errorf("failed to retrieve Smee URL: no URL found")
+		return "", fmt.Errorf("failed to retrieve Smee URL: no URL found in output")
 	}
-
 	return smeeURL, nil
 }
 
@@ -215,6 +211,7 @@ func forkProject(projectID, targetNamespace string) (*gitlab.Project, error) {
 		})
 		if err == nil {
 			store.PutScenarioData("PROJECT_URL", project.WebURL)
+			store.PutScenarioData("projectName", project.Name)
 			return project, nil
 		}
 		log.Printf("Retry %d: failed to fork project: %v", i+1, err)
@@ -281,17 +278,132 @@ func createNewRepository(c *cli.Clients, projectName, targetGroupNamespace, name
 	return nil
 }
 
-
 func GeneratePipelineRunYaml(event, branch string) {
-	// dummy function
+	projectIDStr := store.GetScenarioData("projectID")
+	if projectIDStr == nil {
+		Fail("projectID not found in store")
+	}
+	projectID, err := strconv.Atoi(projectIDStr.(string))
+	if err != nil {
+		Fail(fmt.Sprintf("Failed to convert projectID to int: %v", err))
+	}
+
+	yamlContent := `
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: pr-pipelinerun-
+spec:
+  pipelineSpec:
+    tasks:
+      - name: hello-world-pr
+        taskSpec:
+          steps:
+            - name: echo
+              image: alpine
+              script: |
+                #!/bin/sh
+                echo "Hello from a pull request!"
+`
+	filePath := ".tekton/pipelinerun.yaml"
+	_, _, err = client.RepositoryFiles.CreateFile(projectID, filePath, &gitlab.CreateFileOptions{
+		Branch:        gitlab.String("main"),
+		Content:       gitlab.String(yamlContent),
+		CommitMessage: gitlab.String("Add pipelinerun for PaC"),
+	})
+
+	// If the file already exists, try to update it.
+	if err != nil {
+		if strings.Contains(err.Error(), "A file with this name already exists") {
+			log.Printf("File %s already exists, updating it.", filePath)
+			_, _, err = client.RepositoryFiles.UpdateFile(projectID, filePath, &gitlab.UpdateFileOptions{
+				Branch:        gitlab.String("main"),
+				Content:       gitlab.String(yamlContent),
+				CommitMessage: gitlab.String("Update pipelinerun for PaC"),
+			})
+			if err != nil {
+				Fail(fmt.Sprintf("Failed to update file %s: %v", filePath, err))
+			}
+		} else {
+			Fail(fmt.Sprintf("Failed to create file %s: %v", filePath, err))
+		}
+	}
 }
 
 func ConfigurePreviewChanges() {
-	// dummy function
+	projectIDStr := store.GetScenarioData("projectID")
+	if projectIDStr == nil {
+		Fail("projectID not found in store")
+	}
+	projectID, err := strconv.Atoi(projectIDStr.(string))
+	if err != nil {
+		Fail(fmt.Sprintf("Failed to convert projectID to int: %v", err))
+	}
+
+	// Create a new branch
+	branchName := fmt.Sprintf("test-branch-%d", time.Now().UnixNano())
+	_, _, err = client.Branches.CreateBranch(projectID, &gitlab.CreateBranchOptions{
+		Branch: gitlab.String(branchName),
+		Ref:    gitlab.String("main"),
+	})
+	if err != nil {
+		Fail(fmt.Sprintf("Failed to create branch: %v", err))
+	}
+	store.PutScenarioData("branchName", branchName)
+
+	// Make a change in the new branch by creating a new file
+	filePath := fmt.Sprintf("test-file-%d.txt", time.Now().UnixNano())
+	_, _, err = client.RepositoryFiles.CreateFile(projectID, filePath, &gitlab.CreateFileOptions{
+		Branch:        gitlab.String(branchName),
+		Content:       gitlab.String("hello world"),
+		CommitMessage: gitlab.String("Test commit for MR"),
+	})
+	if err != nil {
+		Fail(fmt.Sprintf("Failed to create file: %v", err))
+	}
+
+	// Create a merge request
+	mr, _, err := client.MergeRequests.CreateMergeRequest(projectID, &gitlab.CreateMergeRequestOptions{
+		SourceBranch: gitlab.String(branchName),
+		TargetBranch: gitlab.String("main"),
+		Title:        gitlab.String("Test MR"),
+	})
+	if err != nil {
+		Fail(fmt.Sprintf("Failed to create merge request: %v", err))
+	}
+	store.PutScenarioData("mrIID", mr.IID)
 }
 
 func GetPipelineNameFromMR() string {
-	return ""
+	c := store.Clients()
+	namespace := store.Namespace()
+	mrIID := store.GetScenarioData("mrIID").(int)
+	projectName := store.GetScenarioData("projectName").(string)
+
+	var prName string
+	err := wait.PollImmediate(10*time.Second, 5*time.Minute, func() (bool, error) {
+		prList, err := c.Tekton.TektonV1().PipelineRuns(namespace).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("pipelinesascode.tekton.dev/repository=%s,pipelinesascode.tekton.dev/event-type=pull_request", projectName),
+		})
+		if err != nil {
+			log.Printf("Error listing pipelineruns: %v. Retrying...", err)
+			return false, nil
+		}
+
+		for _, pr := range prList.Items {
+			if pr.Annotations["pipelinesascode.tekton.dev/pull-request"] == strconv.Itoa(mrIID) {
+				prName = pr.Name
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+
+	if err != nil {
+		Fail(fmt.Sprintf("Could not find PipelineRun for MR %d in repo %s: %v", mrIID, projectName, err))
+	}
+	Expect(prName).NotTo(BeEmpty(), "PipelineRun name should not be empty")
+	return prName
 }
 
 func CleanupPAC(c *cli.Clients, smeeDeploymentName, namespace string) {
