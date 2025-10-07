@@ -57,7 +57,7 @@ func LinkSecretToSA(secretname, sa, namespace string) {
 }
 
 func CreateSecretWithSecretToken(secretname, namespace string) {
-	log.Printf("output: %s\n", cmd.MustSucceed("oc", "create", "secret", "generic", secretname, "--from-literal=secretToken="+"dummy-token", "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceed("oc", "create", "secret", "generic", secretname, "--from-literal=secretToken="+config.TriggersSecretToken, "-n", namespace).Stdout())
 }
 
 func EnableTLSConfigForEventlisteners(namespace string) {
