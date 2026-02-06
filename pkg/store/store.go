@@ -74,8 +74,8 @@ func Opc() opc.Cmd {
 	panic("store: opc Cmd not set or wrong type")
 }
 
-// PutScenarioData stores a string value under the given key for the scenario.
-func PutScenarioData(key, value string) {
+// PutScenarioData stores a value under the given key for the scenario.
+func PutScenarioData(key string, value interface{}) {
 	mu.Lock()
 	defer mu.Unlock()
 	scenarioStore[key] = value
@@ -98,14 +98,11 @@ func GetScenarioDataSlice(key string) []string {
 	return nil
 }
 
-// GetScenarioData retrieves a string stored under the given key.
-func GetScenarioData(key string) string {
+// GetScenarioData retrieves a value stored under the given key.
+func GetScenarioData(key string) interface{} {
 	mu.RLock()
 	defer mu.RUnlock()
-	if v, ok := scenarioStore[key].(string); ok {
-		return v
-	}
-	return ""
+	return scenarioStore[key]
 }
 
 // TargetNamespace returns the stored targetNamespace for the scenario.

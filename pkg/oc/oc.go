@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift-pipelines/release-tests/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests/pkg/config"
-	"github.com/openshift-pipelines/release-tests/pkg/store"
+	"github.com/srivickynesh/release-tests-ginkgo/pkg/cmd"
+	"github.com/srivickynesh/release-tests-ginkgo/pkg/config"
+	"github.com/srivickynesh/release-tests-ginkgo/pkg/store"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,7 +35,7 @@ func Delete(path_dir, namespace string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s\n", cmd.MustSuccedIncreasedTimeout(time.Second*300, "oc", "delete", "-f", config.Path(path_dir), "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceedIncreasedTimeout(time.Second*300, "oc", "delete", "-f", config.Path(path_dir), "-n", namespace).Stdout())
 }
 
 // CreateNewProject Helps you to create new project
@@ -96,7 +96,7 @@ func AnnotateNamespaceIgnoreErrors(namespace, annotation string) {
 }
 
 func RemovePrunerConfig() {
-	cmd.Run("oc", "patch", "tektonconfig", "config", "-p", "[{ \"op\": \"remove\", \"path\": \"/spec/pruner\" }]", "--type=json")
+	cmd.Run("oc", "patch", "tektonconfig", "config", "-p", `[{ "op": "remove", "path": "/spec/pruner" }]`, "--type=json")
 }
 
 func LabelNamespace(namespace, label string) {
@@ -107,7 +107,7 @@ func DeleteResource(resourceType, name string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s\n", cmd.MustSuccedIncreasedTimeout(time.Second*300, "oc", "delete", resourceType, name, "-n", store.Namespace()).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceedIncreasedTimeout(time.Second*300, "oc", "delete", resourceType, name, "-n", store.Namespace()).Stdout())
 }
 
 func DeleteResourceInNamespace(resourceType, name, namespace string) {
@@ -151,12 +151,12 @@ func EnableConsolePlugin() {
 
 	plugins = append(plugins, config.ConsolePluginDeployment)
 
-	patch_data := "{\"spec\":{\"plugins\":[\"" + strings.Join(plugins, "\",\"") + "\"]}}"
+	patch_data := fmt.Sprintf(`{"spec":{"plugins":["%s"]}}`, strings.Join(plugins, `","`))
 	cmd.MustSucceed("oc", "patch", "consoles.operator.openshift.io", "cluster", "-p", patch_data, "--type=merge").Stdout()
 }
 
 func GetSecretsData(secretName, namespace string) string {
-	return cmd.MustSucceed("oc", "get", "secrets", secretName, "-n", namespace, "-o", "jsonpath=\"{.data}\"").Stdout()
+	return cmd.MustSucceed("oc", "get", "secrets", secretName, "-n", namespace, "-o", "jsonpath={.data}").Stdout()
 }
 
 func CreateChainsImageRegistrySecret(dockerConfig string) {
@@ -166,6 +166,6 @@ func CreateChainsImageRegistrySecret(dockerConfig string) {
 func CopySecret(secretName string, sourceNamespace string, destNamespace string) {
 	secretJson := cmd.MustSucceed("oc", "get", "secret", secretName, "-n", sourceNamespace, "-o", "json").Stdout()
 	cmdOutput := cmd.MustSucceed("bash", "-c", fmt.Sprintf(`echo '%s' | jq 'del(.metadata["namespace", "creationTimestamp", "resourceVersion", "selfLink", "uid", "annotations"]) | .data |= with_entries(if .key == "github-auth-key" then .key = "token" else . end)'`, secretJson)).Stdout()
-	cmd.MustSucceed("bash", "-c", fmt.Sprintf(`echo '%s' | kubectl apply -n %s -f -`, cmdOutput, destNamespace))
+	cmd.MustSucceed("bash", "-c", fmt.Sprintf(`echo '%s' | kubectl apply -n %s -f -`, cmdOutput, destNamespace)).Stdout()
 	log.Printf("Successfully copied secret %s from %s to %s", secretName, sourceNamespace, destNamespace)
 }

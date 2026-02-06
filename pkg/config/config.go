@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/user"
 	"path"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/srivickynesh/release-tests-ginkgo/pkg/testsuit"
 )
 
 const (
@@ -233,24 +234,19 @@ func TempFile(elem ...string) (string, error) {
 	return filepath.Join(path...), nil
 }
 
-func RemoveTempDir() error {
-	tmp, err := TempDir()
+func RemoveTempDir() {
+	var err error
+	tmp, _ := TempDir()
+	err = os.RemoveAll(tmp)
 	if err != nil {
-		return fmt.Errorf("failed to get temp dir: %w", err)
+		testsuit.T.Errorf("Error: In deleting directory %s: %+v ", tmp, err)
 	}
-	if err := os.RemoveAll(tmp); err != nil {
-		return fmt.Errorf("error deleting directory %s: %w", tmp, err)
-	}
-	return nil
 }
 
-func Path(elem ...string) (string, error) {
+func Path(elem ...string) string {
 	td := filepath.Join(Dir(), "..")
 	if _, err := os.Stat(td); os.IsNotExist(err) {
-		return "", fmt.Errorf("test data path not found: %s", td)
-	} else if err != nil {
-		return "", fmt.Errorf("unable to stat %s: %w", td, err)
+		testsuit.T.Errorf("Error: in identifying test data path %s: %+v", td, err)
 	}
-	full := filepath.Join(append([]string{td}, elem...)...)
-	return full, nil
+	return filepath.Join(append([]string{td}, elem...)...)
 }
