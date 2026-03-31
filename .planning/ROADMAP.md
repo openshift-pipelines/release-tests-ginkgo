@@ -36,11 +36,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `go version` in the project reports Go 1.24+ and `go list -m github.com/onsi/ginkgo/v2` reports v2.27+ (or v2.28+ if Go 1.24 is used)
   4. The cloned `openshift-pipelines/release-tests` source repo exists locally as a reference and is accessible for file comparison during migration
   5. `go mod tidy` completes without errors and `go.sum` contains no transitive Gauge framework dependencies
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Fix dual store imports, rename module path, clone reference repo
+- [ ] 01-02-PLAN.md — Upgrade Go/Ginkgo/Gomega, remove Gauge deps, verify build
 
 ### Phase 2: Suite Scaffolding
 **Goal**: Every test area has a working Ginkgo suite entry point with lifecycle hooks and all shared test patterns (labels, cleanup, async assertions, ordered containers, data tables, conditional skip) are established and documented by example
