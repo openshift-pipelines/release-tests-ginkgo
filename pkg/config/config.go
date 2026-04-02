@@ -244,13 +244,10 @@ func RemoveTempDir() error {
 	return nil
 }
 
-func Path(elem ...string) (string, error) {
+func Path(elem ...string) string {
 	td := filepath.Join(Dir(), "..")
 	if _, err := os.Stat(td); os.IsNotExist(err) {
-		return "", fmt.Errorf("test data path not found: %s", td)
-	} else if err != nil {
-		return "", fmt.Errorf("unable to stat %s: %w", td, err)
+		panic(fmt.Sprintf("test data path not found: %s", td))
 	}
-	full := filepath.Join(append([]string{td}, elem...)...)
-	return full, nil
+	return filepath.Join(append([]string{td}, elem...)...)
 }

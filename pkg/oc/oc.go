@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift-pipelines/release-tests/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests/pkg/config"
-	"github.com/openshift-pipelines/release-tests/pkg/store"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,7 +35,7 @@ func Delete(path_dir, namespace string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s\n", cmd.MustSuccedIncreasedTimeout(time.Second*300, "oc", "delete", "-f", config.Path(path_dir), "-n", namespace).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceedIncreasedTimeout(time.Second*300, "oc", "delete", "-f", config.Path(path_dir), "-n", namespace).Stdout())
 }
 
 // CreateNewProject Helps you to create new project
@@ -107,7 +107,7 @@ func DeleteResource(resourceType, name string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s\n", cmd.MustSuccedIncreasedTimeout(time.Second*300, "oc", "delete", resourceType, name, "-n", store.Namespace()).Stdout())
+	log.Printf("output: %s\n", cmd.MustSucceedIncreasedTimeout(time.Second*300, "oc", "delete", resourceType, name, "-n", store.Namespace()).Stdout())
 }
 
 func DeleteResourceInNamespace(resourceType, name, namespace string) {
