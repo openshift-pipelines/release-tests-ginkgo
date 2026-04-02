@@ -120,10 +120,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Running `ginkgo run ./tests/pipelines/` executes all 16 pipelines core tests with pass/fail results matching the Gauge pipelines suite
   2. PipelineRun and TaskRun completion is validated using `Eventually` polling (not `time.Sleep`) with appropriate timeouts for long-running runs
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: TBD
+- [ ] 07-01-PLAN.md -- Migrate pkg/pipelines helpers, copy testdata, create pipelinerun and failure test specs (8 tests)
+- [ ] 07-02-PLAN.md -- Create resolver test specs and copy resolver testdata (8 tests)
 
 ### Phase 8: PAC Migration
 **Goal**: All 7 PAC tests run in Ginkgo with Ordered workflows for multi-step GitLab webhook configuration and validation
