@@ -28,9 +28,9 @@
 
 ### Test Migration — Sanity
 
-- [ ] **SNTY-01**: Migrate ~9 sanity tests with side-by-side validation against Gauge results
-- [ ] **SNTY-02**: Validate JUnit XML output is compatible with Polarion uploader using sanity test results
-- [ ] **SNTY-03**: Preserve Polarion test case IDs (e.g., `PIPELINES-XX-TCXX`) in Ginkgo test names
+- [x] **SNTY-01**: Migrate ~9 sanity tests with side-by-side validation against Gauge results
+- [x] **SNTY-02**: Validate JUnit XML output is compatible with Polarion uploader using sanity test results
+- [x] **SNTY-03**: Preserve Polarion test case IDs (e.g., `PIPELINES-XX-TCXX`) in Ginkgo test names
 
 ### Test Migration — Ecosystem Tasks
 
@@ -128,9 +128,9 @@
 | SUITE-07 | Phase 2 | Complete |
 | SUITE-08 | Phase 2 | Complete |
 | SUITE-09 | Phase 2 | Complete |
-| SNTY-01 | Phase 3 | Pending |
-| SNTY-02 | Phase 3 | Pending |
-| SNTY-03 | Phase 3 | Pending |
+| SNTY-01 | Phase 3 | Complete |
+| SNTY-02 | Phase 3 | Complete |
+| SNTY-03 | Phase 3 | Complete |
 | ECO-01 | Phase 4 | Pending |
 | ECO-02 | Phase 4 | Pending |
 | TRIG-01 | Phase 5 | Pending |
