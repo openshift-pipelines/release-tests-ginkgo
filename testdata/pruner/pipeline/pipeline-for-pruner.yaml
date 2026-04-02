@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: echo-task-pipeline
+spec:
+  params:
+    - name: message
+      type: string
+  steps:
+    - image: registry.redhat.io/ubi8/ubi-minimal
+      script: |
+        echo $(params.message)
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: echo-pipeline
+spec:
+  params:
+    - name: message
+  tasks:
+    - name: echo-task
+      taskRef:
+        name: echo-task-pipeline
+      params:
+        - name: message
+          value: $(params.message)
