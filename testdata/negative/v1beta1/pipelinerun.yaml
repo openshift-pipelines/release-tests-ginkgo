@@ -1,0 +1,93 @@
+# Task writes "some stuff" to a predefined path in the workspace
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: create-file-vb
+spec:
+  workspaces:
+    - name: damnworkspace
+  steps:
+    - name: write-new-stuff
+      image: image-registry.openshift-image-registry.svc:5000/openshift/golang
+      command: ['bash']
+      args: ['-c', 'echo some stuff > /workspace/damnworkspace/stuff']
+---
+# Reads a file from a predefined path in the workspace
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: check-stuff-file-exists-vb
+spec:
+  params:
+  - name: args
+    type: array
+  workspaces:
+    - name: newworkspace
+  steps:
+  - name: read
+    image: image-registry.openshift-image-registry.svc:5000/openshift/golang
+    command: ["/bin/bash"]
+    args: ['$(inputs.params.args[*])']  # tests that new targetpath and previous task output is dumped
+---
+# The Output of the first Task (git resource) create-file is given as an `Input`
+# to the next `Task` check-stuff-file-exists using`from` clause.
+
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: output-pipeline-vb
+spec:
+  workspaces:
+    - name: source
+  tasks:
+    - name: fetch-repository
+      taskRef:
+        name: git-clone
+        kind: Task
+      params:
+        - name: url
+          value: https://github.com/GoogleContainerTools/skaffold
+        - name: revision
+          value: v0.32.0
+      workspaces:
+        - name: output
+          workspace: source
+    - name: first-create-file          # 1. create file
+      taskRef:
+        name: create-file-vb
+      workspaces:
+        - name: damnworkspace
+          workspace: source
+      runAfter:
+        - fetch-repository
+    - name: then-check                 # 2.  check file exists
+      taskRef:
+        name: check-stuff-file-exists-vb
+      params:
+        - name: args
+          value:
+            - '-c'
+            - 'cat /workspace/newworkspace/stuff'
+      workspaces:
+        - name: newworkspace
+          workspace: source
+      runAfter:
+        - first-create-file
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: output-pipeline-run-vb
+spec:
+  pipelineRef:
+    name: output-pipeline-vb
+  serviceAccountName: 'foobar'
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 100Mi
