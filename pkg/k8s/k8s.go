@@ -153,3 +153,51 @@ func DeleteDeployment(cs *clients.Clients, namespace, deploymentName string) err
 	}
 	return nil
 }
+
+// CreateCronJob creates a Kubernetes CronJob that curls the EventListener route URL.
+// The routeURL is used to construct the curl command args.
+// Returns the name of the created CronJob.
+func CreateCronJob(c *clients.Clients, routeURL, schedule, namespace string) string {
+	args := []string{"curl", "-X", "POST", "--data", "{}", routeURL}
+	cronjob := &batchv1.CronJob{
+		TypeMeta: metav1.TypeMeta{APIVersion: batchv1.SchemeGroupVersion.String(), Kind: "CronJob"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "hello",
+		},
+		Spec: batchv1.CronJobSpec{
+			Schedule: schedule,
+			JobTemplate: batchv1.JobTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "hello",
+				},
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "hello",
+									Image: "image-registry.openshift-image-registry.svc:5000/openshift/golang",
+									Args:  args,
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			},
+		},
+	}
+	cj, err := c.KubeClient.Kube.BatchV1().CronJobs(namespace).Create(c.Ctx, cronjob, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to create cron job in namespace %s", namespace))
+	log.Printf("Cronjob: %s created in namespace: %s", cj.Name, namespace)
+	return cj.Name
+}
+
+// DeleteCronJob deletes a CronJob by name in the given namespace.
+func DeleteCronJob(c *clients.Clients, name, namespace string) {
+	propagationPolicy := metav1.DeletePropagationBackground
+	err := c.KubeClient.Kube.BatchV1().CronJobs(namespace).Delete(c.Ctx, name, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	if err != nil {
+		log.Printf("Delete cron job %s failed: %v", name, err)
+	}
+}
