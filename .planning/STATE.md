@@ -41,10 +41,10 @@ Progress: [█████░░░░░] 45%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-repair | 2 | 6min | 3min |
-| 02-suite-scaffolding | 2 | 5min | 2.5min |
+| 02-suite-scaffolding | 3 | 8min | 2.7min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2min), 01-02 (4min), 02-01 (3min), 02-03 (2min)
+- Last 5 plans: 01-01 (2min), 01-02 (4min), 02-01 (3min), 02-03 (2min), 02-02 (3min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -68,6 +68,9 @@ Recent decisions affecting current work:
 - [02-03]: Entry parameters use literals only -- tree-construction-time pitfall documented as critical comment block
 - [02-03]: Skip patterns demonstrate three condition sources: config.Flags.IsDisconnected, config.Flags.ClusterArch, os.Getenv
 - [02-03]: Both It-level and BeforeEach-level Skip patterns shown as distinct use cases
+- [02-02]: Used PDescribe (pending) for all pattern specs to avoid requiring a live cluster during scaffolding
+- [02-02]: Placed all three patterns in single file in operator suite since operator tests use all patterns heavily
+- [02-02]: Added sharedClients accessibility spec to verify cross-file package variable sharing compiles
 
 ### Pending Todos
 
@@ -82,5 +85,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-04-02
-Stopped at: Completed 02-03-PLAN.md (Pattern Reference Specs)
+Stopped at: Completed 02-02-PLAN.md (DeferCleanup/Eventually/Ordered Pattern Specs) -- Phase 2 complete
 Resume file: None

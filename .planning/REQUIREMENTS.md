@@ -20,9 +20,9 @@
 - [x] **SUITE-02**: Implement `BeforeSuite` for cluster client initialization via `pkg/clients`
 - [x] **SUITE-03**: Implement `AfterSuite` for global cleanup
 - [x] **SUITE-04**: Implement Label system mapping Gauge tags — `Label("sanity")`, `Label("smoke")`, `Label("e2e")`, `Label("disconnected")`
-- [ ] **SUITE-05**: Implement `DeferCleanup` pattern for automatic resource teardown co-located with creation
-- [ ] **SUITE-06**: Implement `Eventually`/`Consistently` async assertions replacing sleep-based polling
-- [ ] **SUITE-07**: Implement `Ordered` containers for multi-step workflow tests (replacing Gauge's implicit step ordering)
+- [x] **SUITE-05**: Implement `DeferCleanup` pattern for automatic resource teardown co-located with creation
+- [x] **SUITE-06**: Implement `Eventually`/`Consistently` async assertions replacing sleep-based polling
+- [x] **SUITE-07**: Implement `Ordered` containers for multi-step workflow tests (replacing Gauge's implicit step ordering)
 - [x] **SUITE-08**: Implement `DescribeTable`/`Entry` for data-driven tests (replacing Gauge data tables)
 - [x] **SUITE-09**: Implement `Skip` decorator for conditional tests (disconnected cluster, arch-specific)
 
@@ -123,9 +123,9 @@
 | SUITE-02 | Phase 2 | Complete |
 | SUITE-03 | Phase 2 | Complete |
 | SUITE-04 | Phase 2 | Complete |
-| SUITE-05 | Phase 2 | Pending |
-| SUITE-06 | Phase 2 | Pending |
-| SUITE-07 | Phase 2 | Pending |
+| SUITE-05 | Phase 2 | Complete |
+| SUITE-06 | Phase 2 | Complete |
+| SUITE-07 | Phase 2 | Complete |
 | SUITE-08 | Phase 2 | Complete |
 | SUITE-09 | Phase 2 | Complete |
 | SNTY-01 | Phase 3 | Pending |
