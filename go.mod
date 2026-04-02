@@ -1,4 +1,4 @@
-module github.com/srivickynesh/release-tests-ginkgo
+module github.com/openshift-pipelines/release-tests-ginkgo
 
 go 1.23.4
 

@@ -2,7 +2,7 @@ package pac_test
 
 import (
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/pac"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pac"
 )
 
 var _ = Describe("Pipelines As Code tests", func() {

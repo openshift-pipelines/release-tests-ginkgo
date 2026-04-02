@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/clients"
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/opc"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/tektoncd/operator/test/utils"
 )
 

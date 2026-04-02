@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/config"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"gotest.tools/v3/icmd"
 
 	. "github.com/onsi/gomega"

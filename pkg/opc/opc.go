@@ -11,7 +11,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"gotest.tools/v3/icmd"
 )
 

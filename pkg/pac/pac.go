@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/oc"
-	"github.com/srivickynesh/release-tests-ginkgo/pkg/store"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 	"github.com/xanzy/go-gitlab"
 
 	. "github.com/onsi/ginkgo/v2"
