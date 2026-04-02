@@ -52,11 +52,12 @@ Plans:
   3. A sample spec demonstrates `DeferCleanup` executing resource teardown even when the spec fails (verified by creating and cleaning up a test namespace)
   4. A sample spec demonstrates `Eventually` polling a Kubernetes resource condition (e.g., deployment readiness) instead of using `time.Sleep`
   5. Sample specs demonstrate `Ordered` container (multi-step sequential workflow), `DescribeTable`/`Entry` (data-driven test), and `Skip` (conditional execution) -- all three patterns produce correct Ginkgo output
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Create suite_test.go entry points for all 11 test areas with BeforeSuite/AfterSuite and labels
+- [ ] 02-02-PLAN.md -- DeferCleanup, Eventually/Consistently, and Ordered pattern reference specs
+- [ ] 02-03-PLAN.md -- DescribeTable/Entry and Skip pattern reference specs
 
 ### Phase 3: Sanity Test Migration
 **Goal**: The first real tests are migrated and running, JUnit XML output is validated against the Polarion uploader, and the Gauge-to-Ginkgo migration pattern is proven end-to-end
