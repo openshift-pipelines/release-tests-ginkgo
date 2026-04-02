@@ -1,0 +1,12 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: pullrequest-vb
+spec:
+  serviceAccountName: 'foobar'
+  taskSpec:
+    steps:
+    - name: hell-world
+      image: image-registry.openshift-image-registry.svc:5000/openshift/golang
+      script: |
+        echo "Hello, world"
