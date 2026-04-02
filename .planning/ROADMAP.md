@@ -133,11 +133,11 @@ Plans:
   1. Running `ginkgo run ./tests/pac/` executes all 7 PAC tests with pass/fail results matching the Gauge PAC suite
   2. PAC tests that require sequential steps (create webhook, trigger pipeline, validate result) use `Ordered` containers and execute in the correct order
   3. GitLab webhook configuration and cleanup work correctly -- webhooks created during tests are deleted in DeferCleanup even on test failure
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md -- Port PAC helper functions to pkg/pac, pkg/pipelines, pkg/k8s
+- [ ] 08-02-PLAN.md -- Migrate all 7 PAC test specs with Ordered/Serial containers
 
 ### Phase 9: Remaining Areas Migration
 **Goal**: All remaining small test areas (chains, results, MAG, metrics, versions, OLM, console) are migrated, completing 100% test coverage
@@ -198,7 +198,7 @@ Phases 1-3 are strictly sequential. Phases 4-9 depend on Phase 3 and can be work
 | 5. Triggers Migration | 0/TBD | Not started | - |
 | 6. Operator Migration | 0/TBD | Not started | - |
 | 7. Pipelines Core Migration | 0/TBD | Not started | - |
-| 8. PAC Migration | 0/TBD | Not started | - |
+| 8. PAC Migration | 0/2 | Not started | - |
 | 9. Remaining Areas Migration | 0/TBD | Not started | - |
 | 10. CI and Reporting | 0/TBD | Not started | - |
 | 11. Parity Validation | 0/TBD | Not started | - |
