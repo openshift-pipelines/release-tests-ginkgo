@@ -148,10 +148,12 @@ Plans:
   1. Running `ginkgo run ./tests/chains/ ./tests/results/ ./tests/mag/ ./tests/metrics/ ./tests/versions/ ./tests/olm/` executes all 13 remaining tests with correct pass/fail results
   2. Every migrated test across all areas has a Polarion test case ID in its test name and produces a JUnit XML entry
   3. The total test count across all 11 areas matches the expected 110+ OpenShift-specific tests (excluding the ~25 dropped upstream tests)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 09-01: TBD
+- [ ] 09-01-PLAN.md — Migrate chains (2 tests) and results (2 tests) with helper packages and testdata
+- [ ] 09-02-PLAN.md — Migrate MAG (2 tests) and metrics (1 test) with helper packages and testdata
+- [ ] 09-03-PLAN.md — Migrate versions (2 tests), OLM (3 tests), and console icon (1 test) with helper packages
 
 ### Phase 10: CI and Reporting
 **Goal**: The Ginkgo test suite runs in CI with a purpose-built Docker image, label-based filtering, diagnostic collection on failure, parallel execution, and proper timeout configuration
@@ -200,6 +202,6 @@ Phases 1-3 are strictly sequential. Phases 4-9 depend on Phase 3 and can be work
 | 6. Operator Migration | 0/TBD | Not started | - |
 | 7. Pipelines Core Migration | 0/TBD | Not started | - |
 | 8. PAC Migration | 0/2 | Not started | - |
-| 9. Remaining Areas Migration | 0/TBD | Not started | - |
+| 9. Remaining Areas Migration | 0/3 | Not started | - |
 | 10. CI and Reporting | 0/3 | Not started | - |
 | 11. Parity Validation | 0/2 | Not started | - |
