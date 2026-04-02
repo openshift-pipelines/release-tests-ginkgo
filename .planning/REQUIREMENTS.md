@@ -9,10 +9,10 @@
 
 - [x] **FOUND-01**: Fix dual store import — `pkg/oc` must reference local `pkg/store`, not the original Gauge repo's store
 - [x] **FOUND-02**: Rename module path from `github.com/srivickynesh/release-tests-ginkgo` to `github.com/openshift-pipelines/release-tests-ginkgo`
-- [ ] **FOUND-03**: Upgrade Go version from 1.23 to 1.24+
-- [ ] **FOUND-04**: Upgrade Ginkgo from v2.13.0 to v2.27+ and Gomega from v1.29.0 to v1.38+
+- [x] **FOUND-03**: Upgrade Go version from 1.23 to 1.24+
+- [x] **FOUND-04**: Upgrade Ginkgo from v2.13.0 to v2.27+ and Gomega from v1.29.0 to v1.38+
 - [x] **FOUND-05**: Clone original `openshift-pipelines/release-tests` repo as local reference source
-- [ ] **FOUND-06**: Remove or replace any transitive Gauge dependencies from go.mod
+- [x] **FOUND-06**: Remove or replace any transitive Gauge dependencies from go.mod
 
 ### Suite Structure
 
@@ -115,10 +115,10 @@
 |-------------|-------|--------|
 | FOUND-01 | Phase 1 | Complete |
 | FOUND-02 | Phase 1 | Complete |
-| FOUND-03 | Phase 1 | Pending |
-| FOUND-04 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Complete |
+| FOUND-04 | Phase 1 | Complete |
 | FOUND-05 | Phase 1 | Complete |
-| FOUND-06 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Complete |
 | SUITE-01 | Phase 2 | Pending |
 | SUITE-02 | Phase 2 | Pending |
 | SUITE-03 | Phase 2 | Pending |
