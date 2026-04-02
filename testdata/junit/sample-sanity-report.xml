@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="Versions Suite" tests="2" failures="0" errors="0" time="45.123">
+    <testcase name="[Versions Suite] PIPELINES-22: Versions PIPELINES-22-TC01: Check server side components versions" classname="Versions Suite" time="30.5" status="passed">
+      <system-out>Component versions verified successfully</system-out>
+    </testcase>
+    <testcase name="[Versions Suite] PIPELINES-22: Versions PIPELINES-22-TC02: Check client versions" classname="Versions Suite" time="14.623" status="passed">
+      <system-out>Client versions verified successfully</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="Pipelines Suite" tests="7" failures="0" errors="0" time="312.456">
+    <testcase name="[Pipelines Suite] PIPELINES-03: Pipeline Runs PIPELINES-03-TC04: Pipelinerun Timeout failure" classname="Pipelines Suite" time="65.1" status="passed">
+      <system-out>Pipeline run timed out as expected</system-out>
+    </testcase>
+    <testcase name="[Pipelines Suite] PIPELINES-03: Pipeline Runs PIPELINES-03-TC05: Configure execution results at Task level" classname="Pipelines Suite" time="42.3" status="passed">
+      <system-out>Task level results validated</system-out>
+    </testcase>
+    <testcase name="[Pipelines Suite] PIPELINES-03: Pipeline Runs PIPELINES-03-TC06: Cancel pipelinerun" classname="Pipelines Suite" time="38.7" status="passed">
+      <system-out>Pipeline run cancelled successfully</system-out>
+    </testcase>
+    <testcase name="[Pipelines Suite] PIPELINES-03: Pipeline Runs PIPELINES-03-TC08: Pipelinerun with large result" classname="Pipelines Suite" time="55.2" status="passed">
+      <system-out>Large result pipeline run succeeded</system-out>
+    </testcase>
+    <testcase name="[Pipelines Suite] PIPELINES-02: Pipeline Failures PIPELINES-02-TC01: Run Pipeline with non-existent ServiceAccount" classname="Pipelines Suite" time="30.1" status="passed">
+      <system-out>Pipeline failed as expected with non-existent SA</system-out>
+    </testcase>
+    <testcase name="[Pipelines Suite] PIPELINES-25: Bundles Resolver PIPELINES-25-TC02: Bundles resolver with parameter" classname="Pipelines Suite" time="45.6" status="passed">
+      <system-out>Bundles resolver pipeline run succeeded</system-out>
+    </testcase>
+    <testcase name="[Pipelines Suite] PIPELINES-24: Git Resolver PIPELINES-24-TC01: Git resolver" classname="Pipelines Suite" time="35.4" status="passed">
+      <system-out>Git resolver pipeline run succeeded</system-out>
+    </testcase>
+  </testsuite>
+</testsuites>
