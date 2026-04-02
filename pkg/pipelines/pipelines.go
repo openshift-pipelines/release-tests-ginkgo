@@ -1,22 +1,28 @@
 package pipelines
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/wait"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	w "k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 var prGroupResource = schema.GroupVersionResource{Group: "tekton.dev", Resource: "pipelineruns"}
@@ -190,6 +196,71 @@ func getPipelinerunLogs(prname, namespace string) string {
 	return result.Stdout()
 }
 
+// WatchForPipelineRun watches for new PipelineRun creation in the namespace for 5 minutes.
+// It returns the count of PipelineRuns observed and their names via GinkgoWriter.
+func WatchForPipelineRun(c *clients.Clients, namespace string) int {
+	var prnames []string
+	watchRun, err := k8s.Watch(c.Ctx, prGroupResource, c, namespace, metav1.ListOptions{})
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to watch pipeline runs in namespace %s", namespace))
+
+	ch := watchRun.ResultChan()
+	go func() {
+		for event := range ch {
+			run, err := cast2pipelinerun(event.Object)
+			if err != nil {
+				GinkgoWriter.Printf("failed to convert pipeline run: %v\n", err)
+				continue
+			}
+			if event.Type == watch.Added {
+				log.Printf("pipeline run : %s", run.Name)
+				prnames = append(prnames, run.Name)
+			}
+		}
+	}()
+	time.Sleep(5 * time.Minute)
+	GinkgoWriter.Printf("WatchForPipelineRun: %+v\n", prnames)
+	return len(prnames)
+}
+
+// AssertForNoNewPipelineRunCreation asserts that no new PipelineRuns are created
+// in the namespace within a 1-minute observation window.
+func AssertForNoNewPipelineRunCreation(c *clients.Clients, namespace string) {
+	count := 0
+	watchRun, err := k8s.Watch(c.Ctx, prGroupResource, c, namespace, metav1.ListOptions{})
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to watch pipeline runs in namespace %s", namespace))
+
+	ch := watchRun.ResultChan()
+	go func() {
+		for event := range ch {
+			if event.Type == watch.Added {
+				count++
+			}
+		}
+	}()
+	time.Sleep(1 * time.Minute)
+	Expect(count).To(Equal(0),
+		fmt.Sprintf("Expected no new PipelineRuns in namespace %s, but %d were created", namespace, count))
+}
+
+// AssertNumberOfPipelineruns waits until the expected number of PipelineRuns exist in the namespace
+// within the given timeout (in seconds).
+func AssertNumberOfPipelineruns(c *clients.Clients, namespace, numberOfPr, timeoutSeconds string) {
+	log.Printf("Verifying if %s pipelineruns are present", numberOfPr)
+	timeoutSecondsInt, _ := strconv.Atoi(timeoutSeconds)
+	err := w.PollUntilContextTimeout(c.Ctx, config.APIRetry, time.Second*time.Duration(timeoutSecondsInt), false, func(context.Context) (bool, error) {
+		prlist, err := c.PipelineRunClient.List(c.Ctx, metav1.ListOptions{})
+		numberOfPrInt, _ := strconv.Atoi(numberOfPr)
+		if len(prlist.Items) == numberOfPrInt {
+			return true, nil
+		}
+		return false, err
+	})
+	if err != nil {
+		prlist, _ := c.PipelineRunClient.List(c.Ctx, metav1.ListOptions{})
+		Fail(fmt.Sprintf("error: Expected %v pipelineruns but found %v pipelineruns: %s", numberOfPr, len(prlist.Items), err))
+	}
+}
+
 // GetLatestPipelinerun returns the name of the most recently created PipelineRun in the namespace.
 func GetLatestPipelinerun(c *clients.Clients, namespace string) (string, error) {
 	prs, err := c.PipelineRunClient.List(c.Ctx, metav1.ListOptions{})
@@ -234,6 +305,3 @@ func CheckLogVersion(c *clients.Clients, binary, namespace string) {
 	}
 }
 
-// Ensure unused imports are satisfied
-var _ = prGroupResource
-var _ = cast2pipelinerun
