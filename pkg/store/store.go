@@ -10,8 +10,8 @@ import (
 )
 
 // scenarioStore holds data for the current test scenario.
-var scenarioStore = make(map[string]interface{})
-var suiteStore = make(map[string]interface{})
+var scenarioStore = make(map[string]any)
+var suiteStore = make(map[string]any)
 var mu sync.RWMutex
 
 // Namespace returns the stored namespace for the scenario.
@@ -119,14 +119,14 @@ func TargetNamespace() string {
 }
 
 // PutSuiteData stores a value under the given key for the entire test suite.
-func PutSuiteData(key string, value interface{}) {
+func PutSuiteData(key string, value any) {
 	mu.Lock()
 	defer mu.Unlock()
 	suiteStore[key] = value
 }
 
 // GetSuiteData retrieves a value stored under the given key for the suite.
-func GetSuiteData(key string) interface{} {
+func GetSuiteData(key string) any {
 	mu.RLock()
 	defer mu.RUnlock()
 	return suiteStore[key]

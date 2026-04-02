@@ -26,7 +26,7 @@ func SetGitLabClient(c *gitlab.Client) {
 func InitGitLabClient() *gitlab.Client {
 	tokenSecretData := os.Getenv("GITLAB_TOKEN")
 	webhookSecretData := os.Getenv("GITLAB_WEBHOOK_TOKEN")
-	if tokenSecretData == "" && webhookSecretData == "" {
+	if tokenSecretData == "" || webhookSecretData == "" {
 		Fail("token for authorization to the GitLab repository was not exported as a system variable")
 	} else {
 		if !oc.SecretExists(webhookConfigName, store.Namespace()) {

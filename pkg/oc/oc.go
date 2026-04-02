@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -48,7 +49,7 @@ func DeleteProject(ns string) {
 	log.Printf("output: %s\n", cmd.MustSucceed("oc", "delete", "project", ns).Stdout())
 }
 
-func DeleteProjectIgnoreErors(ns string) {
+func DeleteProjectIgnoreErrors(ns string) {
 	log.Printf("output: %s\n", cmd.Run("oc", "delete", "project", ns).Stdout())
 }
 
@@ -165,7 +166,37 @@ func CreateChainsImageRegistrySecret(dockerConfig string) {
 
 func CopySecret(secretName string, sourceNamespace string, destNamespace string) {
 	secretJson := cmd.MustSucceed("oc", "get", "secret", secretName, "-n", sourceNamespace, "-o", "json").Stdout()
-	cmdOutput := cmd.MustSucceed("bash", "-c", fmt.Sprintf(`echo '%s' | jq 'del(.metadata["namespace", "creationTimestamp", "resourceVersion", "selfLink", "uid", "annotations"]) | .data |= with_entries(if .key == "github-auth-key" then .key = "token" else . end)'`, secretJson)).Stdout()
-	cmd.MustSucceed("bash", "-c", fmt.Sprintf(`echo '%s' | kubectl apply -n %s -f -`, cmdOutput, destNamespace))
+
+	// Process in Go instead of piping through shell to avoid injection
+	var secret map[string]any
+	Expect(json.Unmarshal([]byte(secretJson), &secret)).To(Succeed(), "failed to parse secret JSON")
+
+	// Remove metadata fields
+	if meta, ok := secret["metadata"].(map[string]any); ok {
+		for _, key := range []string{"namespace", "creationTimestamp", "resourceVersion", "selfLink", "uid", "annotations"} {
+			delete(meta, key)
+		}
+	}
+
+	// Rename "github-auth-key" to "token" in data
+	if data, ok := secret["data"].(map[string]any); ok {
+		if val, exists := data["github-auth-key"]; exists {
+			data["token"] = val
+			delete(data, "github-auth-key")
+		}
+	}
+
+	cleanedJson, err := json.Marshal(secret)
+	Expect(err).NotTo(HaveOccurred(), "failed to marshal cleaned secret")
+
+	tmpFile, err := os.CreateTemp("", "secret-*.json")
+	Expect(err).NotTo(HaveOccurred(), "failed to create temp file for secret")
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.Write(cleanedJson)
+	Expect(err).NotTo(HaveOccurred(), "failed to write secret to temp file")
+	Expect(tmpFile.Close()).To(Succeed())
+
+	cmd.MustSucceed("kubectl", "apply", "-n", destNamespace, "-f", tmpFile.Name())
 	log.Printf("Successfully copied secret %s from %s to %s", secretName, sourceNamespace, destNamespace)
 }

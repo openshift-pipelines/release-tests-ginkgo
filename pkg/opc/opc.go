@@ -1,13 +1,10 @@
 package opc
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -89,10 +86,7 @@ func AssertComponentVersion(version string, component string) {
 func DownloadCLIFromCluster() {
 	var architecture = strings.Trim(cmd.MustSucceed("uname").Stdout(), "\n") + " " + strings.Trim(cmd.MustSucceed("uname", "-m").Stdout(), "\n")
 	var cliDownloadURL = cmd.MustSucceed("oc", "get", "consoleclidownloads", "tkn", "-o", "jsonpath={.spec.links[?(@.text==\"Download tkn and tkn-pac for "+architecture+"\")].href}").Stdout()
-	result := cmd.MustSucceedIncreasedTimeout(time.Minute*10, "curl", "-o", "/tmp/tkn-binary.tar.gz", "-k", cliDownloadURL)
-	if result.ExitCode != 0 {
-		Fail(fmt.Sprintf("Expected exit code 0 but got %d", result.ExitCode))
-	}
+	cmd.MustSucceedIncreasedTimeout(time.Minute*10, "curl", "-o", "/tmp/tkn-binary.tar.gz", "-k", cliDownloadURL)
 	cmd.MustSucceed("tar", "-xf", "/tmp/tkn-binary.tar.gz", "-C", "/tmp")
 }
 
@@ -179,33 +173,6 @@ func (opc Cmd) Assert(exp icmd.Expected, args ...string) string {
 	return output.Stdout()
 }
 
-type CapturingPassThroughWriter struct {
-	m   sync.RWMutex
-	buf bytes.Buffer
-	w   io.Writer
-}
-
-// NewCapturingPassThroughWriter creates new CapturingPassThroughWriter
-func NewCapturingPassThroughWriter(w io.Writer) *CapturingPassThroughWriter {
-	return &CapturingPassThroughWriter{
-		w: w,
-	}
-}
-
-func (w *CapturingPassThroughWriter) Write(d []byte) (int, error) {
-	w.m.Lock()
-	defer w.m.Unlock()
-	w.buf.Write(d)
-	return w.w.Write(d)
-}
-
-// Bytes returns bytes written to the writer
-func (w *CapturingPassThroughWriter) Bytes() []byte {
-	w.m.RLock()
-	defer w.m.RUnlock()
-	return w.buf.Bytes()
-}
-
 func StartPipeline(pipelineName string, params map[string]string, workspaces map[string]string, namespace string, args ...string) string {
 	var commandArgs []string
 	commandArgs = append(commandArgs, "opc", "pipeline", "start", pipelineName, "-o", "name", "-n", namespace)
@@ -216,8 +183,12 @@ func StartPipeline(pipelineName string, params map[string]string, workspaces map
 		commandArgs = append(commandArgs, fmt.Sprintf("-w %s,%s", key, value))
 	}
 	commandArgs = append(commandArgs, args...)
-	commandArgs = strings.Split(strings.Join(commandArgs, " "), " ")
-	pipelineRunName := strings.Trim(cmd.MustSucceed(commandArgs...).Stdout(), "\n")
+	// Build args correctly without join+split (which breaks args containing spaces)
+	var flatArgs []string
+	for _, arg := range commandArgs {
+		flatArgs = append(flatArgs, strings.Fields(arg)...)
+	}
+	pipelineRunName := strings.Trim(cmd.MustSucceed(flatArgs...).Stdout(), "\n")
 	log.Printf("Pipelinerun %s started", pipelineRunName)
 	return pipelineRunName
 }
