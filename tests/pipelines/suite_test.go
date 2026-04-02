@@ -2,6 +2,7 @@ package pipelines_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -16,6 +17,14 @@ var sharedClients *clients.Clients
 // lastNamespace tracks the current test namespace for diagnostic collection.
 // Set in BeforeEach by test specs; read in ReportAfterEach by diagnostics collector.
 var lastNamespace string
+
+// nsCounter provides unique namespace names per test.
+var nsCounter int
+
+func uniqueNS(prefix string) string {
+	nsCounter++
+	return fmt.Sprintf("%s-%d-%d", prefix, GinkgoParallelProcess(), nsCounter)
+}
 
 func TestPipelines(t *testing.T) {
 	RegisterFailHandler(Fail)
