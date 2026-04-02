@@ -12,6 +12,7 @@ var _ = Describe("TriggerBindings", Label("triggers"), func() {
 
 	It("PIPELINES-10-TC01: Verify CEL marshaljson function", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 		oc.Create("testdata/triggers/triggerbindings/cel-marshalJson.yaml", ns)
 		DeferCleanup(func() { triggers.CleanupTriggers(sharedClients, "cel-marshaljson", ns) })
 		routeURL := triggers.ExposeEventListener(sharedClients, "cel-marshaljson", ns)
@@ -22,6 +23,7 @@ var _ = Describe("TriggerBindings", Label("triggers"), func() {
 
 	It("PIPELINES-10-TC02: Verify event message body parsing with old annotation", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 		oc.Create("testdata/triggers/triggerbindings/parse-json-body-with-annotation.yaml", ns)
 		DeferCleanup(func() { triggers.CleanupTriggers(sharedClients, "parse-json-body-with-annotation", ns) })
 		routeURL := triggers.ExposeEventListener(sharedClients, "parse-json-body-with-annotation", ns)

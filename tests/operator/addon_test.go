@@ -84,6 +84,7 @@ var _ = Describe("PIPELINES-15: Verify Addon E2E", Serial, Ordered,
 	Label("e2e", "operator", "addon", "admin"), func() {
 
 		BeforeAll(func() {
+			lastNamespace = "openshift-pipelines"
 			operator.ValidateOperatorInstallStatus(sharedClients, store.GetCRNames())
 
 			// Restore resolverTasks and pipelineTemplates to defaults on cleanup

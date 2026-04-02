@@ -20,6 +20,7 @@ var _ = Describe("PIPELINES-13: Verify HPA", Serial,
 	Label("operator", "admin", "hpa"), func() {
 
 		BeforeEach(func() {
+			lastNamespace = "openshift-pipelines"
 			operator.ValidateOperatorInstallStatus(sharedClients, store.GetCRNames())
 		})
 

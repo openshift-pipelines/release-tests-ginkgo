@@ -56,6 +56,7 @@ var _ = DescribeTable("S2I Ecosystem Task Pipelines",
 		}
 
 		ns := createTestNamespace("eco-s2i")
+		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
@@ -181,6 +182,7 @@ var _ = Describe("S2I Full Flow Tests", Label("ecosystem", "e2e", "s2i"), func()
 
 	It("S2I nodejs pipelinerun with route validation: PIPELINES-33-TC01", Label("sanity"), func() {
 		ns := createTestNamespace("eco-s2i-nodejs")
+		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 

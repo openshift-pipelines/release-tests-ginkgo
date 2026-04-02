@@ -19,6 +19,7 @@ var _ = Describe("PIPELINES-25: Bundles Resolver", Label("e2e"), func() {
 	BeforeEach(func() {
 		ns = uniqueNS("resolver-bun")
 		oc.CreateNewProject(ns)
+		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
 			oc.DeleteProjectIgnoreErrors(ns)
@@ -56,6 +57,7 @@ var _ = Describe("PIPELINES-23: Cluster Resolvers", Ordered, Label("e2e"), func(
 	It("PIPELINES-23-TC01: Cluster resolver cross-namespace resolution", Label("sanity"), func() {
 		ns = uniqueNS("resolver-cluster")
 		oc.CreateNewProject(ns)
+		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
 			oc.DeleteProjectIgnoreErrors(ns)
@@ -68,6 +70,7 @@ var _ = Describe("PIPELINES-23: Cluster Resolvers", Ordered, Label("e2e"), func(
 	It("PIPELINES-23-TC02: Cluster resolver same-namespace resolution", func() {
 		ns = uniqueNS("resolver-cluster-sns")
 		oc.CreateNewProject(ns)
+		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
 			oc.DeleteProjectIgnoreErrors(ns)
@@ -85,6 +88,7 @@ var _ = Describe("PIPELINES-24: Git Resolvers", Label("e2e"), func() {
 	BeforeEach(func() {
 		ns = uniqueNS("resolver-git")
 		oc.CreateNewProject(ns)
+		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
 			oc.DeleteProjectIgnoreErrors(ns)
@@ -123,6 +127,7 @@ var _ = Describe("PIPELINES-31: HTTP Resolvers", Label("e2e"), func() {
 	It("PIPELINES-31-TC01: Test HTTP resolver functionality", Label("sanity"), func() {
 		ns := uniqueNS("resolver-http")
 		oc.CreateNewProject(ns)
+		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
 			oc.DeleteProjectIgnoreErrors(ns)
@@ -139,6 +144,7 @@ var _ = Describe("PIPELINES-32: Hub Resolvers", Label("e2e"), func() {
 	It("PIPELINES-32-TC01: Test hub resolver functionality", Label("sanity"), func() {
 		ns := uniqueNS("resolver-hub")
 		oc.CreateNewProject(ns)
+		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
 			oc.DeleteProjectIgnoreErrors(ns)

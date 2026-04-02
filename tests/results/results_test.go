@@ -14,6 +14,10 @@ import (
 var _ = Describe("Tekton Results", Label("results", "e2e"), func() {
 
 	Describe("PIPELINES-26-TC01: Test Tekton results with TaskRun", Label("sanity"), Ordered, func() {
+		BeforeAll(func() {
+			lastNamespace = config.TargetNamespace
+		})
+
 		It("verifies golang imagestream exists", func() {
 			cmd.MustSucceed("oc", "get", "is", "golang", "-n", "openshift")
 		})
@@ -43,6 +47,10 @@ var _ = Describe("Tekton Results", Label("results", "e2e"), func() {
 	})
 
 	Describe("PIPELINES-26-TC02: Test Tekton results with PipelineRun", Label("sanity"), Ordered, func() {
+		BeforeAll(func() {
+			lastNamespace = config.TargetNamespace
+		})
+
 		It("verifies golang imagestream exists", func() {
 			cmd.MustSucceed("oc", "get", "is", "golang", "-n", "openshift")
 		})

@@ -43,6 +43,7 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 	func(testcaseID, pipelineRunName string, resources []string, expectedStatus string) {
 		// Create isolated namespace for this test
 		ns := createTestNamespace("eco-simple")
+		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 
 		// Initialize typed clients scoped to the new namespace
@@ -150,6 +151,7 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 var _ = DescribeTable("Ecosystem Task Pipelines with Extra Verification",
 	func(testcaseID, pipelineRunName string, resources []string, expectedStatus string, postVerify func(ns string)) {
 		ns := createTestNamespace("eco-extra")
+		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
@@ -217,6 +219,7 @@ var _ = Describe("Ecosystem Special Tasks", Label("ecosystem", "e2e"), func() {
 	// openshift-pipelines namespace before creating the pipelinerun.
 	It("pull-request pipelinerun: PIPELINES-29-TC19", Label("pull-request"), func() {
 		ns := createTestNamespace("eco-pull-request")
+		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
@@ -240,6 +243,7 @@ var _ = Describe("Ecosystem Special Tasks", Label("ecosystem", "e2e"), func() {
 		}
 
 		ns := createTestNamespace("eco-buildah-disc")
+		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
@@ -278,6 +282,7 @@ var _ = DescribeTable("Multiarch Ecosystem Task Pipelines",
 		}
 
 		ns := createTestNamespace("eco-multiarch")
+		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 

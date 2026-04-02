@@ -142,6 +142,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 	Label("e2e", "operator", "auto-prune", "admin"), func() {
 
 		BeforeEach(func() {
+			lastNamespace = store.Namespace()
 			operator.ValidateOperatorInstallStatus(sharedClients, store.GetCRNames())
 		})
 

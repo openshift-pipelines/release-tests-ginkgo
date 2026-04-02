@@ -30,6 +30,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 
 		It("PIPELINES-18-TC01: Setup environment for upgrade test", func() {
 			ns := "releasetest-upgrade-triggers"
+			lastNamespace = ns
 			oc.CreateNewProject(ns)
 
 			// Verify pipeline SA exists
@@ -92,6 +93,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 
 		It("PIPELINES-18-TC03: Setup Eventlistener with TLS enabled pre upgrade", Label("sanity", "tls", "triggers"), func() {
 			ns := "releasetest-upgrade-tls"
+			lastNamespace = ns
 			oc.CreateNewProject(ns)
 
 			oc.EnableTLSConfigForEventlisteners(ns)
@@ -113,6 +115,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 
 		It("PIPELINES-18-TC04: Setup link secret to pipeline SA", Label("sanity", "git-clone"), func() {
 			ns := "releasetest-upgrade-pipelines"
+			lastNamespace = ns
 			oc.CreateNewProject(ns)
 
 			operator.AssertServiceAccountPresent(sharedClients, ns, "pipeline")
@@ -129,6 +132,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 
 		It("PIPELINES-18-TC05: Setup S2I golang pipeline pre upgrade", Label("s2i"), func() {
 			ns := "releasetest-upgrade-s2i"
+			lastNamespace = ns
 			oc.CreateNewProject(ns)
 
 			operator.AssertServiceAccountPresent(sharedClients, ns, "pipeline")
@@ -160,6 +164,7 @@ var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade te
 
 		It("PIPELINES-19-TC01: Verify environment after upgrade", func() {
 			ns := "releasetest-upgrade-triggers"
+			lastNamespace = ns
 			cmd.MustSucceed("oc", "project", ns)
 
 			// GitHub push event
@@ -189,6 +194,7 @@ var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade te
 
 		It("PIPELINES-19-TC03: Verify Event listener with TLS after upgrade", Label("sanity", "tls", "triggers"), func() {
 			ns := "releasetest-upgrade-tls"
+			lastNamespace = ns
 			cmd.MustSucceed("oc", "project", ns)
 
 			route := triggers.GetRoute("listener-embed-binding", ns)
@@ -201,6 +207,7 @@ var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade te
 
 		It("PIPELINES-19-TC04: Verify secret is linked to SA even after upgrade", Label("sanity", "git-clone"), func() {
 			ns := "releasetest-upgrade-pipelines"
+			lastNamespace = ns
 			cmd.MustSucceed("oc", "project", ns)
 
 			operator.AssertServiceAccountPresent(sharedClients, ns, "pipeline")
@@ -211,6 +218,7 @@ var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade te
 
 		It("PIPELINES-19-TC05: Verify S2I golang pipeline after upgrade", Label("s2i"), func() {
 			ns := "releasetest-upgrade-s2i"
+			lastNamespace = ns
 			cmd.MustSucceed("oc", "project", ns)
 
 			// Get imagestream tags for golang

@@ -19,6 +19,7 @@ var _ = Describe("Tutorial", Label("triggers"), func() {
 
 	It("PIPELINES-06-TC01: Run pipelines tutorials", Label("e2e", "integration", "non-admin", "pipelines", "tutorial", "skip-4.14"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		// Create pipeline tutorial resources from remote URLs
 		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/01_apply_manifest_task.yaml"), ns)
@@ -47,6 +48,7 @@ var _ = Describe("Tutorial", Label("triggers"), func() {
 
 	It("PIPELINES-06-TC02: Run pipelines tutorial using triggers", Label("e2e", "integration", "triggers", "non-admin", "tutorial", "sanity", "skip-4.14"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		// Create pipeline and trigger resources from remote URLs
 		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/01_apply_manifest_task.yaml"), ns)

@@ -14,6 +14,7 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 
 	Describe("PIPELINES-27-TC01: Using Tekton Chains to create and verify task run signatures", Label("sanity"), Ordered, func() {
 		BeforeAll(func() {
+			lastNamespace = config.TargetNamespace
 			// Update TektonConfig for taskrun signing
 			operator.UpdateTektonConfigForChains("in-toto", "tekton", "", "false")
 			DeferCleanup(operator.RestoreTektonConfigChains)
@@ -34,6 +35,7 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 
 	Describe("PIPELINES-27-TC02: Using Tekton Chains to sign and verify image and provenance", Ordered, func() {
 		BeforeAll(func() {
+			lastNamespace = config.TargetNamespace
 			if os.Getenv("CHAINS_REPOSITORY") == "" {
 				Skip("CHAINS_REPOSITORY not set -- skipping image signature test")
 			}

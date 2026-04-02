@@ -9,6 +9,10 @@ import (
 
 var _ = Describe("Versions of OpenShift Pipelines", Label("versions", "e2e"), func() {
 
+	BeforeEach(func() {
+		lastNamespace = "openshift-pipelines"
+	})
+
 	Describe("PIPELINES-22-TC01: Check server side components versions", Label("sanity"), func() {
 
 		DescribeTable("verifies component version",

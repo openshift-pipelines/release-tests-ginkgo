@@ -36,6 +36,7 @@ var _ = Describe("Pipelines As Code GitLab tests", func() {
 
 		BeforeAll(func() {
 			namespace = store.Namespace()
+			lastNamespace = namespace
 
 			gitlabClient = pac.InitGitLabClient(namespace)
 			pac.SetGitLabClient(gitlabClient)
@@ -108,6 +109,7 @@ var _ = Describe("Pipelines As Code GitLab tests", func() {
 
 		BeforeAll(func() {
 			namespace = store.Namespace()
+			lastNamespace = namespace
 
 			gitlabClient = pac.InitGitLabClient(namespace)
 			pac.SetGitLabClient(gitlabClient)
@@ -185,6 +187,7 @@ var _ = Describe("Pipelines As Code GitLab tests", func() {
 
 		BeforeAll(func() {
 			namespace = store.Namespace()
+			lastNamespace = namespace
 
 			gitlabClient = pac.InitGitLabClient(namespace)
 			pac.SetGitLabClient(gitlabClient)
@@ -260,6 +263,10 @@ var _ = Describe("Pipelines As Code TektonConfig tests", func() {
 	// PIPELINES-20-TC01: Enable/Disable PAC
 	// =========================================================================
 	Describe("PIPELINES-20-TC01: Enable/Disable PAC", Ordered, Serial, Label("pac", "sanity"), func() {
+
+		BeforeAll(func() {
+			lastNamespace = config.TargetNamespace
+		})
 
 		// setPACEnabled sets the pipelinesAsCode.enable field in the TektonConfig CR.
 		setPACEnabled := func(enabled bool) {

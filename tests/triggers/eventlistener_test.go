@@ -10,6 +10,9 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/triggers"
 )
 
+// NOTE (S4): Trigger tests use the shared config.TargetNamespace, matching the
+// original Gauge behavior. This means they cannot be safely parallelized —
+// concurrent tests would collide on the same namespace resources.
 var _ = Describe("EventListeners", Label("triggers"), func() {
 
 	// ============================================================
@@ -35,6 +38,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 	// ============================================================
 	It("PIPELINES-05-TC07: Create Eventlistener with TLS enabled", Label("tls", "triggers", "admin", "e2e"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 		oc.EnableTLSConfigForEventlisteners(ns)
 
 		oc.Create("testdata/triggers/sample-pipeline.yaml", ns)
@@ -63,6 +67,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 	// ============================================================
 	It("PIPELINES-05-TC08: Create Eventlistener embedded TriggersBindings specs", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/sample-pipeline.yaml", ns)
 		oc.Create("testdata/triggers/triggerbindings/triggerbinding.yaml", ns)
@@ -90,6 +95,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 	// ============================================================
 	It("PIPELINES-05-TC09: Create embedded TriggersTemplate", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/triggerbindings/triggerbinding.yaml", ns)
 		oc.Create("testdata/triggers/triggertemplate/embed-triggertemplate.yaml", ns)
@@ -116,6 +122,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 	// ============================================================
 	It("PIPELINES-05-TC10: Create Eventlistener with gitlab interceptor", Label("e2e", "triggers", "non-admin"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/gitlab/gitlab-push-listener.yaml", ns)
 
@@ -140,6 +147,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 
 	It("PIPELINES-05-TC11: Create Eventlistener with bitbucket interceptor", Label("e2e", "triggers", "non-admin"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/bitbucket/bitbucket-eventlistener-interceptor.yaml", ns)
 
@@ -168,6 +176,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 	// ============================================================
 	It("PIPELINES-05-TC12: Verify Github push event with Embedded TriggerTemplate using Github-CTB", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/github-ctb/Embeddedtriggertemplate-git-push.yaml", ns)
 		oc.Create("testdata/triggers/github-ctb/eventlistener-ctb-git-push.yaml", ns)
@@ -191,6 +200,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 
 	It("PIPELINES-05-TC13: Verify Github pull_request event with Embedded TriggerTemplate using Github-CTB", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/github-ctb/Embeddedtriggertemplate-git-pr.yaml", ns)
 		oc.Create("testdata/triggers/github-ctb/eventlistener-ctb-git-pr.yaml", ns)
@@ -216,6 +226,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 
 	It("PIPELINES-05-TC14: Verify Github pr_review event with Embedded TriggerTemplate using Github-CTB", Label("e2e", "triggers", "non-admin"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/github-ctb/Embeddedtriggertemplate-git-pr-review.yaml", ns)
 		oc.Create("testdata/triggers/github-ctb/eventlistener-ctb-git-pr-review.yaml", ns)
@@ -244,6 +255,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 	// ============================================================
 	It("PIPELINES-05-TC15: Create TriggersCRD resource with CEL interceptors (overlays)", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/triggersCRD/eventlistener-triggerref.yaml", ns)
 		oc.Create("testdata/triggers/triggersCRD/trigger.yaml", ns)
@@ -275,6 +287,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 	// ============================================================
 	It("PIPELINES-05-TC16: Create multiple Eventlistener with TLS enabled", Label("e2e", "tls", "triggers", "admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 		oc.EnableTLSConfigForEventlisteners(ns)
 
 		// First EventListener
@@ -314,6 +327,7 @@ var _ = Describe("EventListeners", Label("triggers"), func() {
 	// ============================================================
 	It("PIPELINES-05-TC17: Create Eventlistener with github interceptor And verify Kubernetes Events", Label("e2e", "events", "triggers", "admin", "sanity"), func() {
 		ns := config.TargetNamespace
+		lastNamespace = ns
 
 		oc.Create("testdata/triggers/sample-pipeline.yaml", ns)
 		oc.Create("testdata/triggers/triggerbindings/triggerbinding.yaml", ns)

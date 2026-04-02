@@ -14,6 +14,7 @@ var _ = Describe("PIPELINES-02: Pipeline Failures", Label("e2e", "negative"), fu
 	BeforeEach(func() {
 		ns = uniqueNS("fail-e2e")
 		oc.CreateNewProject(ns)
+		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
 			oc.DeleteProjectIgnoreErrors(ns)

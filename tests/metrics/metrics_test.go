@@ -8,6 +8,10 @@ import (
 
 var _ = Describe("OpenShift Pipelines Monitoring", Label("metrics", "e2e", "admin", "sanity"), func() {
 
+	BeforeEach(func() {
+		lastNamespace = "openshift-pipelines"
+	})
+
 	Describe("PIPELINES-01-TC01: OpenShift pipelines metrics acceptance tests", func() {
 
 		DescribeTable("verifies job health status metrics",

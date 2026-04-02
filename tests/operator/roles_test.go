@@ -15,6 +15,7 @@ var _ = Describe("PIPELINES-34: Verify Roles for OSP",
 	Label("e2e", "operator", "admin", "sanity"), func() {
 
 		BeforeEach(func() {
+			lastNamespace = "openshift-pipelines"
 			operator.ValidateOperatorInstallStatus(sharedClients, store.GetCRNames())
 		})
 

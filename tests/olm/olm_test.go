@@ -17,6 +17,10 @@ var rnames = utils.ResourceNames{TektonConfig: "config"}
 
 var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func() {
 
+	BeforeEach(func() {
+		lastNamespace = config.TargetNamespace
+	})
+
 	Describe("PIPELINES-09-TC01: Install openshift-pipelines operator", Label("install", "sanity"), Ordered, func() {
 		It("subscribes to operator", func() {
 			_, err := olmpkg.SubscribeAndWaitForOperatorToBeReady(

@@ -14,6 +14,10 @@ import (
 
 var _ = Describe("Manual Approval Gate", Label("approvalgate", "e2e", "sanity"), func() {
 
+	BeforeEach(func() {
+		lastNamespace = config.TargetNamespace
+	})
+
 	Describe("PIPELINES-28-TC01: Approve Manual Approval gate pipeline", Ordered, func() {
 		It("validates MAG deployment is ready", func() {
 			approvalgate.ValidateMAGDeployment(sharedClients)

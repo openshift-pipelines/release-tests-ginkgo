@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
@@ -23,6 +24,7 @@ var _ = Describe("PIPELINES-11: Verify RBAC Resources and CA Bundle Configuratio
 	Label("e2e", "operator", "admin"), func() {
 
 		BeforeAll(func() {
+			lastNamespace = config.TargetNamespace
 			operator.ValidateOperatorInstallStatus(sharedClients, store.GetCRNames())
 
 			// Restore both params to "true" on cleanup
