@@ -43,8 +43,8 @@
 
 ### Test Migration — Operator
 
-- [ ] **OPER-01**: Migrate ~33 operator tests (auto-install, auto-prune, addon, RBAC, TektonConfig, etc.)
-- [ ] **OPER-02**: Mark cluster-wide state-modifying tests with `Serial` decorator
+- [x] **OPER-01**: Migrate ~33 operator tests (auto-install, auto-prune, addon, RBAC, TektonConfig, etc.)
+- [x] **OPER-02**: Mark cluster-wide state-modifying tests with `Serial` decorator
 
 ### Test Migration — Pipelines Core
 
@@ -134,8 +134,8 @@
 | ECO-01 | Phase 4 | Pending |
 | ECO-02 | Phase 4 | Pending |
 | TRIG-01 | Phase 5 | Pending |
-| OPER-01 | Phase 6 | Pending |
-| OPER-02 | Phase 6 | Pending |
+| OPER-01 | Phase 6 | Complete |
+| OPER-02 | Phase 6 | Complete |
 | PIPE-01 | Phase 7 | Pending |
 | PAC-01 | Phase 8 | Pending |
 | PAC-02 | Phase 8 | Pending |
