@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Every OpenShift-specific release test that currently passes in Gauge must pass identically in Ginkgo, with the same cluster coverage and JUnit XML output for Polarion.
-**Current focus:** Phase 8: PAC Migration -- COMPLETE
+**Current focus:** Phase 9: Remaining Areas Migration -- COMPLETE
 
 ## Current Position
 
-Phase: 8 of 11 (PAC Migration) -- COMPLETE
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 8 Complete
-Last activity: 2026-04-02 -- Completed 08-02-PLAN.md (PAC Test Specs)
+Phase: 9 of 11 (Remaining Areas Migration) -- COMPLETE
+Plan: 3 of 3 in current phase -- COMPLETE
+Status: Phase 9 Complete
+Last activity: 2026-04-02 -- Completed 09-03-PLAN.md (Versions, OLM, Console)
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -48,9 +48,10 @@ Progress: [████████░░] 80%
 | 06-operator-migration | 1 | 5min | 5min |
 | 07-pipelines-core-migration | 2 | 7min | 3.5min |
 | 08-pac-migration | 2 | 12min | 6min |
+| 09-remaining-areas-migration | 3 | 13min | 4.3min |
 
 **Recent Trend:**
-- Last 5 plans: 07-02 (3min), 04-01 (5min), 04-02 (5min), 08-01 (8min), 08-02 (4min)
+- Last 5 plans: 08-01 (8min), 08-02 (4min), 09-01 (5min), 09-02 (4min), 09-03 (4min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -99,6 +100,15 @@ Recent decisions affecting current work:
 - [05-01]: CreateCronJob accepts routeURL parameter and returns cronJobName
 - [05-02]: Used config.TargetNamespace for all EventListener tests
 - [05-03]: Tutorial tests use inline cmd.MustSucceed for route/deployment verification
+- [09-01]: Helper functions return errors instead of calling testsuit.T.Errorf -- callers use Gomega Expect
+- [09-01]: VerifyResultsAnnotationStored takes explicit *clients.Clients instead of store.Clients()
+- [09-01]: Added UpdateTektonConfigForChains/RestoreTektonConfigChains for test setup/teardown
+- [09-02]: ValidateApprovalGatePipeline accepts explicit *clients.Clients instead of store.Clients()
+- [09-02]: Metrics test uses DescribeTable with 6 Prometheus job entries for health status checks
+- [09-03]: OLM subscription.go uses error returns throughout (getSubcription, createSubscription, OperatorCleanup)
+- [09-03]: Created operator stub functions for OLM test dependencies not yet migrated
+- [09-03]: Preserved UptadeSubscriptionAndWaitForOperatorToBeReady typo to match reference repo
+- [09-03]: Console icon test permanently skipped with manualonly label for Polarion inventory
 
 ### Pending Todos
 
@@ -113,5 +123,14 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-04-02
-Stopped at: Completed 07-02-PLAN.md (Resolver Test Specs) -- Phase 7 complete
+Stopped at: Completed 09-03-PLAN.md (Versions, OLM, Console) -- Phase 9 complete
 Resume file: None
+
+### Phase 8 Decisions (PAC Migration)
+
+- [08-01]: Explicit function params instead of store.GetScenarioData/PutScenarioData for all PAC functions
+- [08-01]: Kept global var client *gitlab.Client -- safe in Ordered containers
+- [08-01]: GetLatestPipelinerun sorts by CreationTimestamp without tektoncd/cli dependency
+- [08-02]: Ordered + DeferCleanup pattern for multi-step GitLab webhook tests
+- [08-02]: Serial decorator on PIPELINES-20-TC01 for cluster-wide TektonConfig mutation
+- [08-02]: PIPELINES-20-TC02/03/04 as PDescribe (GitHub App infrastructure not available)

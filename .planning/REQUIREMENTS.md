@@ -52,18 +52,18 @@
 
 ### Test Migration — PAC
 
-- [ ] **PAC-01**: Expand existing PAC test scaffolding to cover all ~7 PAC tests
-- [ ] **PAC-02**: Migrate GitLab webhook configuration and validation tests
+- [x] **PAC-01**: Expand existing PAC test scaffolding to cover all ~7 PAC tests
+- [x] **PAC-02**: Migrate GitLab webhook configuration and validation tests
 
 ### Test Migration — Remaining Areas
 
-- [ ] **MISC-01**: Migrate ~2 chains tests
-- [ ] **MISC-02**: Migrate ~2 results tests
-- [ ] **MISC-03**: Migrate ~2 manual approval gate tests
-- [ ] **MISC-04**: Migrate ~1 metrics test
-- [ ] **MISC-05**: Migrate ~2 versions/sanity tests
-- [ ] **MISC-06**: Migrate ~3 OLM/install tests
-- [ ] **MISC-07**: Migrate ~1 console icon test
+- [x] **MISC-01**: Migrate ~2 chains tests
+- [x] **MISC-02**: Migrate ~2 results tests
+- [x] **MISC-03**: Migrate ~2 manual approval gate tests
+- [x] **MISC-04**: Migrate ~1 metrics test
+- [x] **MISC-05**: Migrate ~2 versions/sanity tests
+- [x] **MISC-06**: Migrate ~3 OLM/install tests
+- [x] **MISC-07**: Migrate ~1 console icon test
 
 ### CI & Reporting
 
@@ -137,15 +137,15 @@
 | OPER-01 | Phase 6 | Complete |
 | OPER-02 | Phase 6 | Complete |
 | PIPE-01 | Phase 7 | Complete |
-| PAC-01 | Phase 8 | Pending |
-| PAC-02 | Phase 8 | Pending |
-| MISC-01 | Phase 9 | Pending |
-| MISC-02 | Phase 9 | Pending |
-| MISC-03 | Phase 9 | Pending |
-| MISC-04 | Phase 9 | Pending |
-| MISC-05 | Phase 9 | Pending |
-| MISC-06 | Phase 9 | Pending |
-| MISC-07 | Phase 9 | Pending |
+| PAC-01 | Phase 8 | Complete |
+| PAC-02 | Phase 8 | Complete |
+| MISC-01 | Phase 9 | Complete |
+| MISC-02 | Phase 9 | Complete |
+| MISC-03 | Phase 9 | Complete |
+| MISC-04 | Phase 9 | Complete |
+| MISC-05 | Phase 9 | Complete |
+| MISC-06 | Phase 9 | Complete |
+| MISC-07 | Phase 9 | Complete |
 | CI-01 | Phase 10 | Pending |
 | CI-02 | Phase 10 | Pending |
 | CI-03 | Phase 10 | Pending |
