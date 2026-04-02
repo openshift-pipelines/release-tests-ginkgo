@@ -107,11 +107,11 @@ Plans:
   1. Running `ginkgo run ./tests/operator/` executes all 33 operator tests with pass/fail results matching the Gauge operator suite
   2. Tests that modify cluster-wide state (TektonConfig, addon configuration, RBAC changes) are decorated with `Serial` and `Ordered` -- verified by running with `--dry-run -v` and confirming these specs are flagged as serial
   3. Operator tests that modify TektonConfig restore the original configuration in DeferCleanup, leaving the cluster in a clean state for subsequent test areas
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md -- Migrate addon, RBAC, roles, and HPA tests (10 tests)
+- [ ] 06-02-PLAN.md -- Migrate auto-prune and pre/post upgrade tests (23 tests), copy pruner testdata
 
 ### Phase 7: Pipelines Core Migration
 **Goal**: All 16 pipelines core tests (PipelineRuns, TaskRuns, workspaces, results) run in Ginkgo
@@ -178,11 +178,11 @@ Plans:
   2. Running both Ginkgo and Gauge suites against the same cluster state produces the same set of passing and failing tests (delta report is empty or contains only known/justified differences)
   3. Label filtering produces equivalent test sets -- `ginkgo run --label-filter=sanity` matches `gauge run --tags sanity` in test count and test names
   4. The Polarion uploader accepts the Ginkgo JUnit XML and creates the same test case entries as the Gauge JUnit XML -- verified by comparing Polarion import reports from both suites
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 11-01: TBD
-- [ ] 11-02: TBD
+- [ ] 11-01-PLAN.md -- Structural parity: test count comparison, dropped test manifest, label filtering equivalence
+- [ ] 11-02-PLAN.md -- Runtime parity: pass/fail delta report, Polarion JUnit XML validation, final parity report
 
 ## Progress
 
@@ -201,4 +201,4 @@ Phases 1-3 are strictly sequential. Phases 4-9 depend on Phase 3 and can be work
 | 8. PAC Migration | 0/2 | Not started | - |
 | 9. Remaining Areas Migration | 0/TBD | Not started | - |
 | 10. CI and Reporting | 0/3 | Not started | - |
-| 11. Parity Validation | 0/TBD | Not started | - |
+| 11. Parity Validation | 0/2 | Not started | - |
