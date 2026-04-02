@@ -67,11 +67,11 @@ Plans:
   1. Running `ginkgo run --label-filter=sanity ./tests/...` executes all 9 migrated sanity tests and produces pass/fail results matching the Gauge sanity suite on the same cluster
   2. The JUnit XML file produced by `--junit-report` is successfully imported into Polarion with all test case IDs (e.g., `PIPELINES-XX-TCXX`) correctly mapped -- zero "Project id not specified" or empty import errors
   3. Every migrated sanity test name contains its Polarion test case ID, following the established naming convention (e.g., `Describe("PIPELINES-30-TC01: Verify pipeline version", ...)`)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Port wait/pipelines helpers and create 9 sanity test specs with Polarion IDs
+- [ ] 03-02-PLAN.md -- JUnit XML validation and Polarion transform utility
 
 ### Phase 4: Ecosystem Task Migration
 **Goal**: All 36 ecosystem task tests (buildah, s2i, git-clone, etc.) run in Ginkgo using DescribeTable/Entry with correct data parameter passing
