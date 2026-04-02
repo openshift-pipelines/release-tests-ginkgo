@@ -81,11 +81,11 @@ Plans:
   1. Running `ginkgo run ./tests/ecosystem/` executes all 36 ecosystem task tests and each generates a separate JUnit entry with its Polarion test case ID
   2. DescribeTable entries correctly receive their parameters at spec execution time (not tree construction time) -- verified by at least one table test where Entry parameters include runtime-evaluated values
   3. Resource cleanup completes for all 36 tests without orphaned namespaces or resources remaining on the cluster after the suite finishes
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Migrate 21 simple/multiarch ecosystem tests via DescribeTable (buildah, git-cli, tkn, maven, helm, kn, jib-maven, etc.)
+- [ ] 04-02-PLAN.md -- Migrate 15 complex ecosystem tests (secret-link, cache, S2I imagestream patterns)
 
 ### Phase 5: Triggers Migration
 **Goal**: All 23 triggers tests (EventListeners, TriggerBindings, TriggerTemplates, Interceptors) run in Ginkgo with proper namespace isolation
