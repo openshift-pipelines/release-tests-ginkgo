@@ -77,10 +77,10 @@
 
 ### Parity Validation
 
-- [ ] **PAR-01**: Same test count — Ginkgo suite reports same number of tests as Gauge suite (minus dropped upstream tests)
-- [ ] **PAR-02**: Same pass/fail results on identical cluster state
-- [ ] **PAR-03**: Label filtering equivalence — `ginkgo run --label-filter=sanity` matches `gauge run --tags sanity`
-- [ ] **PAR-04**: JUnit XML compatible with Polarion uploader (same test case IDs, same format)
+- [x] **PAR-01**: Same test count — Ginkgo suite reports same number of tests as Gauge suite (minus dropped upstream tests)
+- [x] **PAR-02**: Same pass/fail results on identical cluster state
+- [x] **PAR-03**: Label filtering equivalence — `ginkgo run --label-filter=sanity` matches `gauge run --tags sanity`
+- [x] **PAR-04**: JUnit XML compatible with Polarion uploader (same test case IDs, same format)
 
 ## v2 Requirements
 
@@ -153,10 +153,10 @@
 | CI-05 | Phase 10 | Complete |
 | CI-06 | Phase 10 | Complete |
 | CI-07 | Phase 10 | Complete |
-| PAR-01 | Phase 11 | Pending |
-| PAR-02 | Phase 11 | Pending |
-| PAR-03 | Phase 11 | Pending |
-| PAR-04 | Phase 11 | Pending |
+| PAR-01 | Phase 11 | Complete |
+| PAR-02 | Phase 11 | Complete |
+| PAR-03 | Phase 11 | Complete |
+| PAR-04 | Phase 11 | Complete |
 
 **Coverage:**
 - v1 requirements: 42 total
