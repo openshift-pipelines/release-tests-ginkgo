@@ -3,10 +3,12 @@ package pipelines
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
@@ -186,6 +188,50 @@ func cast2pipelinerun(obj runtime.Object) (*v1.PipelineRun, error) {
 func getPipelinerunLogs(prname, namespace string) string {
 	result := cmd.Run("oc", "logs", "--selector=tekton.dev/pipelineRun="+prname, "-n", namespace, "--all-containers", "--ignore-errors=true")
 	return result.Stdout()
+}
+
+// GetLatestPipelinerun returns the name of the most recently created PipelineRun in the namespace.
+func GetLatestPipelinerun(c *clients.Clients, namespace string) (string, error) {
+	prs, err := c.PipelineRunClient.List(c.Ctx, metav1.ListOptions{})
+	if err != nil {
+		return "", err
+	}
+	if len(prs.Items) == 0 {
+		return "", fmt.Errorf("no pipelineruns found in the namespace %s", namespace)
+	}
+
+	// Sort by creation timestamp descending (most recent first)
+	latest := prs.Items[0]
+	for _, pr := range prs.Items[1:] {
+		if pr.CreationTimestamp.After(latest.CreationTimestamp.Time) {
+			latest = pr
+		}
+	}
+	return latest.Name, nil
+}
+
+// CheckLogVersion verifies that the expected version of the given binary appears
+// in the logs of the most recent PipelineRun in the namespace.
+func CheckLogVersion(c *clients.Clients, binary, namespace string) {
+	prname, err := GetLatestPipelinerun(c, namespace)
+	Expect(err).NotTo(HaveOccurred(), "failed to get latest PipelineRun")
+
+	logs := getPipelinerunLogs(prname, namespace)
+
+	switch binary {
+	case "tkn-pac":
+		expectedVersion := os.Getenv("PAC_VERSION")
+		Expect(logs).To(ContainSubstring(expectedVersion),
+			"tkn-pac version %s not found in pipelinerun logs", expectedVersion)
+	case "tkn":
+		expectedVersion := os.Getenv("TKN_CLIENT_VERSION")
+		Expect(logs).To(ContainSubstring("Client version:"),
+			"tkn client version header not found in pipelinerun logs")
+		Expect(logs).To(ContainSubstring(expectedVersion),
+			"tkn version %s not found in pipelinerun logs", expectedVersion)
+	default:
+		Fail(fmt.Sprintf("unknown binary for log version check: %s", binary))
+	}
 }
 
 // Ensure unused imports are satisfied

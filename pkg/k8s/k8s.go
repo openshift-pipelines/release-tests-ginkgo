@@ -2,14 +2,21 @@ package k8s
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 )
 
@@ -66,4 +73,80 @@ func GetGroupVersionResource(gr schema.GroupVersionResource, discovery discovery
 		return nil, err
 	}
 	return &gvr, nil
+}
+
+// WaitForDeployment waits until a deployment has the expected number of available replicas.
+func WaitForDeployment(ctx context.Context, kc kubernetes.Interface, namespace, name string, replicas int, retryInterval, timeout time.Duration) error {
+	err := wait.PollUntilContextTimeout(ctx, retryInterval, timeout, false, func(context.Context) (bool, error) {
+		deployment, err := kc.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				log.Printf("Waiting for availability of %s deployment\n", name)
+				return false, nil
+			}
+			return false, err
+		}
+
+		if int(deployment.Status.AvailableReplicas) == replicas && int(deployment.Status.UnavailableReplicas) == 0 {
+			return true, nil
+		}
+		log.Printf("Waiting for full availability of deployment %s (%d/%d)\n", name, deployment.Status.AvailableReplicas, replicas)
+		return false, nil
+	})
+	return err
+}
+
+// WaitForDeploymentDeletion checks to see if a given deployment is deleted.
+// The function returns an error if the given deployment is not deleted within the timeout.
+func WaitForDeploymentDeletion(cs *clients.Clients, namespace, name string) error {
+	err := wait.PollUntilContextTimeout(cs.Ctx, config.APIRetry, config.APITimeout, false, func(context.Context) (bool, error) {
+		kc := cs.KubeClient.Kube
+		_, err := kc.AppsV1().Deployments(namespace).Get(cs.Ctx, name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsGone(err) || errors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		}
+		log.Printf("Waiting for deletion of %s deployment\n", name)
+		return false, nil
+	})
+	return err
+}
+
+// ValidateDeployments waits for each named deployment to have at least 1 available replica.
+func ValidateDeployments(cs *clients.Clients, namespace string, deployments ...string) {
+	kc := cs.KubeClient.Kube
+	for _, d := range deployments {
+		err := WaitForDeployment(cs.Ctx, kc, namespace,
+			d,
+			1,
+			config.APIRetry,
+			config.APITimeout,
+		)
+		if err != nil {
+			log.Printf("failed to validate deployment %s in namespace %s: %v", d, namespace, err)
+		}
+	}
+}
+
+// DeleteDeployment deletes a deployment by name and waits for it to be removed.
+func DeleteDeployment(cs *clients.Clients, namespace, deploymentName string) error {
+	kc := cs.KubeClient.Kube
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	err := kc.AppsV1().Deployments(namespace).Delete(ctx, deploymentName, metav1.DeleteOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Printf("Deployment %s already deleted in namespace %s", deploymentName, namespace)
+			return nil
+		}
+		return fmt.Errorf("failed to delete deployment %s in namespace %s: %v", deploymentName, namespace, err)
+	}
+
+	if delErr := WaitForDeploymentDeletion(cs, namespace, deploymentName); delErr != nil {
+		return fmt.Errorf("deployment %s not fully deleted: %v", deploymentName, delErr)
+	}
+	return nil
 }
