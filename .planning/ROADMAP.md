@@ -94,10 +94,12 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Running `ginkgo run ./tests/triggers/` executes all 23 triggers tests with pass/fail results matching the Gauge triggers suite
   2. Each test creates and tears down its own resources via DeferCleanup -- no cross-test resource leaks between EventListener, TriggerBinding, and TriggerTemplate specs
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md -- Port pkg/triggers/, pkg/pipelines/, pkg/k8s/ helper packages from reference repo
+- [ ] 05-02-PLAN.md -- Migrate 17 EventListener tests (PIPELINES-05-TC01 through TC17) with testdata fixtures
+- [ ] 05-03-PLAN.md -- Migrate TriggerBinding (3), CronJob (1), and Tutorial (2) tests
 
 ### Phase 6: Operator Migration
 **Goal**: All 33 operator tests (auto-install, auto-prune, addon, RBAC, TektonConfig) run in Ginkgo with cluster-wide state-modifying tests marked Serial
@@ -198,7 +200,7 @@ Phases 1-3 are strictly sequential. Phases 4-9 depend on Phase 3 and can be work
 | 2. Suite Scaffolding | 1/3 | In Progress | - |
 | 3. Sanity Test Migration | 0/TBD | Not started | - |
 | 4. Ecosystem Task Migration | 0/TBD | Not started | - |
-| 5. Triggers Migration | 0/TBD | Not started | - |
+| 5. Triggers Migration | 0/3 | Not started | - |
 | 6. Operator Migration | 0/TBD | Not started | - |
 | 7. Pipelines Core Migration | 0/TBD | Not started | - |
 | 8. PAC Migration | 0/2 | Not started | - |
