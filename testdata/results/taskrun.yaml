@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: results-task
+spec:
+  serviceAccountName: ""
+  taskSpec:
+    steps:
+    - name: hello-goodbye-results
+      image: image-registry.openshift-image-registry.svc:5000/openshift/golang
+      script: |-
+        #!/usr/bin/env sh
+        echo "Hello, Results!"
+        echo "Goodbye, Results!"
