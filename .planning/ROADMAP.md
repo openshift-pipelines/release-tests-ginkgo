@@ -191,8 +191,8 @@ Phases 1-3 are strictly sequential. Phases 4-9 depend on Phase 3 and can be work
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation Repair | 0/TBD | Not started | - |
-| 2. Suite Scaffolding | 0/TBD | Not started | - |
+| 1. Foundation Repair | 2/2 | Complete | 2026-04-02 |
+| 2. Suite Scaffolding | 1/3 | In Progress | - |
 | 3. Sanity Test Migration | 0/TBD | Not started | - |
 | 4. Ecosystem Task Migration | 0/TBD | Not started | - |
 | 5. Triggers Migration | 0/TBD | Not started | - |

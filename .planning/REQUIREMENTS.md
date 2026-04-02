@@ -16,10 +16,10 @@
 
 ### Suite Structure
 
-- [ ] **SUITE-01**: Create `suite_test.go` entry points for each of the 11 test areas (ecosystem, triggers, operator, pipelines, PAC, chains, results, MAG, metrics, versions, OLM)
-- [ ] **SUITE-02**: Implement `BeforeSuite` for cluster client initialization via `pkg/clients`
-- [ ] **SUITE-03**: Implement `AfterSuite` for global cleanup
-- [ ] **SUITE-04**: Implement Label system mapping Gauge tags — `Label("sanity")`, `Label("smoke")`, `Label("e2e")`, `Label("disconnected")`
+- [x] **SUITE-01**: Create `suite_test.go` entry points for each of the 11 test areas (ecosystem, triggers, operator, pipelines, PAC, chains, results, MAG, metrics, versions, OLM)
+- [x] **SUITE-02**: Implement `BeforeSuite` for cluster client initialization via `pkg/clients`
+- [x] **SUITE-03**: Implement `AfterSuite` for global cleanup
+- [x] **SUITE-04**: Implement Label system mapping Gauge tags — `Label("sanity")`, `Label("smoke")`, `Label("e2e")`, `Label("disconnected")`
 - [ ] **SUITE-05**: Implement `DeferCleanup` pattern for automatic resource teardown co-located with creation
 - [ ] **SUITE-06**: Implement `Eventually`/`Consistently` async assertions replacing sleep-based polling
 - [ ] **SUITE-07**: Implement `Ordered` containers for multi-step workflow tests (replacing Gauge's implicit step ordering)
@@ -119,10 +119,10 @@
 | FOUND-04 | Phase 1 | Complete |
 | FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
-| SUITE-01 | Phase 2 | Pending |
-| SUITE-02 | Phase 2 | Pending |
-| SUITE-03 | Phase 2 | Pending |
-| SUITE-04 | Phase 2 | Pending |
+| SUITE-01 | Phase 2 | Complete |
+| SUITE-02 | Phase 2 | Complete |
+| SUITE-03 | Phase 2 | Complete |
+| SUITE-04 | Phase 2 | Complete |
 | SUITE-05 | Phase 2 | Pending |
 | SUITE-06 | Phase 2 | Pending |
 | SUITE-07 | Phase 2 | Pending |
