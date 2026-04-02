@@ -162,12 +162,12 @@ Plans:
   3. When a test fails in CI, the JUnit report includes diagnostic information (pod logs, events, resource state) attached via `ReportAfterEach` / `AddReportEntry`
   4. Running with `ginkgo run -p` (parallel mode) completes the suite faster than sequential mode with `SynchronizedBeforeSuite` initializing clients once and namespace-per-process preventing collisions
   5. The suite has an explicit `--timeout` set based on measured baseline runtime, and `--fail-on-focused` prevents accidental `FDescribe`/`FIt` commits from passing CI
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
-- [ ] 10-03: TBD
+- [ ] 10-01-PLAN.md -- Docker image with Ginkgo CLI and test runner wrapper script
+- [ ] 10-02-PLAN.md -- Diagnostic collection (ReportAfterEach) and JUnit-to-Polarion post-processor
+- [ ] 10-03-PLAN.md -- SynchronizedBeforeSuite upgrade for parallel execution across all 11 suites
 
 ### Phase 11: Parity Validation
 **Goal**: Proven equivalence between Ginkgo and Gauge suites -- same test count, same results, same label behavior, same Polarion output
@@ -200,5 +200,5 @@ Phases 1-3 are strictly sequential. Phases 4-9 depend on Phase 3 and can be work
 | 7. Pipelines Core Migration | 0/TBD | Not started | - |
 | 8. PAC Migration | 0/2 | Not started | - |
 | 9. Remaining Areas Migration | 0/TBD | Not started | - |
-| 10. CI and Reporting | 0/TBD | Not started | - |
+| 10. CI and Reporting | 0/3 | Not started | - |
 | 11. Parity Validation | 0/TBD | Not started | - |
