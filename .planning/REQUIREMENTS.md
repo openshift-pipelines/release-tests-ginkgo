@@ -67,13 +67,13 @@
 
 ### CI & Reporting
 
-- [ ] **CI-01**: Create Docker image with `ginkgo` CLI replacing `gauge` binary
-- [ ] **CI-02**: Configure `ginkgo run` with label filtering (`--label-filter`)
-- [ ] **CI-03**: JUnit XML post-processing for Polarion compatibility (format transformation if needed)
-- [ ] **CI-04**: Implement `ReportAfterEach` for diagnostic collection on failure (pod logs, events, resource state)
-- [ ] **CI-05**: Enable parallel test execution with `SynchronizedBeforeSuite` and namespace-per-process isolation
-- [ ] **CI-06**: Set explicit suite timeout (`--timeout`) based on baseline runtime measurement
-- [ ] **CI-07**: Configure `--fail-on-focused` to prevent `FDescribe`/`FIt` from being committed
+- [x] **CI-01**: Create Docker image with `ginkgo` CLI replacing `gauge` binary
+- [x] **CI-02**: Configure `ginkgo run` with label filtering (`--label-filter`)
+- [x] **CI-03**: JUnit XML post-processing for Polarion compatibility (format transformation if needed)
+- [x] **CI-04**: Implement `ReportAfterEach` for diagnostic collection on failure (pod logs, events, resource state)
+- [x] **CI-05**: Enable parallel test execution with `SynchronizedBeforeSuite` and namespace-per-process isolation
+- [x] **CI-06**: Set explicit suite timeout (`--timeout`) based on baseline runtime measurement
+- [x] **CI-07**: Configure `--fail-on-focused` to prevent `FDescribe`/`FIt` from being committed
 
 ### Parity Validation
 
@@ -146,13 +146,13 @@
 | MISC-05 | Phase 9 | Complete |
 | MISC-06 | Phase 9 | Complete |
 | MISC-07 | Phase 9 | Complete |
-| CI-01 | Phase 10 | Pending |
-| CI-02 | Phase 10 | Pending |
-| CI-03 | Phase 10 | Pending |
-| CI-04 | Phase 10 | Pending |
-| CI-05 | Phase 10 | Pending |
-| CI-06 | Phase 10 | Pending |
-| CI-07 | Phase 10 | Pending |
+| CI-01 | Phase 10 | Complete |
+| CI-02 | Phase 10 | Complete |
+| CI-03 | Phase 10 | Complete |
+| CI-04 | Phase 10 | Complete |
+| CI-05 | Phase 10 | Complete |
+| CI-06 | Phase 10 | Complete |
+| CI-07 | Phase 10 | Complete |
 | PAR-01 | Phase 11 | Pending |
 | PAR-02 | Phase 11 | Pending |
 | PAR-03 | Phase 11 | Pending |
