@@ -23,6 +23,12 @@ import (
 	"k8s.io/client-go/restmapper"
 )
 
+// ListOptionsDefault returns an empty ListOptions (convenience helper to avoid
+// importing metav1 in callers that only need default list options).
+func ListOptionsDefault() metav1.ListOptions {
+	return metav1.ListOptions{}
+}
+
 // GetWarningEvents returns warning events from the specified namespace as a single string.
 func GetWarningEvents(c *clients.Clients, namespace string) (string, error) {
 	var eventSlice []string
