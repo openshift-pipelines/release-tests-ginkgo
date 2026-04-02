@@ -253,6 +253,12 @@ func GetRoute(elname, namespace string) string {
 	return GetRouteURL(route, namespace)
 }
 
+// ExposeDeploymentConfig exposes a DeploymentConfig as a service and route.
+func ExposeDeploymentConfig(elname, port, namespace string) {
+	cmd.MustSucceed("oc", "expose", "dc/"+elname, "-n", namespace, "--target-port="+port)
+	cmd.MustSucceed("oc", "expose", "svc", elname, "-n", namespace, "--port="+port)
+}
+
 // GetRouteURL retrieves the URL for a given route name.
 func GetRouteURL(routeName, namespace string) string {
 	routeURL := cmd.MustSucceed("oc", "-n", namespace, "get", "route", strings.Trim(routeName, "'"), "--template='http://{{.spec.host}}'").Stdout()
