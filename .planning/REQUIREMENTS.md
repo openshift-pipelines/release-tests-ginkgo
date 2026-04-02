@@ -39,7 +39,7 @@
 
 ### Test Migration — Triggers
 
-- [ ] **TRIG-01**: Migrate ~23 triggers tests (EventListeners, TriggerBindings, TriggerTemplates, etc.)
+- [x] **TRIG-01**: Migrate ~23 triggers tests (EventListeners, TriggerBindings, TriggerTemplates, etc.)
 
 ### Test Migration — Operator
 
@@ -133,7 +133,7 @@
 | SNTY-03 | Phase 3 | Complete |
 | ECO-01 | Phase 4 | Complete |
 | ECO-02 | Phase 4 | Complete |
-| TRIG-01 | Phase 5 | Pending |
+| TRIG-01 | Phase 5 | Complete |
 | OPER-01 | Phase 6 | Complete |
 | OPER-02 | Phase 6 | Complete |
 | PIPE-01 | Phase 7 | Complete |

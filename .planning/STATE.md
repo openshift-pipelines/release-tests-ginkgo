@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v2.27
 milestone_name: milestone
 status: unknown
-last_updated: "2026-04-02T11:55:04.263Z"
+last_updated: "2026-04-02T11:54:00.000Z"
 progress:
   total_phases: 11
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 26
-  completed_plans: 19
+  completed_plans: 22
 ---
 
 # Project State
@@ -94,6 +94,11 @@ Recent decisions affecting current work:
 - [Phase 04]: Created pkg/openshift for GetImageStreamTags; added ExposeDeploymentConfig to pkg/triggers
 - [Phase 06-02]: S2I post-upgrade test uses Skip() pending StartAndVerifyPipelineWithParam helper migration
 - [Phase 06-02]: Preserved intentional time.Sleep for resource age gap creation in keep-since pruner tests
+- [05-01]: MockPostEvent returns (response, payload bytes) tuple; BuildHeaders accepts payload parameter directly
+- [05-01]: CleanupTriggers uses config.Path for cert cleanup instead of hardcoded GOPATH
+- [05-01]: CreateCronJob accepts routeURL parameter and returns cronJobName
+- [05-02]: Used config.TargetNamespace for all EventListener tests
+- [05-03]: Tutorial tests use inline cmd.MustSucceed for route/deployment verification
 
 ### Pending Todos
 
