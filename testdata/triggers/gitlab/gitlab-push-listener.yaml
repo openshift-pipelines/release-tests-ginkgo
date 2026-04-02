@@ -1,0 +1,91 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: gitlab-echo-template
+spec:
+  params:
+    - name: gitrevision
+    - name: gitrepositoryurl
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        name: gitlab-run
+      spec:
+        workspaces:
+          - name: shared-pvc
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 100Mi
+        pipelineSpec:
+          tasks:
+            - name: git-clone
+              taskRef:
+                resolver: cluster
+                params:
+                - name: kind
+                  value: task
+                - name: name
+                  value: git-clone
+                - name: namespace
+                  value: openshift-pipelines
+              params:
+                - name: URL
+                  value: $(tt.params.gitrepositoryurl)
+                - name: REVISION
+                  value: $(tt.params.gitrevision)
+              workspaces:
+                - name: output
+                  workspace: shared-pvc
+            - name: print-params
+              taskSpec:
+                steps:
+                  - image: image-registry.openshift-image-registry.svc:5000/openshift/golang
+                    script: |
+                      #! /bin/bash
+                      echo "git revision: $(tt.params.gitrevision)"
+                      echo "git repositoryurl: $(tt.params.gitrepositoryurl)"
+                      ls -al $(resources.inputs.source.path)
+              runAfter:
+                - git-clone
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: gitlab-push-binding
+spec:
+  params:
+    - name: gitrevision
+      value: $(body.checkout_sha)
+    - name: gitrepositoryurl
+      value: $(body.repository.git_http_url)
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: gitlab-listener
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    - name: gitlab-push-events-trigger
+      interceptors:
+        - name: verify-gitlab-payload
+          params:
+            - name: secretRef
+              value:
+                secretName: gitlab-secret
+                secretKey: secretToken
+            - name: eventTypes
+              value:
+                - 'Push Hook'
+          ref:
+            kind: ClusterInterceptor
+            name: gitlab   
+      bindings:
+        - ref: gitlab-push-binding
+      template:
+        ref: gitlab-echo-template

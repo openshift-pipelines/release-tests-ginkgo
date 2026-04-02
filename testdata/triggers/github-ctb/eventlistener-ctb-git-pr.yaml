@@ -1,0 +1,16 @@
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: listener-clustertriggerbinding-github-pr
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    - name: foo-trig
+      bindings:
+        - ref: github-pullreq
+          kind: ClusterTriggerBinding
+        - name: MESSAGE
+          value: Hello from the Triggers, you are triggering (github CTB) of event-type pull-request!
+      template:
+        ref: pipeline-template-git-pr

@@ -1,0 +1,37 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: cel-marshaljson
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    - name: cel-trig
+      interceptors:
+      - name: verify-cel-overlays
+        ref:
+          name: cel
+          kind: ClusterInterceptor
+        params:
+          - name: "overlays"
+            value:
+              - key: marshaled_body
+                expression: "body.marshalJSON()"
+      bindings:
+      - name: body
+        value: $(extensions.marshaled_body)
+      template:
+        spec:
+          params:
+            - name: body
+          resourcetemplates:
+            - apiVersion: tekton.dev/v1beta1
+              kind: TaskRun
+              metadata:
+                name: cel-trig-marshaljson
+              spec:
+                taskSpec:
+                  steps:
+                  - image: image-registry.openshift-image-registry.svc:5000/openshift/golang
+                    script: |
+                      #!/usr/bin/env bash
+                      echo "cel json marshal func output body : $(tt.params.body)."

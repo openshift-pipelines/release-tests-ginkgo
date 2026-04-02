@@ -1,0 +1,16 @@
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: listener-ctb-github-pr-review
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    - name: foo-trig
+      bindings:
+        - ref: github-pullreq-review-comment
+          kind: ClusterTriggerBinding
+        - name: MESSAGE
+          value: Hello from the Triggers, you are triggering (github CTB) of event-type pull-request-review-comment!
+      template:
+        ref: pipeline-template-git-pr-review

@@ -1,0 +1,21 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: Trigger
+metadata:
+  name: trigger
+spec:
+  interceptors:
+    - name: verify-cel-overlays-with-filter
+      ref:
+        name: cel
+        kind: ClusterInterceptor
+      params:
+        - name: "filter"
+          value: "header.match('X-GitHub-Event', 'pull_request')"
+        - name: "overlays"
+          value:
+            - key: truncated_sha
+              expression: "body.pull_request.head.sha.truncate(7)"
+  bindings:
+  - ref: github-pr-binding
+  template:
+    ref: github-template
