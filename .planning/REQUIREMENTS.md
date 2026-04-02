@@ -34,8 +34,8 @@
 
 ### Test Migration — Ecosystem Tasks
 
-- [ ] **ECO-01**: Migrate ~36 ecosystem task tests (buildah, s2i, git-clone, etc.) using `DescribeTable`/`Entry`
-- [ ] **ECO-02**: Validate data table parameter passing works correctly (tree construction time evaluation)
+- [x] **ECO-01**: Migrate ~36 ecosystem task tests (buildah, s2i, git-clone, etc.) using `DescribeTable`/`Entry`
+- [x] **ECO-02**: Validate data table parameter passing works correctly (tree construction time evaluation)
 
 ### Test Migration — Triggers
 
@@ -131,8 +131,8 @@
 | SNTY-01 | Phase 3 | Complete |
 | SNTY-02 | Phase 3 | Complete |
 | SNTY-03 | Phase 3 | Complete |
-| ECO-01 | Phase 4 | Pending |
-| ECO-02 | Phase 4 | Pending |
+| ECO-01 | Phase 4 | Complete |
+| ECO-02 | Phase 4 | Complete |
 | TRIG-01 | Phase 5 | Pending |
 | OPER-01 | Phase 6 | Complete |
 | OPER-02 | Phase 6 | Complete |

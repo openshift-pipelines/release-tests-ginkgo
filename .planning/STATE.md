@@ -18,14 +18,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Every OpenShift-specific release test that currently passes in Gauge must pass identically in Ginkgo, with the same cluster coverage and JUnit XML output for Polarion.
-**Current focus:** Phase 7: Pipelines Core Migration -- COMPLETE
+**Current focus:** Phase 8: PAC Migration -- COMPLETE
 
 ## Current Position
 
-Phase: 7 of 11 (Pipelines Core Migration) -- COMPLETE
+Phase: 8 of 11 (PAC Migration) -- COMPLETE
 Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 7 Complete
-Last activity: 2026-04-02 -- Completed 07-02-PLAN.md (Resolver Test Specs)
+Status: Phase 8 Complete
+Last activity: 2026-04-02 -- Completed 08-02-PLAN.md (PAC Test Specs)
 
 Progress: [████████░░] 80%
 
@@ -43,17 +43,17 @@ Progress: [████████░░] 80%
 | 01-foundation-repair | 2 | 6min | 3min |
 | 02-suite-scaffolding | 3 | 8min | 2.7min |
 | 03-sanity-test-migration | 2 | 8min | 4min |
+| 04-ecosystem-task-migration | 2 | 10min | 5min |
+| 05-triggers-migration | 3 | 16min | 5.3min |
 | 06-operator-migration | 1 | 5min | 5min |
 | 07-pipelines-core-migration | 2 | 7min | 3.5min |
+| 08-pac-migration | 2 | 12min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (5min), 03-02 (3min), 06-01 (5min), 07-01 (4min), 07-02 (3min)
+- Last 5 plans: 07-02 (3min), 04-01 (5min), 04-02 (5min), 08-01 (8min), 08-02 (4min)
 - Trend: stable
 
 *Updated after each plan completion*
-| Phase 04 P01 | 5min | 2 tasks | 3 files |
-| Phase 04 P02 | 5min | 2 tasks | 4 files |
-| Phase 06-operator-migration P02 | 6min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
