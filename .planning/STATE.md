@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.27
 milestone_name: milestone
-status: in-progress
-last_updated: "2026-04-02T11:47:00.000Z"
+status: unknown
+last_updated: "2026-04-02T11:55:04.263Z"
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 11
-  completed_plans: 10
+  total_phases: 11
+  completed_phases: 8
+  total_plans: 26
+  completed_plans: 19
 ---
 
 # Project State
@@ -51,6 +51,9 @@ Progress: [████████░░] 80%
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 04 P01 | 5min | 2 tasks | 3 files |
+| Phase 04 P02 | 5min | 2 tasks | 4 files |
+| Phase 06-operator-migration P02 | 6min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -86,6 +89,11 @@ Recent decisions affecting current work:
 - [07-02]: Assigned PIPELINES-32-TC01 to hub resolver (no Polarion ID in original Gauge spec)
 - [07-02]: Used Ordered container for cluster resolver cross-namespace lifecycle
 - [07-02]: Git resolver TC02 uses Skip (not Pending) for automatic re-enablement when GITHUB_TOKEN available
+- [Phase 04]: Three DescribeTables grouped by pattern variant (simple, extra-verify, multiarch) for type safety and clarity
+- [Phase 04]: S2I pipeline runs sequential per tag (reference repo runs concurrent, but sequential safer for Ginkgo)
+- [Phase 04]: Created pkg/openshift for GetImageStreamTags; added ExposeDeploymentConfig to pkg/triggers
+- [Phase 06-02]: S2I post-upgrade test uses Skip() pending StartAndVerifyPipelineWithParam helper migration
+- [Phase 06-02]: Preserved intentional time.Sleep for resource age gap creation in keep-since pruner tests
 
 ### Pending Todos
 
