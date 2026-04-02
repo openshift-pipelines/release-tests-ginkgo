@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v2.27
 milestone_name: milestone
 status: in-progress
-last_updated: "2026-04-02T11:45:39.000Z"
+last_updated: "2026-04-02T11:47:00.000Z"
 progress:
-  total_phases: 4
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 8
+  total_phases: 5
+  completed_phases: 4
+  total_plans: 11
+  completed_plans: 10
 ---
 
 # Project State
@@ -18,14 +18,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Every OpenShift-specific release test that currently passes in Gauge must pass identically in Ginkgo, with the same cluster coverage and JUnit XML output for Polarion.
-**Current focus:** Phase 6: Operator Migration -- IN PROGRESS
+**Current focus:** Phase 7: Pipelines Core Migration -- COMPLETE
 
 ## Current Position
 
-Phase: 6 of 11 (Operator Migration) -- IN PROGRESS
-Plan: 1 of 2 in current phase -- COMPLETE
-Status: Executing 06-02
-Last activity: 2026-04-02 -- Completed 06-01-PLAN.md (Addon, RBAC, Roles, HPA Tests)
+Phase: 7 of 11 (Pipelines Core Migration) -- COMPLETE
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Phase 7 Complete
+Last activity: 2026-04-02 -- Completed 07-02-PLAN.md (Resolver Test Specs)
 
 Progress: [████████░░] 80%
 
@@ -44,9 +44,10 @@ Progress: [████████░░] 80%
 | 02-suite-scaffolding | 3 | 8min | 2.7min |
 | 03-sanity-test-migration | 2 | 8min | 4min |
 | 06-operator-migration | 1 | 5min | 5min |
+| 07-pipelines-core-migration | 2 | 7min | 3.5min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (2min), 02-02 (3min), 03-01 (5min), 03-02 (3min), 06-01 (5min)
+- Last 5 plans: 03-01 (5min), 03-02 (3min), 06-01 (5min), 07-01 (4min), 07-02 (3min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -80,6 +81,11 @@ Recent decisions affecting current work:
 - [03-01]: Simplified getPipelinerunLogs to use oc logs instead of tektoncd CLI pkg
 - [03-02]: Used encoding/xml only (stdlib) for JUnit transform -- no external XML libraries
 - [03-02]: Created sample XML for validation since BeforeSuite requires cluster connection for dry-run
+- [07-01]: Used Gomega HaveKeyWithValue matcher for label/annotation assertions in helper.go
+- [07-01]: Kept Cast2pipelinerun exported for cross-package use
+- [07-02]: Assigned PIPELINES-32-TC01 to hub resolver (no Polarion ID in original Gauge spec)
+- [07-02]: Used Ordered container for cluster resolver cross-namespace lifecycle
+- [07-02]: Git resolver TC02 uses Skip (not Pending) for automatic re-enablement when GITHUB_TOKEN available
 
 ### Pending Todos
 
@@ -94,5 +100,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-04-02
-Stopped at: Completed 06-01-PLAN.md (Addon, RBAC, Roles, HPA Tests) -- continuing to 06-02
+Stopped at: Completed 07-02-PLAN.md (Resolver Test Specs) -- Phase 7 complete
 Resume file: None

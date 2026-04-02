@@ -48,7 +48,7 @@
 
 ### Test Migration — Pipelines Core
 
-- [ ] **PIPE-01**: Migrate ~16 pipelines core tests (PipelineRuns, TaskRuns, workspaces, etc.)
+- [x] **PIPE-01**: Migrate ~16 pipelines core tests (PipelineRuns, TaskRuns, workspaces, etc.)
 
 ### Test Migration — PAC
 
@@ -136,7 +136,7 @@
 | TRIG-01 | Phase 5 | Pending |
 | OPER-01 | Phase 6 | Complete |
 | OPER-02 | Phase 6 | Complete |
-| PIPE-01 | Phase 7 | Pending |
+| PIPE-01 | Phase 7 | Complete |
 | PAC-01 | Phase 8 | Pending |
 | PAC-02 | Phase 8 | Pending |
 | MISC-01 | Phase 9 | Pending |
