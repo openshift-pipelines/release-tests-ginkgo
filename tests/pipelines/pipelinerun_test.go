@@ -32,7 +32,7 @@ var _ = Describe("PIPELINES-03: Pipeline E2E", Label("e2e", "pipelines"), func()
 		pipelines.ValidatePipelineRun(sharedClients, "output-pipeline-run-v1b1", "successful", ns)
 	})
 
-	It("PIPELINES-03-TC04: Pipelinerun Timeout failure", Label("non-admin", "sanity"), SpecTimeout(10*time.Minute), func() {
+	It("PIPELINES-03-TC04: Pipelinerun Timeout failure", Label("non-admin", "sanity"), SpecTimeout(10*time.Minute), func(_ SpecContext) {
 		oc.Create("testdata/v1beta1/pipelinerun/pipelineruntimeout.yaml", ns)
 		pipelines.ValidatePipelineRun(sharedClients, "pear", "timeout", ns)
 	})
@@ -42,7 +42,7 @@ var _ = Describe("PIPELINES-03: Pipeline E2E", Label("e2e", "pipelines"), func()
 		pipelines.ValidatePipelineRun(sharedClients, "task-level-results", "successful", ns)
 	})
 
-	It("PIPELINES-03-TC06: Cancel pipelinerun", Label("integration", "non-admin", "sanity"), SpecTimeout(10*time.Minute), func() {
+	It("PIPELINES-03-TC06: Cancel pipelinerun", Label("integration", "non-admin", "sanity"), SpecTimeout(10*time.Minute), func(_ SpecContext) {
 		oc.Create("testdata/pvc/pvc.yaml", ns)
 		oc.Create("testdata/v1beta1/pipelinerun/pipelinerun.yaml", ns)
 		pipelines.ValidatePipelineRun(sharedClients, "output-pipeline-run-v1b1", "cancelled", ns)
