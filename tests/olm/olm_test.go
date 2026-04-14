@@ -6,13 +6,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	olmpkg "github.com/openshift-pipelines/release-tests-ginkgo/pkg/olm"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 	"github.com/tektoncd/operator/test/utils"
 )
 
+var oc = occmd.OC{}
 var rnames = utils.ResourceNames{TektonConfig: "config"}
 
 var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func() {

@@ -120,13 +120,36 @@ var PrefixesOfDefaultPipelines [9]string = [9]string{"buildah", "s2i-dotnet", "s
 // Todo: change initialization of falgs when required by parsing them or from environment variable
 var Flags = initializeFlags()
 
+type StringArray []string
+
+// String is the method to format the flag's value, part of the flag.Value interface.
+func (s *StringArray) String() string {
+	return strings.Join(*s, ", ")
+}
+
+// Set is the method to set the flag value, part of the flag.Value interface.
+// Each time the flag is seen on the command line, Set is called.
+// You can pass the addition values like
+// --spoke-kubeconfig=$HOME/.kube/spoke-1 --spoke-kubeconfig=$HOME/.kube/spoke-2
+// OR
+// --spoke-kubeconfig=$HOME/.kube/spoke-1,$HOME/.kube/spoke-2
+// OR Mix of both
+
+func (s *StringArray) Set(value string) error {
+	*s = append(*s, strings.Split(value, ",")...)
+	return nil
+}
+
 // EnvironmentFlags define the flags that are needed to run the e2e tests.
 type EnvironmentFlags struct {
-	Cluster          string // K8s cluster (defaults to cluster in kubeconfig)
-	Kubeconfig       string // Path to kubeconfig (defaults to ./kube/config)
-	DockerRepo       string // Docker repo (defaults to $KO_DOCKER_REPO)
-	CSV              string // Default csv openshift-pipelines-operator.v0.9.1
-	Channel          string // Default channel canary
+	Cluster          string      // K8s cluster (defaults to cluster in kubeconfig)
+	Kubeconfig       string      // Path to kubeconfig (defaults to ./kube/config)
+	Context          string      // K8s cluster (defaults to cluster in kubeconfig)
+	SpokeKubeconfigs StringArray // Path to Spoke kubeconfig (No Defaults)
+	SpokeContexts    StringArray // Name of the  Spoke Context (defaults to CurrentContext from SpokeKubeconfig)
+	DockerRepo       string      // Docker repo (defaults to $KO_DOCKER_REPO)
+	CSV              string      // Default csv openshift-pipelines-operator.v0.9.1
+	Channel          string      // Default channel canary
 	CatalogSource    string
 	SubscriptionName string
 	InstallPlan      string // Default Installationplan Automatic
@@ -141,6 +164,9 @@ func initializeFlags() *EnvironmentFlags {
 	flag.StringVar(&f.Cluster, "cluster", "",
 		"Provide the cluster to test against. Defaults to the current cluster in kubeconfig.")
 
+	flag.StringVar(&f.Context, "context", "",
+		"Provide the context to test against. Defaults to the current context in kubeconfig.")
+
 	var defaultKubeconfig string
 	if os.Getenv("KUBECONFIG") != "" {
 		defaultKubeconfig = os.Getenv("KUBECONFIG")
@@ -151,19 +177,38 @@ func initializeFlags() *EnvironmentFlags {
 	flag.StringVar(&f.Kubeconfig, "kubeconfig", defaultKubeconfig,
 		"Provide the path to the `kubeconfig` file you'd like to use for these tests. The `current-context` will be used.")
 
+	// SpokeKubeconfig is a Kubeconfig file which points to Spoke Cluster in MultiCluster environment.
+	// When SpokeKubeconfig is not provided then there is no default.
+	flag.Var(&f.SpokeKubeconfigs, "spoke-kubeconfig",
+		"Provide the path to the `kubeconfig` file you'd like to use for these spoke tests.")
+
+	// SpokeKubeconfig is a Kubeconfig file which points to Spoke Cluster in MultiCluster environment.
+	// When SpokeKubeconfig is not provided then there is no default.
+	flag.Var(&f.SpokeContexts, "spoke-context",
+		"Provide the path to the `kubeconfig` file you'd like to use for these spoke tests.")
+
 	defaultRepo := os.Getenv("KO_DOCKER_REPO")
 	flag.StringVar(&f.DockerRepo, "dockerrepo", defaultRepo,
 		"Provide the uri of the docker repo you have uploaded the test image to using `uploadtestimage.sh`. Defaults to $KO_DOCKER_REPO")
 
 	defaultChannel := os.Getenv("CHANNEL")
+	if defaultChannel == "" {
+		defaultChannel = "latest"
+	}
 	flag.StringVar(&f.Channel, "channel", defaultChannel,
 		"Provide channel to subcribe your operator you'd like to use for these tests. By default `canary` will be used.")
 
 	defaultCatalogSource := os.Getenv("CATALOG_SOURCE")
+	if defaultCatalogSource == "" {
+		defaultCatalogSource = "redhat-operators"
+	}
 	flag.StringVar(&f.CatalogSource, "catalogsource", defaultCatalogSource,
 		"Provide defaultCatalogSource to subscribe operator from. By default `custom-operators` will be used.")
 
 	defaultSubscriptionName := os.Getenv("SUBSCRIPTION_NAME")
+	if defaultSubscriptionName == "" {
+		defaultSubscriptionName = "openshift-pipelines-operator-rh"
+	}
 	flag.StringVar(&f.SubscriptionName, "subscriptionName", defaultSubscriptionName,
 		"Provide defaultSubscriptionName to operator, By default `openshift-pipelines-operator-rh` will be used.")
 
