@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/diagnostics"
 )
 
 var sharedClients *clients.Clients
@@ -18,6 +17,7 @@ var sharedClients *clients.Clients
 var lastNamespace string
 
 func TestVersions(t *testing.T) {
+	config.MustLoadEnvironment()
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Versions Suite", Label("versions"))
 }
@@ -66,4 +66,5 @@ var _ = AfterSuite(func() {
 })
 
 // Collect diagnostics (pod logs, events, resource state) on test failure.
-var _ = ReportAfterEach(diagnostics.CollectOnFailure(&lastNamespace))
+// Disabled for cleaner console output
+// var _ = ReportAfterEach(diagnostics.CollectOnFailure(&lastNamespace))
