@@ -1,0 +1,83 @@
+name: Build & Verify
+
+on:
+  pull_request:
+    branches: ["main", "release-*"]
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Verify go.sum is tidy
+        run: |
+          go mod tidy
+          if ! git diff --quiet go.sum go.mod; then
+            echo "go mod tidy produced changes - please run 'go mod tidy' and commit:"
+            git diff go.sum go.mod
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Build all packages
+        run: go build ./...
+
+
+  compile-tests:
+    name: Compile test suites
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Compile all test packages (no run)
+        # Validates that all test packages compile without needing a cluster.
+        run: |
+          go test -run='^$' -count=0 ./tests/... 2>&1
+
+  security-scan:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...

@@ -1,0 +1,54 @@
+version: 2
+
+updates:
+  # Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - "openshift-pipelines/release-tests-maintainers"
+    groups:
+      # Batch Tekton ecosystem updates together
+      tekton:
+        patterns:
+          - "github.com/tektoncd/*"
+          - "github.com/openshift-pipelines/*"
+      # Batch Kubernetes client updates together
+      kubernetes:
+        patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"
+      # Batch test framework updates
+      testing:
+        patterns:
+          - "github.com/onsi/*"
+          - "gotest.tools/*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns:
+          - "*"

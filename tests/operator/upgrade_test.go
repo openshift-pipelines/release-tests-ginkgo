@@ -8,7 +8,7 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/openshift"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
@@ -19,8 +19,6 @@ import (
 // ---------------------------------------------------------------------------
 // Pre-upgrade tests
 // ---------------------------------------------------------------------------
-
-var oc = occmd.OC{}
 
 var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, Ordered,
 	Label("operator", "admin", "pre-upgrade"), func() {

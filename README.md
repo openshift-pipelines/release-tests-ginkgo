@@ -55,11 +55,9 @@ ginkgo run --label-filter=admin --timeout=30m ./tests/...
 ginkgo run -p --timeout=30m ./tests/...
 ```
 
-### Run with JUnit XML output (for Polarion)
+### Run with JUnit XML output
 ```bash
 ginkgo run --label-filter=sanity --timeout=30m --junit-report=report.xml ./tests/...
-# Post-process for Polarion compatibility:
-go run ./cmd/junit-polarion/ < report.xml > polarion-report.xml
 ```
 
 ### Using the wrapper script
@@ -110,7 +108,6 @@ pkg/                # Shared helper packages
   cmd/              # CLI command execution wrapper
   config/           # Configuration, constants, env flags
   diagnostics/      # ReportAfterEach diagnostic collector
-  junit/            # JUnit XML to Polarion transformer
   k8s/              # Kubernetes helpers (watch, wait, events)
   oc/               # OpenShift CLI operations
   opc/              # OpenShift Pipelines CLI operations
@@ -139,7 +136,7 @@ This repo is the Ginkgo equivalent of [openshift-pipelines/release-tests](https:
 
 1. **Foundation** - Fixed imports, upgraded Go/Ginkgo, removed Gauge dependencies
 2. **Suite Scaffolding** - Created 11 suite entry points with BeforeSuite/AfterSuite
-3. **Sanity Tests** - Migrated first 9 tests, validated JUnit/Polarion pipeline
+3. **Sanity Tests** - Migrated first 9 tests, validated JUnit pipeline
 4. **Full Migration** - Ported all ~137 tests across 11 areas in parallel
 5. **CI & Reporting** - Dockerfile, diagnostics, parallel execution, JUnit post-processing
 6. **Parity Validation** - Scripts to verify count, labels, and results match Gauge
