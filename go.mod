@@ -8,12 +8,17 @@ require (
 	github.com/onsi/gomega v1.39.1
 	github.com/openshift-pipelines/manual-approval-gate v0.2.2
 	github.com/openshift-pipelines/pipelines-as-code v0.27.2
+	github.com/openshift/api v0.0.0-20240521185306-0314f31e7774
 	github.com/openshift/client-go v0.0.0-20240523113335-452272e0496d
+	github.com/operator-framework/api v0.16.0
 	github.com/operator-framework/operator-lifecycle-manager v0.22.0
+	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/common v0.62.0
 	github.com/tektoncd/operator v0.75.0
 	github.com/tektoncd/pipeline v0.68.0
 	github.com/tektoncd/triggers v0.31.0
-	github.com/xanzy/go-gitlab v0.109.0
+	github.com/xanzy/go-gitlab v0.115.0
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.5.2
 	k8s.io/api v0.30.0
@@ -88,13 +93,8 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openshift/api v0.0.0-20240521185306-0314f31e7774 // indirect
 	github.com/openshift/apiserver-library-go v0.0.0-20230816171015-6bfafa975bfb // indirect
-	github.com/operator-framework/api v0.16.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.20.5 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/prometheus/statsd_exporter v0.26.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
