@@ -24,7 +24,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 	gitlab "github.com/xanzy/go-gitlab"
@@ -43,8 +43,6 @@ const (
 	pullRequestFileName      = "/tmp/pull_request.yaml"
 	pushFileName             = "/tmp/push.yaml"
 )
-
-var oc = occmd.OC{}
 
 // client is the package-level GitLab client. Within Ordered containers
 // this is safe since PAC tests run serially via SetGitLabClient.

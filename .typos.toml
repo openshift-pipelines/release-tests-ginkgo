@@ -1,0 +1,30 @@
+# typos spell-check config
+# https://github.com/crate-ci/typos
+
+[files]
+extend-exclude = [
+    "go.sum",
+    "testdata/",
+    "vendor/",
+    "*.xml",
+    "*.json",
+    "*.yaml",
+    "*.yml",
+]
+
+[default.extend-words]
+# Tekton-specific proper nouns that typos may flag
+tekton = "tekton"
+openshift = "openshift"
+ginkgo = "ginkgo"
+pipelinerun = "pipelinerun"
+taskrun = "taskrun"
+
+[type.go.extend-words]
+# Abbreviations common in Go/k8s code
+oc = "oc"
+opc = "opc"
+pac = "pac"
+mag = "mag"
+olm = "olm"
+sa = "sa"

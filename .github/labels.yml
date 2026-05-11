@@ -1,0 +1,202 @@
+# GitHub repository labels — consistent with openshift-pipelines org conventions
+# (modelled on openshift-pipelines/operator and tektoncd/pipeline)
+# Apply with: gh label import .github/labels.yml
+
+# ── Prow / merge lifecycle ────────────────────────────────────────────────────
+- name: "approved"
+  color: "0ffa16"
+  description: "Label for Approved PRs"
+
+- name: "lgtm"
+  color: "15dd18"
+  description: "Looks Good to Me Label"
+
+- name: "needs-rebase"
+  color: "e11d48"
+  description: "PR has merge conflicts, needs rebase"
+
+- name: "needs-ok-to-test"
+  color: "b60205"
+  description: "PR needs /ok-to-test before CI runs"
+
+- name: "ok-to-test"
+  color: "0e8a16"
+  description: "Repo member has approved CI for this PR"
+
+- name: "do-not-merge/hold"
+  color: "e11d48"
+  description: "Indicates that a PR should not merge because someone has issued a /hold command."
+
+- name: "do-not-merge/work-in-progress"
+  color: "e11d48"
+  description: "Indicates that a PR should not merge because it is a work in progress."
+
+- name: "do-not-merge/invalid-owners-file"
+  color: "e11d48"
+  description: "Indicates that a PR should not merge because it has an invalid OWNERS file in it."
+
+- name: "tide/merge-blocker"
+  color: "e11d48"
+  description: "Blocks tide from merging this PR"
+
+# ── Type labels ───────────────────────────────────────────────────────────────
+- name: "bug"
+  color: "d73a4a"
+  description: "Something isn't working"
+
+- name: "enhancement"
+  color: "a2eeef"
+  description: "New feature or request"
+
+- name: "documentation"
+  color: "0075ca"
+  description: "Improvements or additions to documentation"
+
+- name: "question"
+  color: "d876e3"
+  description: "Further information is requested"
+
+- name: "duplicate"
+  color: "cfd3d7"
+  description: "This issue or pull request already exists"
+
+- name: "invalid"
+  color: "e4e669"
+  description: "This doesn't seem right"
+
+- name: "wontfix"
+  color: "ffffff"
+  description: "This will not be worked on"
+
+# ── Kind labels (tektoncd/pipeline convention) ────────────────────────────────
+- name: "kind/bug"
+  color: "d73a4a"
+  description: "Categorizes issue or PR as related to a bug."
+
+- name: "kind/feature"
+  color: "a2eeef"
+  description: "Categorizes issue or PR as related to a new feature."
+
+- name: "kind/cleanup"
+  color: "bfd4f2"
+  description: "Categorizes issue or PR as related to cleaning up code, process, or technical debt."
+
+- name: "kind/documentation"
+  color: "0075ca"
+  description: "Categorizes issue or PR as related to documentation."
+
+- name: "kind/failing-test"
+  color: "e11d48"
+  description: "Categorizes issue or PR as related to a consistently or frequently failing test."
+
+- name: "kind/flake"
+  color: "e4e669"
+  description: "Categorizes issue or PR as related to a flakey test"
+
+- name: "kind/misc"
+  color: "c5def5"
+  description: "Categorizes issue or PR as a miscellaneous one."
+
+# ── Lifecycle labels ──────────────────────────────────────────────────────────
+- name: "lifecycle/stale"
+  color: "795548"
+  description: "Denotes an issue or PR has remained open with no activity and has become stale."
+
+- name: "lifecycle/rotten"
+  color: "5d4037"
+  description: "Denotes an issue or PR that has aged beyond stale and will be auto-closed."
+
+- name: "lifecycle/frozen"
+  color: "0288d1"
+  description: "Indicates that an issue or PR should not be auto-closed due to staleness."
+
+# ── Dependency / automation labels ───────────────────────────────────────────
+- name: "dependencies"
+  color: "e4e669"
+  description: "Pull requests that update a dependency file"
+
+- name: "go"
+  color: "00ADD8"
+  description: "Pull requests that update Go code"
+
+- name: "github_actions"
+  color: "000000"
+  description: "Pull requests that update GitHub Actions code"
+
+- name: "automated"
+  color: "ededed"
+  description: "For Automated PRs"
+
+- name: "hack"
+  color: "e4e669"
+  description: "PRs Generated from Hack Repo"
+
+- name: "upstream"
+  color: "0075ca"
+  description: "For Upstream Sync PRs"
+
+- name: "konflux"
+  color: "7057ff"
+  description: "For Konflux PRs"
+
+# ── Community ─────────────────────────────────────────────────────────────────
+- name: "good first issue"
+  color: "7057ff"
+  description: "Good for newcomers"
+
+- name: "help wanted"
+  color: "008672"
+  description: "Extra attention is needed"
+
+# ── Test-repo specific area labels ────────────────────────────────────────────
+- name: "area/operator"
+  color: "0075ca"
+  description: "Tekton Operator tests or helpers"
+
+- name: "area/pipelines"
+  color: "0075ca"
+  description: "Core pipelines / TaskRun tests"
+
+- name: "area/triggers"
+  color: "0075ca"
+  description: "Triggers / EventListener tests"
+
+- name: "area/ecosystem"
+  color: "0075ca"
+  description: "Ecosystem tasks (buildah, s2i, git-clone)"
+
+- name: "area/chains"
+  color: "0075ca"
+  description: "Tekton Chains signing tests"
+
+- name: "area/results"
+  color: "0075ca"
+  description: "Tekton Results tests"
+
+- name: "area/pac"
+  color: "0075ca"
+  description: "Pipelines-as-Code tests"
+
+- name: "area/mag"
+  color: "0075ca"
+  description: "Manual Approval Gate tests"
+
+- name: "area/hub"
+  color: "0075ca"
+  description: "TektonHub tests"
+
+- name: "area/metrics"
+  color: "0075ca"
+  description: "Metrics / monitoring tests"
+
+- name: "area/olm"
+  color: "0075ca"
+  description: "OLM install / upgrade tests"
+
+- name: "area/versions"
+  color: "0075ca"
+  description: "Component version validation tests"
+
+- name: "area/ci"
+  color: "0075ca"
+  description: "CI pipelines, workflows, scripts"

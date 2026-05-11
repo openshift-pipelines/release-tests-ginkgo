@@ -4,16 +4,10 @@ import (
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 )
-
-var oc = occmd.OC{}
-
-// Ensure Gomega is used.
-var _ = Expect
 
 var _ = Describe("PIPELINES-25: Bundles Resolver", Label("e2e"), func() {
 	var ns string

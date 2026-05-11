@@ -1,0 +1,129 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+    branches: ["main", "release-*"]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  conventional-title:
+    name: Conventional Commit Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title follows Conventional Commits
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Types aligned with what makes sense for a QE/test repo
+          types: |
+            feat
+            fix
+            chore
+            docs
+            test
+            refactor
+            ci
+            revert
+            build
+            perf
+          # Scopes map to test areas or repo sections
+          scopes: |
+            operator
+            pipelines
+            triggers
+            ecosystem
+            chains
+            results
+            pac
+            mag
+            hub
+            metrics
+            olm
+            versions
+            pkg
+            cmd
+            scripts
+            ci
+            deps
+            image
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            must start with a lowercase letter.
+
+  size-label:
+    name: PR Size Label
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: codelytv/pr-size-labeler@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          xs_label: "size/XS"
+          xs_max_size: 10
+          s_label: "size/S"
+          s_max_size: 100
+          m_label: "size/M"
+          m_max_size: 500
+          l_label: "size/L"
+          l_max_size: 1000
+          xl_label: "size/XL"
+          fail_if_xl: false
+          files_to_ignore: |
+            go.sum
+            testdata/**
+
+  required-labels:
+    name: Required Label Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for at-least-one area label
+        uses: mheap/github-action-required-labels@v5
+        with:
+          mode: minimum
+          count: 1
+          labels: |
+            area/operator
+            area/pipelines
+            area/triggers
+            area/ecosystem
+            area/chains
+            area/results
+            area/pac
+            area/mag
+            area/hub
+            area/metrics
+            area/olm
+            area/versions
+            area/pkg
+            area/ci
+            area/docs
+            dependencies
+          add_comment: true
+          message: |
+            This PR is missing an **area label**. Please add one of:
+            `area/operator`, `area/pipelines`, `area/triggers`, `area/ecosystem`,
+            `area/chains`, `area/results`, `area/pac`, `area/hub`, `area/metrics`,
+            `area/olm`, `area/versions`, `area/pkg`, `area/ci`, `area/docs`, `dependencies`
+
+  spell-check:
+    name: Spell Check (docs)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check spelling in Markdown
+        uses: crate-ci/typos@v1
+        with:
+          files: "*.md docs/"
+          config: .typos.toml
+        continue-on-error: true   # advisory — do not block merges

@@ -1,0 +1,50 @@
+---
+name: "✅ New Test / Test Migration"
+description: "Add a new Ginkgo test or migrate an existing test"
+labels: ["test"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Test Area
+      options:
+        - operator
+        - pipelines
+        - triggers
+        - ecosystem
+        - chains
+        - results
+        - pac
+        - mag
+        - hub
+        - metrics
+        - olm
+        - versions
+    validations:
+      required: true
+
+  - type: input
+    id: polarion-id
+    attributes:
+      label: Polarion Test Case ID(s)
+      description: Comma-separated list of Polarion IDs this test covers
+      placeholder: "e.g. OCP-12345, OCP-67890"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What does this test cover?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: Test is in the correct `tests/<area>/` package
+        - label: Labels are set with `Label()` — at minimum `sanity` or `e2e`
+        - label: Test is wrapped in `Describe` / `It` (Ginkgo v2)
+        - label: `BeforeEach` / `AfterEach` clean up cluster resources
+        - label: JUnit `[id:XXXXX]` marker added to `It()` description for Polarion traceability
+        - label: Existing parity count updated (if adding new tests)

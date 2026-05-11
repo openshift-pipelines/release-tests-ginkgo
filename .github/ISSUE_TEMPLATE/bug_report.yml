@@ -1,0 +1,76 @@
+---
+name: "🐛 Bug Report"
+description: "Something is broken in the test suite or helpers"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in as much detail as possible.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Test Area
+      description: Which test area is affected?
+      options:
+        - operator
+        - pipelines
+        - triggers
+        - ecosystem
+        - chains
+        - results
+        - pac
+        - mag
+        - hub
+        - metrics
+        - olm
+        - versions
+        - pkg/helpers
+        - CI/workflows
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: osp-version
+    attributes:
+      label: OpenShift Pipelines Operator Version
+      placeholder: "e.g. 1.16.0"
+
+  - type: input
+    id: ocp-version
+    attributes:
+      label: OpenShift Cluster Version
+      placeholder: "e.g. 4.17.3"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Run: ginkgo run --label-filter=... ./tests/...
+        2. Observe: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs / Output
+      render: text
