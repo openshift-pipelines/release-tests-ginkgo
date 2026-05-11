@@ -45,24 +45,8 @@ func CollectOnFailure(namespace *string) func(SpecReport) {
 			return
 		}
 
-		ns := ""
-		if namespace != nil {
-			ns = *namespace
-		}
-		if ns == "" {
-			AddReportEntry("Diagnostics Skipped", "No namespace available for diagnostic collection",
-				ReportEntryVisibilityFailureOrVerbose)
-			return
-		}
-
-		events := collectEvents(ns)
-		AddReportEntry("Cluster Events", events, ReportEntryVisibilityFailureOrVerbose)
-
-		resources := collectResourceState(ns)
-		AddReportEntry("Resource State", resources, ReportEntryVisibilityFailureOrVerbose)
-
-		podLogs := collectPodLogs(ns)
-		AddReportEntry("Pod Logs", podLogs, ReportEntryVisibilityFailureOrVerbose)
+		// Diagnostics collection disabled - only show test failure message
+		_ = namespace
 	}
 }
 

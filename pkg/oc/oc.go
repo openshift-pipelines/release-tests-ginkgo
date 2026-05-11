@@ -28,8 +28,22 @@ func CreateRemote(remote_path, namespace string) {
 	runWithLog("create", "-f", remote_path, "-n", namespace)
 }
 
-func Apply(path_dir, namespace string) {
-	runWithLog("apply", "-f", config.Path(path_dir), "-n", namespace)
+// Apply applies resources using oc command.
+// If namespace is not provided, it uses store.Namespace() (set by hooks).
+// Usage:
+//   oc.Apply("testdata/foo.yaml")              // uses store.Namespace()
+//   oc.Apply("testdata/foo.yaml", "my-ns")     // uses explicit namespace
+func Apply(path_dir string, namespace ...string) {
+	var ns string
+	if len(namespace) > 0 {
+		ns = namespace[0]
+	} else {
+		ns = store.Namespace()
+		if ns == "" {
+			panic("oc.Apply: namespace not provided and store.Namespace() is empty - ensure hooks are configured or pass namespace explicitly")
+		}
+	}
+	runWithLog("apply", "-f", config.Path(path_dir), "-n", ns)
 }
 
 // Delete resources using oc command

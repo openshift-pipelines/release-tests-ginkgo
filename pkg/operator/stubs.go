@@ -1,12 +1,12 @@
 package operator
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -20,6 +20,8 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/openshift"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/statefulset"
 	"github.com/tektoncd/operator/test/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // DefineArtifactHubAPIVariable patches TektonConfig to set the artifact-hub-api
@@ -170,16 +172,40 @@ func ConfigureResultsWithLoki(cs *clients.Clients) {
 	oc.UpdateTektonConfig(patchData)
 }
 
-// VerifyTektonAddonsStatus verifies that the TektonAddons CR reports
-// InstallSucceeded status by listing installer sets with addon type.
+// VerifyTektonAddonsStatus verifies that the TektonAddon CR is ready
+// by checking the Ready and InstallerSetReady conditions.
 func VerifyTektonAddonsStatus(cs *clients.Clients) {
-	// Wait for the addon-related TektonInstallerSets to be ready.
-	// This is the Ginkgo equivalent of EnsureTektonAddonsStatusInstalled
-	// which would require the TektonAddon CR client. Using the oc wait
-	// approach ensures addon installersets are in Ready state.
-	cmd.MustSucceedIncreasedTimeout(time.Minute*5,
-		"oc", "wait", "--for=condition=Ready", "tektoninstallerset",
-		"-l", "operator.tekton.dev/type=addon", "--timeout=120s")
+	log.Println("Waiting for TektonAddon CR to be ready...")
+	err := wait.PollUntilContextTimeout(cs.Ctx, config.APIRetry, config.APITimeout, true, func(ctx context.Context) (bool, error) {
+		addon, err := cs.TektonAddon().Get(ctx, "addon", metav1.GetOptions{})
+		if err != nil {
+			log.Printf("Waiting for TektonAddon CR to exist: %v\n", err)
+			return false, nil
+		}
+
+		// Check for Ready and InstallerSetReady conditions
+		hasReady := false
+		hasInstallerSetReady := false
+
+		for _, condition := range addon.Status.Conditions {
+			if condition.Type == "Ready" && condition.Status == "True" {
+				hasReady = true
+			}
+			if condition.Type == "InstallerSetReady" && condition.Status == "True" {
+				hasInstallerSetReady = true
+			}
+		}
+
+		if hasReady && hasInstallerSetReady {
+			log.Println("TektonAddon CR is Ready and InstallerSetReady")
+			return true, nil
+		}
+
+		log.Printf("Waiting for TektonAddon conditions - Ready: %v, InstallerSetReady: %v\n", hasReady, hasInstallerSetReady)
+		return false, nil
+	})
+
+	Expect(err).NotTo(HaveOccurred(), "TektonAddon failed to reach Ready and InstallerSetReady status")
 	log.Println("TektonAddons install status verified")
 }
 

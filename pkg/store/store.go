@@ -81,6 +81,13 @@ func PutScenarioData(key, value string) {
 	scenarioStore[key] = value
 }
 
+// SetNamespace sets the namespace for the current scenario.
+func SetNamespace(ns string) {
+	mu.Lock()
+	defer mu.Unlock()
+	scenarioStore["namespace"] = ns
+}
+
 // PutScenarioDataSlice stores a string slice under the given key for the scenario.
 func PutScenarioDataSlice(key string, value []string) {
 	mu.Lock()

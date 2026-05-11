@@ -6,7 +6,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 )
@@ -14,19 +13,15 @@ import (
 var _ = Describe("Tekton Results", Label("results", "e2e"), func() {
 
 	Describe("PIPELINES-26-TC01: Test Tekton results with TaskRun", Label("sanity"), Ordered, func() {
-		BeforeAll(func() {
-			lastNamespace = config.TargetNamespace
-		})
-
 		It("verifies golang imagestream exists", func() {
 			cmd.MustSucceed("oc", "get", "is", "golang", "-n", "openshift")
 		})
 
 		It("applies taskrun fixture and verifies completion", func() {
-			ns := config.TargetNamespace
-			oc.Apply("testdata/results/taskrun.yaml", ns)
+			oc.Apply("testdata/results/taskrun.yaml")
 
-			// Wait for taskrun to complete
+			// Wait for taskrun to complete (namespace from store)
+			ns := lastNamespace
 			cmd.MustSucceedIncreasedTimeout(time.Minute*5, "oc", "wait", "--for=condition=Succeeded", "taskrun/results-task", "-n", ns, "--timeout=120s")
 		})
 
@@ -47,20 +42,16 @@ var _ = Describe("Tekton Results", Label("results", "e2e"), func() {
 	})
 
 	Describe("PIPELINES-26-TC02: Test Tekton results with PipelineRun", Label("sanity"), Ordered, func() {
-		BeforeAll(func() {
-			lastNamespace = config.TargetNamespace
-		})
-
 		It("verifies golang imagestream exists", func() {
 			cmd.MustSucceed("oc", "get", "is", "golang", "-n", "openshift")
 		})
 
 		It("applies pipeline and pipelinerun fixtures", func() {
-			ns := config.TargetNamespace
-			oc.Apply("testdata/results/pipeline.yaml", ns)
-			oc.Apply("testdata/results/pipelinerun.yaml", ns)
+			oc.Apply("testdata/results/pipeline.yaml")
+			oc.Apply("testdata/results/pipelinerun.yaml")
 
 			// Wait for pipelinerun to complete
+			ns := lastNamespace
 			cmd.MustSucceedIncreasedTimeout(time.Minute*5, "oc", "wait", "--for=condition=Succeeded", "pipelinerun/pipeline-results", "-n", ns, "--timeout=120s")
 		})
 

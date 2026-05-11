@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/hooks"
 )
 
 var sharedClients *clients.Clients
@@ -62,8 +63,12 @@ var _ = SynchronizedBeforeSuite(
 )
 
 var _ = AfterSuite(func() {
+	hooks.CleanupNamespaces()
 	_ = config.RemoveTempDir()
 })
+
+// Automatically create namespace per Describe block
+var _ = hooks.AutoNamespacePerDescribe(&lastNamespace, func() *clients.Clients { return sharedClients })
 
 // Collect diagnostics (pod logs, events, resource state) on test failure.
 // Disabled for cleaner console output

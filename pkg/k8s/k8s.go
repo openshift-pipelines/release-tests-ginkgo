@@ -207,3 +207,29 @@ func DeleteCronJob(c *clients.Clients, name, namespace string) {
 		log.Printf("Delete cron job %s failed: %v", name, err)
 	}
 }
+
+// WaitForServiceAccount waits for a service account to exist in the given namespace.
+// Returns the service account or nil if not found within the timeout.
+func WaitForServiceAccount(cs *clients.Clients, ns, targetSA string) *corev1.ServiceAccount {
+	var ret *corev1.ServiceAccount
+	err := wait.PollUntilContextTimeout(cs.Ctx, config.APIRetry, config.APITimeout, false, func(ctx context.Context) (bool, error) {
+		saList, err := cs.KubeClient.Kube.CoreV1().ServiceAccounts(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return false, err
+		}
+		for _, sa := range saList.Items {
+			if sa.Name == targetSA {
+				saCopy := sa
+				ret = &saCopy
+				return true, nil
+			}
+		}
+		log.Printf("Waiting for service account %s in namespace %s\n", targetSA, ns)
+		return false, nil
+	})
+	if err != nil {
+		log.Printf("Warning: service account %s not found in namespace %s: %v", targetSA, ns, err)
+		return nil
+	}
+	return ret
+}

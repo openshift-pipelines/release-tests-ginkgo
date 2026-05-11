@@ -105,6 +105,11 @@ func VerifyResultsLogs(resourceType string) error {
 		return fmt.Errorf("annotation results.tekton.dev/record is not set")
 	}
 
+	// Wait for Results API to finish indexing after annotation is set
+	// The annotation=true means data was sent, but API needs time to index it
+	log.Printf("Waiting 10 seconds for Results API to index data\n")
+	time.Sleep(10 * time.Second)
+
 	var resultsJsonData = cmd.MustSucceed("opc", "results", "logs", "get", "--insecure", "--addr", resultsAPI, recordUUID).Stdout()
 	if strings.Contains(resultsJsonData, "record not found") {
 		return fmt.Errorf("results log not found")
@@ -134,6 +139,12 @@ func VerifyResultsRecords(resourceType string) error {
 	var resultsAPI string
 	_, recordUUID, _ = GetResultsAnnotations(resourceType)
 	resultsAPI = GetResultsApi()
+
+	// Wait for Results API to finish indexing after annotation is set
+	// The annotation=true means data was sent, but API needs time to index it
+	log.Printf("Waiting 10 seconds for Results API to index data\n")
+	time.Sleep(10 * time.Second)
+
 	var resultsRecord = cmd.MustSucceed("opc", "results", "records", "get", "--insecure", "--addr", resultsAPI, recordUUID).Stdout()
 	if strings.Contains(resultsRecord, "record not found") {
 		return fmt.Errorf("results record not found")
