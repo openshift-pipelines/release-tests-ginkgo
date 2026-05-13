@@ -19,6 +19,7 @@ var oc = occmd.OC{}
 // ecoNsCounter provides unique namespace names per test. Incremented each time
 // createTestNamespace is called within this file.
 var ecoNsCounter int
+var oc = occmd.OC{}
 
 // createTestNamespace creates a new OpenShift project with a unique name derived from
 // the given prefix and returns the namespace name. The namespace name includes the
