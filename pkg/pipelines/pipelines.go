@@ -304,4 +304,3 @@ func CheckLogVersion(c *clients.Clients, binary, namespace string) {
 		Fail(fmt.Sprintf("unknown binary for log version check: %s", binary))
 	}
 }
-

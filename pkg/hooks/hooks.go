@@ -11,10 +11,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 	"github.com/tektoncd/pipeline/pkg/names"
 )
+
+var oc = occmd.OC{}
 
 // namespaceManager holds the state for automatic namespace management.
 type namespaceManager struct {

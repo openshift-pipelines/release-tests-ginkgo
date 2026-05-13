@@ -6,12 +6,15 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	olmpkg "github.com/openshift-pipelines/release-tests-ginkgo/pkg/olm"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
+	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/tektoncd/operator/test/utils"
 )
+
+var oc = occmd.OC{}
 
 var rnames = utils.ResourceNames{TektonConfig: "config"}
 
@@ -19,12 +22,15 @@ var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func()
 
 	Describe("PIPELINES-09-TC01: Install openshift-pipelines operator", Label("install", "sanity"), Ordered, func() {
 		It("subscribes to operator", func() {
-			_, err := olmpkg.SubscribeAndWaitForOperatorToBeReady(
-				sharedClients,
-				config.Flags.SubscriptionName,
-				config.Flags.Channel,
-				config.Flags.CatalogSource,
-			)
+			subscription := olmpkg.SubscriptionRequest{
+				Name: config.Flags.SubscriptionName,
+				SubscriptionSpec: &v1alpha1.SubscriptionSpec{
+					CatalogSource: config.Flags.CatalogSource,
+					Channel:       config.Flags.Channel,
+					Package:       config.Flags.SubscriptionName,
+				},
+			}
+			_, err := olmpkg.SubscribeAndWaitForOperatorToBeReady(sharedClients, subscription, "")
 			Expect(err).NotTo(HaveOccurred(), "Failed to subscribe to operator")
 		})
 
@@ -159,11 +165,17 @@ var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func()
 			if upgradeChannel == "" {
 				Skip("UPGRADE_CHANNEL not set -- skipping upgrade test")
 			}
+			subscription := olmpkg.SubscriptionRequest{
+				Name: config.Flags.SubscriptionName,
+				SubscriptionSpec: &v1alpha1.SubscriptionSpec{
+					Channel: upgradeChannel,
+					Package: config.Flags.SubscriptionName,
+				},
+			}
 
 			_, err := olmpkg.UptadeSubscriptionAndWaitForOperatorToBeReady(
 				sharedClients,
-				config.Flags.SubscriptionName,
-				upgradeChannel,
+				subscription,
 			)
 			Expect(err).NotTo(HaveOccurred(), "Failed to upgrade operator subscription")
 		})
@@ -187,7 +199,10 @@ var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func()
 
 	Describe("PIPELINES-09-TC03: Uninstall openshift-pipelines operator", Label("uninstall"), Ordered, func() {
 		It("uninstalls the operator", func() {
-			err := olmpkg.OperatorCleanup(sharedClients, config.Flags.SubscriptionName)
+			sr := olmpkg.SubscriptionRequest{
+				Name: config.Flags.SubscriptionName,
+			}
+			err := olmpkg.OperatorCleanup(sharedClients, sr)
 			Expect(err).NotTo(HaveOccurred(), "Failed to uninstall operator")
 		})
 	})
