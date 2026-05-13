@@ -24,7 +24,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 	gitlab "github.com/xanzy/go-gitlab"
@@ -50,6 +50,8 @@ var client *gitlab.Client
 
 // projectURL holds the web URL of the forked project, set during SetupGitLabProject.
 var projectURL string
+
+var oc = occmd.OC{}
 
 // SetGitLabClient sets the package-level GitLab client.
 func SetGitLabClient(c *gitlab.Client) {

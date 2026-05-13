@@ -6,11 +6,13 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	approvalgate "github.com/openshift-pipelines/release-tests-ginkgo/pkg/manualapprovalgate"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	approvalgate "github.com/openshift-pipelines/release-tests-ginkgo/pkg/manualapprovalgate"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 )
+
+var oc = occmd.OC{}
 
 var _ = Describe("Manual Approval Gate", Label("approvalgate", "e2e", "sanity"), func() {
 

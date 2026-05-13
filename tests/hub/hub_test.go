@@ -4,8 +4,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 )
+
+var oc = occmd.OC{}
 
 var _ = Describe("Hub", Serial, Label("hub"), func() {
 

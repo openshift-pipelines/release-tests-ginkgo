@@ -7,13 +7,14 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 )
 
 // nsCounter provides unique namespace names per test within this file.
 // Using GinkgoParallelProcess ensures uniqueness across parallel processes.
 var ecoNsCounter int
+var oc = occmd.OC{}
 
 // createTestNamespace creates a new OpenShift project with a unique name derived from
 // the given prefix and returns the namespace name. The namespace name includes the
@@ -29,15 +30,16 @@ func createTestNamespace(prefix string) string {
 // DescribeTable 1: Ecosystem Task Pipelines (simple create-verify pattern)
 //
 // These tests follow the most common ecosystem pattern:
-//   1. Create a unique namespace and register cleanup
-//   2. Create YAML resources (pipelines, PVCs, pipelineruns) via oc
-//   3. Verify pipelinerun reaches expected status
+//  1. Create a unique namespace and register cleanup
+//  2. Create YAML resources (pipelines, PVCs, pipelineruns) via oc
+//  3. Verify pipelinerun reaches expected status
 //
 // CRITICAL: Entry parameters are evaluated at TREE CONSTRUCTION TIME.
 //   - Only string literals, slice literals, and constant values are used as Entry args.
 //   - Dynamic values (namespace, client handles) are created INSIDE the table body
 //     function at spec execution time, never passed through Entry.
 //   - The `resources []string` parameter is a slice literal, safe for tree-construction.
+//
 // -----------------------------------------------------------------------
 var _ = DescribeTable("Ecosystem Task Pipelines",
 	func(testcaseID, pipelineRunName string, resources []string, expectedStatus string) {
