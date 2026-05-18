@@ -4,8 +4,8 @@ go 1.25.7
 
 require (
 	github.com/google/go-cmp v0.7.0
-	github.com/onsi/ginkgo/v2 v2.28.3
-	github.com/onsi/gomega v1.40.0
+	github.com/onsi/ginkgo/v2 v2.29.0
+	github.com/onsi/gomega v1.41.0
 	github.com/openshift-pipelines/manual-approval-gate v0.8.0
 	github.com/openshift-pipelines/pipelines-as-code v0.46.0
 	github.com/openshift/api v0.0.0-20240521185306-0314f31e7774
