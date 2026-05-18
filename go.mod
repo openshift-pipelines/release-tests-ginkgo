@@ -10,7 +10,7 @@ require (
 	github.com/openshift-pipelines/pipelines-as-code v0.46.0
 	github.com/openshift/api v0.0.0-20240521185306-0314f31e7774
 	github.com/openshift/client-go v0.0.0-20240523113335-452272e0496d
-	github.com/operator-framework/api v0.16.0
+	github.com/operator-framework/api v0.42.0
 	github.com/operator-framework/operator-lifecycle-manager v0.22.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
@@ -152,7 +152,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20260330154417-16be699c7b31 // indirect
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5 // indirect
 	knative.dev/eventing v0.48.2 // indirect
-	sigs.k8s.io/controller-runtime v0.22.4 // indirect
+	sigs.k8s.io/controller-runtime v0.23.3 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
