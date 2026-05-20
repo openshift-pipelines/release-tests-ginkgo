@@ -1,2 +1,7 @@
 # Reference repos (cloned for migration comparison)
 reference-repo/
+
+# Generated test reports / artifacts
+*.xml
+test-reports/
+artifacts/
