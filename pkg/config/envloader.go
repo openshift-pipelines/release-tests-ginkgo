@@ -23,11 +23,11 @@ func LoadEnvironmentFromProperties() error {
 		return nil
 	}
 
-	file, err := os.Open(propertiesFile)
+	file, err := os.Open(propertiesFile) //nolint:gosec // G304: file path comes from config, not user input
 	if err != nil {
 		return fmt.Errorf("failed to open properties file %s: %w", propertiesFile, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -49,7 +49,9 @@ func LoadEnvironmentFromProperties() error {
 
 		// Only set if not already set (allows override from CI/CD)
 		if os.Getenv(key) == "" {
-			os.Setenv(key, value)
+			if err := os.Setenv(key, value); err != nil {
+				return fmt.Errorf("failed to set env var %s: %w", key, err)
+			}
 		}
 	}
 

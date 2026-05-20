@@ -1,3 +1,4 @@
+// Package triggers provides helpers for creating and verifying Tekton Triggers resources.
 package triggers
 
 import (
@@ -12,8 +13,9 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 

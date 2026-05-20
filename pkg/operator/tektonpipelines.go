@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"log"
 
-	. "github.com/onsi/gomega"
-
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	. "github.com/onsi/gomega" //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 	"github.com/tektoncd/operator/pkg/apis/operator/v1alpha1"
 	pipelinev1alpha1 "github.com/tektoncd/operator/pkg/client/clientset/versioned/typed/operator/v1alpha1"
 	"github.com/tektoncd/operator/test/utils"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
 // EnsureTektonPipelineExists waits until a TektonPipeline CR with the given name exists.

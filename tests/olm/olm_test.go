@@ -3,14 +3,15 @@ package olm_test
 import (
 	"os"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+	"github.com/tektoncd/operator/test/utils"
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	olmpkg "github.com/openshift-pipelines/release-tests-ginkgo/pkg/olm"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
-	"github.com/tektoncd/operator/test/utils"
 )
 
 var rnames = utils.ResourceNames{TektonConfig: "config"}

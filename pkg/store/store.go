@@ -1,12 +1,14 @@
+// Package store provides a thread-safe scenario-scoped key-value store for integration tests.
 package store
 
 import (
 	"net/http"
 	"sync"
 
+	"github.com/tektoncd/operator/test/utils"
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
-	"github.com/tektoncd/operator/test/utils"
 )
 
 // scenarioStore holds data for the current test scenario.
@@ -44,8 +46,8 @@ func GetCRNames() utils.ResourceNames {
 	return utils.ResourceNames{}
 }
 
-// HttpResponse returns the stored HTTP response for the scenario.
-func HttpResponse() *http.Response {
+// HTTPResponse returns the stored HTTP response for the scenario.
+func HTTPResponse() *http.Response {
 	mu.RLock()
 	defer mu.RUnlock()
 	if resp, ok := scenarioStore["response"].(*http.Response); ok {

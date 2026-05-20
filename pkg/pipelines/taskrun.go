@@ -6,12 +6,13 @@ import (
 	"regexp"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/wait"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ValidateTaskRun validates a TaskRun by matching name pattern and checking status.

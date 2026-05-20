@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
@@ -79,7 +79,7 @@ func updatePrunerConfigWithInvalidData(keep, schedule, resources, keepSince stri
 
 // assertCronjobPresence uses Eventually to poll for the presence or absence of
 // a cronjob with the given prefix in the target namespace.
-func assertCronjobPresence(prefix, targetNamespace string, shouldBePresent bool) {
+func assertCronjobPresence(prefix, targetNamespace string, shouldBePresent bool) { //nolint:unparam // prefix may vary in future tests
 	if shouldBePresent {
 		Eventually(func(g Gomega) {
 			output := cmd.MustSucceed("oc", "get", "cronjob", "-n", targetNamespace, "-o", "name").Stdout()
@@ -114,7 +114,7 @@ func assertResourceCount(resourceType string, expectedCount, timeoutSeconds int)
 }
 
 // storeCronjobName gets the name of the cronjob with the given schedule in the namespace.
-func storeCronjobName(namespace, schedule string) string {
+func storeCronjobName(namespace, schedule string) string { //nolint:unparam // schedule may vary in future tests
 	output := cmd.MustSucceed("oc", "get", "cronjob", "-n", namespace,
 		"-o", "jsonpath={range .items[?(@.spec.schedule==\""+schedule+"\")]}{.metadata.name}{end}").Stdout()
 	Expect(strings.TrimSpace(output)).NotTo(BeEmpty(),

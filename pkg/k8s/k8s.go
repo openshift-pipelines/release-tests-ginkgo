@@ -1,3 +1,4 @@
+// Package k8s provides helpers for interacting with Kubernetes resources.
 package k8s
 
 import (
@@ -7,9 +8,7 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/gomega"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	. "github.com/onsi/gomega" //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -21,6 +20,9 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
 // ListOptionsDefault returns an empty ListOptions (convenience helper to avoid
@@ -151,11 +153,11 @@ func DeleteDeployment(cs *clients.Clients, namespace, deploymentName string) err
 			log.Printf("Deployment %s already deleted in namespace %s", deploymentName, namespace)
 			return nil
 		}
-		return fmt.Errorf("failed to delete deployment %s in namespace %s: %v", deploymentName, namespace, err)
+		return fmt.Errorf("failed to delete deployment %s in namespace %s: %w", deploymentName, namespace, err)
 	}
 
 	if delErr := WaitForDeploymentDeletion(cs, namespace, deploymentName); delErr != nil {
-		return fmt.Errorf("deployment %s not fully deleted: %v", deploymentName, delErr)
+		return fmt.Errorf("deployment %s not fully deleted: %w", deploymentName, delErr)
 	}
 	return nil
 }

@@ -1,3 +1,4 @@
+// Package pac provides helpers for interacting with Pipelines-as-Code resources.
 package pac
 
 import (
@@ -15,23 +16,24 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 	pacv1alpha1 "github.com/openshift-pipelines/pipelines-as-code/pkg/apis/pipelinesascode/v1alpha1"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/cli"
 	pacgenerate "github.com/openshift-pipelines/pipelines-as-code/pkg/cmd/tknpac/generate"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/git"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/params/info"
+	gitlab "github.com/xanzy/go-gitlab"
+	yaml "gopkg.in/yaml.v2"
+	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
-	gitlab "github.com/xanzy/go-gitlab"
-	yaml "gopkg.in/yaml.v2"
-	v1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -84,7 +86,7 @@ func getNewSmeeURL() (string, error) {
 	cmd := exec.Command("sh", "-c", curlCommand)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to create SmeeURL: %v", err)
+		return "", fmt.Errorf("failed to create SmeeURL: %w", err)
 	}
 	smeeURL := strings.TrimSpace(string(output))
 	if smeeURL == "" {
@@ -142,7 +144,7 @@ func createSmeeDeployment(c *clients.Clients, namespace, smeeURL string) error {
 
 	result, err := deploymentsClient.Create(context.TODO(), deployment, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 	log.Printf("Created deployment %q in namespace %q.\n", result.GetObjectMeta().GetName(), namespace)
 	return nil
@@ -153,11 +155,11 @@ func createSmeeDeployment(c *clients.Clients, namespace, smeeURL string) error {
 func SetupSmeeDeployment(c *clients.Clients, namespace string) (smeeURL string, err error) {
 	smeeURL, err = getNewSmeeURL()
 	if err != nil {
-		return "", fmt.Errorf("failed to get a new Smee URL: %v", err)
+		return "", fmt.Errorf("failed to get a new Smee URL: %w", err)
 	}
 
 	if err = createSmeeDeployment(c, namespace, smeeURL); err != nil {
-		return "", fmt.Errorf("failed to create deployment: %v", err)
+		return "", fmt.Errorf("failed to create deployment: %w", err)
 	}
 
 	return smeeURL, nil
@@ -234,7 +236,7 @@ func createNewRepository(c *clients.Clients, projectName, targetGroupNamespace, 
 
 	created, err := c.PacClientset.Repositories(namespace).Create(context.Background(), repo, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create repository: %v", err)
+		return fmt.Errorf("failed to create repository: %w", err)
 	}
 
 	log.Printf("Repository %q created successfully in namespace %q", created.GetName(), created.GetNamespace())
@@ -304,7 +306,7 @@ func AddComment(projectID, mrID int, comment string) error {
 
 	_, _, err := client.Notes.CreateMergeRequestNote(projectID, mrID, opts)
 	if err != nil {
-		return fmt.Errorf("failed to add comment to MR %d in project %d: %v", mrID, projectID, err)
+		return fmt.Errorf("failed to add comment to MR %d in project %d: %w", mrID, projectID, err)
 	}
 	log.Printf("Successfully added comment %s to merge request %d\n", comment, mrID)
 	return nil
@@ -368,7 +370,7 @@ func generatePipelineRun(eventType, branch, fileName string) error {
 	}
 	opts := createPacGenerateOpts(eventType, branch, fileName)
 	if err := pacgenerate.Generate(opts, true); err != nil {
-		return fmt.Errorf("failed to generate PipelineRun: %v", err)
+		return fmt.Errorf("failed to generate PipelineRun: %w", err)
 	}
 	return nil
 }
@@ -377,7 +379,7 @@ func generatePipelineRun(eventType, branch, fileName string) error {
 func validateYAML(yamlContent []byte) error {
 	var content map[string]any
 	if err := yaml.Unmarshal(yamlContent, &content); err != nil {
-		return fmt.Errorf("invalid YAML format: %v", err)
+		return fmt.Errorf("invalid YAML format: %w", err)
 	}
 	return nil
 }
@@ -388,16 +390,16 @@ func GeneratePipelineRunYaml(eventType, branch string) error {
 	fileName := eventType + ".yaml"
 
 	if err := generatePipelineRun(eventType, branch, fileName); err != nil {
-		return fmt.Errorf("failed to generate pipelinerun: %v", err)
+		return fmt.Errorf("failed to generate pipelinerun: %w", err)
 	}
 
 	fileContent, err := os.ReadFile(filepath.Clean(fileName))
 	if err != nil {
-		return fmt.Errorf("could not read file %s: %v", fileName, err)
+		return fmt.Errorf("could not read file %s: %w", fileName, err)
 	}
 
 	if err := validateYAML(fileContent); err != nil {
-		return fmt.Errorf("invalid YAML content: %v", err)
+		return fmt.Errorf("invalid YAML content: %w", err)
 	}
 
 	var destPath string
@@ -409,8 +411,8 @@ func GeneratePipelineRunYaml(eventType, branch string) error {
 	default:
 		return fmt.Errorf("unknown eventType: %s", eventType)
 	}
-	if err := os.WriteFile(destPath, fileContent, 0600); err != nil {
-		return fmt.Errorf("failed to write %s: %v", destPath, err)
+	if err := os.WriteFile(destPath, fileContent, 0600); err != nil { //nolint:gosec // G703: path is sanitized before this call
+		return fmt.Errorf("failed to write %s: %w", destPath, err)
 	}
 	return nil
 }
@@ -421,12 +423,12 @@ func UpdateAnnotation(annotationKey, annotationValue string) (string, error) {
 	fileName := pullRequestFileName
 	data, err := os.ReadFile(filepath.Clean(fileName))
 	if err != nil {
-		return "", fmt.Errorf("failed to read YAML file: %v", err)
+		return "", fmt.Errorf("failed to read YAML file: %w", err)
 	}
 
 	var content map[string]any
 	if err := yaml.Unmarshal(data, &content); err != nil {
-		return "", fmt.Errorf("failed to unmarshal YAML: %v", err)
+		return "", fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
 
 	meta := content["metadata"].(map[any]any)
@@ -440,15 +442,15 @@ func UpdateAnnotation(annotationKey, annotationValue string) (string, error) {
 
 	out, err := yaml.Marshal(content)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal YAML: %v", err)
+		return "", fmt.Errorf("failed to marshal YAML: %w", err)
 	}
 
 	if err := os.WriteFile(fileName, out, 0600); err != nil {
-		return "", fmt.Errorf("failed to write YAML file: %v", err)
+		return "", fmt.Errorf("failed to write YAML file: %w", err)
 	}
 
 	if err := validateYAML(out); err != nil {
-		return "", fmt.Errorf("invalid YAML content: %v", err)
+		return "", fmt.Errorf("invalid YAML content: %w", err)
 	}
 
 	log.Println("Annotation updated successfully")
@@ -464,7 +466,7 @@ func createCommit(projectID int, branch, commitMessage, eventType string) error 
 	case "pull_request":
 		data, err := os.ReadFile(pullRequestFileName)
 		if err != nil {
-			return fmt.Errorf("read PR file: %v", err)
+			return fmt.Errorf("read PR file: %w", err)
 		}
 		actions = append(actions, &gitlab.CommitActionOptions{
 			Action:   &action,
@@ -474,7 +476,7 @@ func createCommit(projectID int, branch, commitMessage, eventType string) error 
 	case "push":
 		data, err := os.ReadFile(pushFileName)
 		if err != nil {
-			return fmt.Errorf("read push file: %v", err)
+			return fmt.Errorf("read push file: %w", err)
 		}
 		actions = append(actions, &gitlab.CommitActionOptions{
 			Action:   &action,
@@ -491,7 +493,7 @@ func createCommit(projectID int, branch, commitMessage, eventType string) error 
 		Actions:       actions,
 	}
 	if _, _, err := client.Commits.CreateCommit(projectID, commitOpts); err != nil {
-		return fmt.Errorf("failed to create commit: %v", err)
+		return fmt.Errorf("failed to create commit: %w", err)
 	}
 	return nil
 }
@@ -597,7 +599,7 @@ func ConfigurePreviewChanges(projectID int) (mrID int, err error) {
 	for range 10 {
 		suf, err := gen(8)
 		if err != nil {
-			return 0, fmt.Errorf("failed to generate branch suffix: %v", err)
+			return 0, fmt.Errorf("failed to generate branch suffix: %w", err)
 		}
 		n := "preview-" + suf
 		if !branchExists(n) {
@@ -610,7 +612,7 @@ func ConfigurePreviewChanges(projectID int) (mrID int, err error) {
 	}
 
 	if err := createBranch(projectID, branchName); err != nil {
-		return 0, fmt.Errorf("createBranch %q: %v", branchName, err)
+		return 0, fmt.Errorf("createBranch %q: %w", branchName, err)
 	}
 
 	prExists := false
@@ -626,11 +628,11 @@ func ConfigurePreviewChanges(projectID int) (mrID int, err error) {
 		action := gitlab.FileCreate
 		prData, err := os.ReadFile(pullRequestFileName)
 		if err != nil {
-			return 0, fmt.Errorf("read PR file: %v", err)
+			return 0, fmt.Errorf("read PR file: %w", err)
 		}
 		pushData, err := os.ReadFile(pushFileName)
 		if err != nil {
-			return 0, fmt.Errorf("read push file: %v", err)
+			return 0, fmt.Errorf("read push file: %w", err)
 		}
 		msg := "ci(pac): add push & pull_request files"
 		commitOpts := &gitlab.CreateCommitOptions{
@@ -642,15 +644,15 @@ func ConfigurePreviewChanges(projectID int) (mrID int, err error) {
 			},
 		}
 		if _, _, err := client.Commits.CreateCommit(projectID, commitOpts); err != nil {
-			return 0, fmt.Errorf("commit both: %v", err)
+			return 0, fmt.Errorf("commit both: %w", err)
 		}
 	} else if prExists {
 		if err := createCommit(projectID, branchName, "ci(pac): add pull_request file", "pull_request"); err != nil {
-			return 0, fmt.Errorf("commit pull_request: %v", err)
+			return 0, fmt.Errorf("commit pull_request: %w", err)
 		}
 	} else if pushExists {
 		if err := createCommit(projectID, branchName, "ci(pac): add push file", "push"); err != nil {
-			return 0, fmt.Errorf("commit push: %v", err)
+			return 0, fmt.Errorf("commit push: %w", err)
 		}
 	} else {
 		return 0, fmt.Errorf("no pipeline files found to commit in /tmp")
@@ -658,13 +660,13 @@ func ConfigurePreviewChanges(projectID int) (mrID int, err error) {
 
 	mrURL, err := createMergeRequest(projectID, branchName, "main", "Add preview changes for feature")
 	if err != nil {
-		return 0, fmt.Errorf("createMergeRequest: %v", err)
+		return 0, fmt.Errorf("createMergeRequest: %w", err)
 	}
 	log.Printf("Merge Request Created: %s\n", mrURL)
 
 	mrID, err = extractMergeRequestID(mrURL)
 	if err != nil {
-		return 0, fmt.Errorf("extract MR ID: %v", err)
+		return 0, fmt.Errorf("extract MR ID: %w", err)
 	}
 	return mrID, nil
 }
@@ -686,7 +688,7 @@ func repoFileExists(projectID int, branch, path string) (bool, error) {
 func TriggerPushOnForkMain(projectID int) error {
 	data, err := os.ReadFile("/tmp/push.yaml")
 	if err != nil {
-		return fmt.Errorf("failed to read /tmp/push.yaml: %v", err)
+		return fmt.Errorf("failed to read /tmp/push.yaml: %w", err)
 	}
 	pushFileContent := string(data)
 
@@ -729,7 +731,7 @@ func TriggerPushOnForkMain(projectID int) error {
 	}
 
 	if _, _, err := client.Commits.CreateCommit(projectID, commitOpts); err != nil {
-		return fmt.Errorf("failed to commit push.yaml+trigger to main: %v", err)
+		return fmt.Errorf("failed to commit push.yaml+trigger to main: %w", err)
 	}
 	return nil
 }
@@ -738,12 +740,12 @@ func TriggerPushOnForkMain(projectID int) error {
 func GetPipelineNameFromMR(c *clients.Clients, namespace string, projectID, mrID int) (string, error) {
 	err := checkPipelineStatus(projectID, mrID)
 	if err != nil {
-		return "", fmt.Errorf("failed to check pipeline status: %v", err)
+		return "", fmt.Errorf("failed to check pipeline status: %w", err)
 	}
 
 	pipelineName, err := pipelines.GetLatestPipelinerun(c, namespace)
 	if err != nil {
-		return "", fmt.Errorf("failed to get the latest Pipelinerun: %v", err)
+		return "", fmt.Errorf("failed to get the latest Pipelinerun: %w", err)
 	}
 	return pipelineName, nil
 }
@@ -755,7 +757,7 @@ func GetPushPipelineNameFromMain(c *clients.Clients, namespace string) (string, 
 
 	pipelineName, err := pipelines.GetLatestPipelinerun(c, namespace)
 	if err != nil {
-		return "", fmt.Errorf("failed to get the latest Pipelinerun: %v", err)
+		return "", fmt.Errorf("failed to get the latest Pipelinerun: %w", err)
 	}
 	return pipelineName, nil
 }
@@ -764,7 +766,7 @@ func GetPushPipelineNameFromMain(c *clients.Clients, namespace string) (string, 
 func AssertPACInfoInstall() error {
 	pacInfo, err := opc.GetOpcPacInfoInstall()
 	if err != nil {
-		return fmt.Errorf("failed to get pac info: %v", err)
+		return fmt.Errorf("failed to get pac info: %w", err)
 	}
 
 	clusterVersion := pacInfo.PipelinesAsCode.InstallVersion
@@ -792,24 +794,24 @@ func deleteGitlabProject(projectID int) error {
 // and deletes the Smee deployment.
 func CleanupPAC(c *clients.Clients, namespace string, projectID int, smeeDeploymentName string) error {
 	// Remove the generated PipelineRun YAML files
-	os.Remove(pullRequestFileName)
-	os.Remove(pushFileName)
+	_ = os.Remove(pullRequestFileName)
+	_ = os.Remove(pushFileName)
 
 	// Remove Forked Project
 	if cleanupErr := deleteGitlabProject(projectID); cleanupErr != nil {
-		return fmt.Errorf("cleanup failed: %v", cleanupErr)
+		return fmt.Errorf("cleanup failed: %w", cleanupErr)
 	}
 
 	// Delete Smee Deployment
 	if err := k8s.DeleteDeployment(c, namespace, smeeDeploymentName); err != nil {
-		return fmt.Errorf("failed to Delete Smee Deployment: %v", err)
+		return fmt.Errorf("failed to Delete Smee Deployment: %w", err)
 	}
 	return nil
 }
 
 // AssertNumberOfPipelineruns verifies that the expected number of PipelineRuns exist in the
 // namespace within the given timeout (in seconds).
-func AssertNumberOfPipelineruns(c *clients.Clients, namespace string, expectedCount, timeoutSeconds int) error {
+func AssertNumberOfPipelineruns(c *clients.Clients, _ string, expectedCount, timeoutSeconds int) error {
 	log.Printf("Verifying if %d pipelineruns are present", expectedCount)
 	ctx, cancel := context.WithTimeout(c.Ctx, time.Second*time.Duration(timeoutSeconds))
 	defer cancel()

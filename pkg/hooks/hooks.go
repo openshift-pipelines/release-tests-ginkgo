@@ -8,12 +8,13 @@ import (
 	"strings"
 	"sync"
 
-	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	"github.com/tektoncd/pipeline/pkg/names"
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
-	"github.com/tektoncd/pipeline/pkg/names"
 )
 
 // namespaceManager holds the state for automatic namespace management.

@@ -1,3 +1,4 @@
+// Package wait provides polling helpers for waiting on Kubernetes and Tekton resource states.
 package wait
 
 import (
@@ -6,14 +7,15 @@ import (
 	"log"
 	"strings"
 
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"knative.dev/pkg/apis"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
 // ConditionAccessorFn is a condition function used polling functions
@@ -34,7 +36,7 @@ func pollImmediateWithContext(ctx context.Context, fn func() (bool, error)) erro
 // interval until inState returns `true` indicating it is done, returns an
 // error or timeout. desc will be used to name the metric that is emitted to
 // track how long it took for name to get into the state checked by inState.
-func WaitForTaskRunState(c *clients.Clients, name string, inState ConditionAccessorFn, desc string) error {
+func WaitForTaskRunState(c *clients.Clients, name string, inState ConditionAccessorFn, desc string) error { //nolint:revive
 	metricName := fmt.Sprintf("WaitForTaskRunState/%s/%s", name, desc)
 	log.Printf("Waiting: %s", metricName)
 
@@ -51,7 +53,7 @@ func WaitForTaskRunState(c *clients.Clients, name string, inState ConditionAcces
 // from client every interval until inState returns `true` indicating it is done,
 // returns an error or timeout. desc will be used to name the metric that is emitted to
 // track how long it took for name to get into the state checked by inState.
-func WaitForDeploymentState(c *clients.Clients, name string, namespace string, inState func(d *appsv1.Deployment) (bool, error), desc string) error {
+func WaitForDeploymentState(c *clients.Clients, name string, namespace string, inState func(d *appsv1.Deployment) (bool, error), desc string) error { //nolint:revive
 	metricName := fmt.Sprintf("WaitForDeploymentState/%s/%s", name, desc)
 	log.Printf("Waiting: %s", metricName)
 
@@ -68,7 +70,7 @@ func WaitForDeploymentState(c *clients.Clients, name string, namespace string, i
 // interval until inState returns `true` indicating it is done, returns an
 // error or timeout. desc will be used to name the metric that is emitted to
 // track how long it took for name to get into the state checked by inState.
-func WaitForPodState(c *clients.Clients, name string, namespace string, inState func(r *corev1.Pod) (bool, error), desc string) error {
+func WaitForPodState(c *clients.Clients, name string, namespace string, inState func(r *corev1.Pod) (bool, error), desc string) error { //nolint:revive
 	metricName := fmt.Sprintf("WaitForPodState/%s/%s", name, desc)
 	log.Printf("Waiting: %s", metricName)
 
@@ -85,7 +87,7 @@ func WaitForPodState(c *clients.Clients, name string, namespace string, inState 
 // interval until inState returns `true` indicating it is done, returns an
 // error or timeout. desc will be used to name the metric that is emitted to
 // track how long it took for name to get into the state checked by inState.
-func WaitForPipelineRunState(c *clients.Clients, name string, inState ConditionAccessorFn, desc string) error {
+func WaitForPipelineRunState(c *clients.Clients, name string, inState ConditionAccessorFn, desc string) error { //nolint:revive
 	metricName := fmt.Sprintf("WaitForPipelineRunState/%s/%s", name, desc)
 	log.Printf("Waiting: %s", metricName)
 
@@ -101,7 +103,7 @@ func WaitForPipelineRunState(c *clients.Clients, name string, inState ConditionA
 // WaitForServiceExternalIPState polls the status of a k8s Service called name from client every
 // interval until an external ip is assigned indicating it is done, returns an
 // error or timeout.
-func WaitForServiceExternalIPState(c *clients.Clients, namespace, name string, inState func(s *corev1.Service) (bool, error), desc string) error {
+func WaitForServiceExternalIPState(c *clients.Clients, namespace, name string, inState func(s *corev1.Service) (bool, error), desc string) error { //nolint:revive
 	metricName := fmt.Sprintf("WaitForServiceExternalIPState/%s/%s", name, desc)
 	log.Printf("Waiting: %s", metricName)
 
@@ -239,7 +241,7 @@ func PipelineRunFailed(name string) ConditionAccessorFn {
 // ============================== Triggers Wait ==============================================
 
 // WaitFor waits for the specified ConditionFunc every interval until the timeout.
-func WaitFor(ctx context.Context, waitFunc wait.ConditionFunc) error {
+func WaitFor(ctx context.Context, waitFunc wait.ConditionFunc) error { //nolint:revive
 	return pollImmediateWithContext(ctx, waitFunc)
 }
 
@@ -270,7 +272,8 @@ func EventListenerReady(c *clients.Clients, namespace, name string) wait.Conditi
 	}
 }
 
-func WaitForPodsWithLabels(c *clients.Clients, namespace, labels string) wait.ConditionFunc {
+// WaitForPodsWithLabels returns a ConditionFunc that waits until all pods matching the label selector are ready.
+func WaitForPodsWithLabels(c *clients.Clients, namespace, labels string) wait.ConditionFunc { //nolint:revive
 	lastKnownPodNumber := -1
 	return func() (bool, error) {
 		listOpts := metav1.ListOptions{LabelSelector: labels}

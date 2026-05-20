@@ -1,7 +1,8 @@
 package hub_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
@@ -16,15 +17,15 @@ var _ = Describe("Hub", Serial, Label("hub"), func() {
 		})
 
 		It("verifies that the hub API deployment is up and running", func() {
-			k8s.ValidateDeployments(sharedClients, config.TargetNamespace, config.HubApiName)
+			k8s.ValidateDeployments(sharedClients, config.TargetNamespace, config.HubAPIName)
 		})
 
 		It("verifies that the hub DB deployment is up and running", func() {
-			k8s.ValidateDeployments(sharedClients, config.TargetNamespace, config.HubDbName)
+			k8s.ValidateDeployments(sharedClients, config.TargetNamespace, config.HubDBName)
 		})
 
 		It("verifies that the hub UI deployment is up and running", func() {
-			k8s.ValidateDeployments(sharedClients, config.TargetNamespace, config.HubUiName)
+			k8s.ValidateDeployments(sharedClients, config.TargetNamespace, config.HubUIName)
 		})
 	})
 })

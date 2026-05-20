@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:revive // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 )
 
 const (
@@ -44,9 +44,19 @@ func CollectOnFailure(namespace *string) func(SpecReport) {
 		if !report.Failed() {
 			return
 		}
-
-		// Diagnostics collection disabled - only show test failure message
-		_ = namespace
+		if namespace == nil || *namespace == "" {
+			return
+		}
+		ns := *namespace
+		var sb strings.Builder
+		sb.WriteString("\n=== Diagnostics for namespace: " + ns + " ===\n")
+		sb.WriteString("\n--- Events ---\n")
+		sb.WriteString(collectEvents(ns))
+		sb.WriteString("\n--- Resource State ---\n")
+		sb.WriteString(collectResourceState(ns))
+		sb.WriteString("\n--- Pod Logs ---\n")
+		sb.WriteString(collectPodLogs(ns))
+		AddReportEntry("cluster-diagnostics", sb.String())
 	}
 }
 
@@ -93,19 +103,19 @@ func collectPodLogs(namespace string) string {
 		containerOut, err := runOC("get", "pod", pod, "-n", namespace,
 			"-o", "jsonpath={.spec.containers[*].name}")
 		if err != nil {
-			sb.WriteString(fmt.Sprintf("--- Pod: %s [error getting containers: %v] ---\n", pod, err))
+			fmt.Fprintf(&sb, "--- Pod: %s [error getting containers: %v] ---\n", pod, err)
 			continue
 		}
 
 		containers := strings.Fields(strings.TrimSpace(containerOut))
 		for _, container := range containers {
-			sb.WriteString(fmt.Sprintf("--- Pod: %s  Container: %s (last %d lines) ---\n",
-				pod, container, maxLogLines))
+			fmt.Fprintf(&sb, "--- Pod: %s  Container: %s (last %d lines) ---\n",
+				pod, container, maxLogLines)
 
 			logOut, err := runOC("logs", "-n", namespace, pod, "-c", container,
 				fmt.Sprintf("--tail=%d", maxLogLines))
 			if err != nil {
-				sb.WriteString(fmt.Sprintf("[error: %v]\n", err))
+				fmt.Fprintf(&sb, "[error: %v]\n", err)
 			} else {
 				sb.WriteString(logOut)
 			}
@@ -122,7 +132,7 @@ func runOC(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "oc", args...)
+	cmd := exec.CommandContext(ctx, "oc", args...) //nolint:gosec // G204: subprocess args are controlled by test code
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

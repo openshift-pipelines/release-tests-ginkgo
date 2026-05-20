@@ -1,13 +1,15 @@
+// Package cmd provides helpers for running CLI commands in integration tests.
 package cmd
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"gotest.tools/v3/icmd"
 
-	. "github.com/onsi/gomega"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+
+	. "github.com/onsi/gomega" //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 )
 
 // Run executes a command with the default CLI timeout.

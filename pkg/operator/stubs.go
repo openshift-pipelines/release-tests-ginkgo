@@ -8,8 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+
+	"github.com/tektoncd/operator/test/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
@@ -19,9 +23,6 @@ import (
 	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/openshift"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/statefulset"
-	"github.com/tektoncd/operator/test/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // DefineArtifactHubAPIVariable patches TektonConfig to set the artifact-hub-api
@@ -39,7 +40,7 @@ func VerifyNamespaceExists(namespace string) {
 // ConfigureGitResolverToken configures the GitHub token for git resolver in TektonConfig.
 // If GITHUB_TOKEN is set and the secret does not already exist, it creates the secret
 // and patches TektonConfig to reference it.
-func ConfigureGitResolverToken(cs *clients.Clients) {
+func ConfigureGitResolverToken(_ *clients.Clients) {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
 		log.Printf("Token for authorization to the GitHub repository was not exported as a system variable")
@@ -56,7 +57,7 @@ func ConfigureGitResolverToken(cs *clients.Clients) {
 
 // ConfigureBundlesResolver patches TektonConfig to configure the bundles resolver
 // with default-kind and default-service-account.
-func ConfigureBundlesResolver(cs *clients.Clients) {
+func ConfigureBundlesResolver(_ *clients.Clients) {
 	patchData := `{"spec":{"pipeline":{"bundles-resolver-config":{"default-kind":"task","defaut-service-account":"pipelines"}}}}`
 	oc.UpdateTektonConfig(patchData)
 }
@@ -86,14 +87,14 @@ func EnableConsolePluginOperator(cs *clients.Clients) {
 
 // EnableStatefulSet patches TektonConfig to enable StatefulSet mode for pipelines
 // with HA, statefulset ordinals, 2 replicas and 2 buckets.
-func EnableStatefulSet(cs *clients.Clients) {
+func EnableStatefulSet(_ *clients.Clients) {
 	patchData := `{"spec":{"pipeline":{"performance":{"disable-ha":false,"statefulset-ordinals":true,"replicas":2,"buckets":2}}}}`
 	oc.UpdateTektonConfig(patchData)
 }
 
 // EnableStatefulSetForComponent enables statefulset for a specific component
 // (chains or results) in TektonConfig.
-func EnableStatefulSetForComponent(cs *clients.Clients, component string) {
+func EnableStatefulSetForComponent(_ *clients.Clients, component string) {
 	var patchData string
 	switch component {
 	case "chains":
@@ -121,7 +122,7 @@ func ValidatePACDeployment(cs *clients.Clients) {
 // EnableChainsSigningSecret enables generateSigningSecret for Tekton Chains
 // in TektonConfig. If the signing-secrets secret does not exist or is empty,
 // it creates/patches as needed.
-func EnableChainsSigningSecret(cs *clients.Clients) {
+func EnableChainsSigningSecret(_ *clients.Clients) {
 	patchData := `{"spec":{"chain":{"generateSigningSecret":true}}}`
 	if oc.SecretExists("signing-secrets", "openshift-pipelines") {
 		log.Printf("Secrets \"signing-secrets\" already exists")
@@ -138,7 +139,7 @@ func EnableChainsSigningSecret(cs *clients.Clients) {
 // ValidateHubDeployment validates the hub deployment.
 func ValidateHubDeployment(cs *clients.Clients) {
 	k8s.ValidateDeployments(cs, config.TargetNamespace,
-		config.HubApiName, config.HubDbName, config.HubUiName)
+		config.HubAPIName, config.HubDBName, config.HubUIName)
 }
 
 // ValidateStatefulSetDeployment validates a statefulset deployment by name.
@@ -167,7 +168,7 @@ func ValidateConsolePluginDeployment(cs *clients.Clients) {
 
 // ConfigureResultsWithLoki patches TektonConfig to configure Results with Loki
 // integration for log storage.
-func ConfigureResultsWithLoki(cs *clients.Clients) {
+func ConfigureResultsWithLoki(_ *clients.Clients) {
 	patchData := `{"spec":{"result":{"auth_disable":true,"disabled":false,"log_level":"debug","loki_stack_name":"logging-loki","loki_stack_namespace":"openshift-logging"}}}`
 	oc.UpdateTektonConfig(patchData)
 }
@@ -237,7 +238,8 @@ func ValidateAutoPruneCronjob(cs *clients.Clients) {
 // ValidateMAGDeployment validates the Manual Approval Gate deployment.
 func ValidateMAGDeployment(cs *clients.Clients) {
 	names := utils.ResourceNames{ManualApprovalGate: "manual-approval-gate"}
-	approvalgate.EnsureManualApprovalGateExists(cs.ManualApprovalGate(), names)
+	_, err := approvalgate.EnsureManualApprovalGateExists(cs.ManualApprovalGate(), names)
+	Expect(err).NotTo(HaveOccurred(), "failed to ensure ManualApprovalGate exists")
 	k8s.ValidateDeployments(cs, config.TargetNamespace,
 		config.MAGController, config.MAGWebHook)
 }

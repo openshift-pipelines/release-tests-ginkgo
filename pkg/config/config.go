@@ -1,3 +1,4 @@
+// Package config provides shared constants, flags, and configuration helpers for integration tests.
 package config
 
 import (
@@ -27,56 +28,68 @@ const (
 	// ConsistentlyDuration sets  the default duration for Consistently. Consistently will verify that your condition is satisfied for this long.
 	ConsistentlyDuration = 30 * time.Second
 
+	// ResourceTimeout is the default timeout when waiting for a resource condition.
 	ResourceTimeout = 60 * time.Second
 
 	// TargetNamespace specify the name of Target namespace
 	TargetNamespace = "openshift-pipelines"
 
-	// Name of the pipeline controller deployment
+	// PipelineControllerName is the name of the pipeline controller deployment.
 	PipelineControllerName = "tekton-pipelines-controller"
-	PipelineControllerSA   = "tekton-pipelines-controller"
+	// PipelineControllerSA is the service account name for the pipeline controller.
+	PipelineControllerSA = "tekton-pipelines-controller"
 
-	PipelineWebhookName          = "tekton-pipelines-webhook"
+	// PipelineWebhookName is the name of the pipeline webhook deployment.
+	PipelineWebhookName = "tekton-pipelines-webhook"
+	// PipelineWebhookConfiguration is the name of the pipeline webhook configuration.
 	PipelineWebhookConfiguration = "webhook.tekton.dev"
-	SccAnnotationKey             = "operator.tekton.dev"
+	// SccAnnotationKey is the annotation key used by the operator for SCCs.
+	SccAnnotationKey = "operator.tekton.dev"
 
-	// Name of the trigger deployment
+	// TriggerControllerName is the name of the trigger controller deployment.
 	TriggerControllerName = "tekton-triggers-controller"
-	TriggerWebhookName    = "tekton-triggers-webhook"
+	// TriggerWebhookName is the name of the triggers webhook deployment.
+	TriggerWebhookName = "tekton-triggers-webhook"
 
-	// Name of the chains deployment
+	// ChainsControllerName is the name of the chains controller deployment.
 	ChainsControllerName = "tekton-chains-controller"
 
-	// Name of the hub deployment
-	HubApiName = "tekton-hub-api"
-	HubDbName  = "tekton-hub-db"
-	HubUiName  = "tekton-hub-ui"
+	// HubAPIName is the name of the Tekton Hub API deployment.
+	HubAPIName = "tekton-hub-api"
+	// HubDBName is the name of the Tekton Hub database deployment.
+	HubDBName = "tekton-hub-db"
+	// HubUIName is the name of the Tekton Hub UI deployment.
+	HubUIName = "tekton-hub-ui"
 
-	// Name of the manual approval gate deployment
+	// MAGController is the name of the manual approval gate controller deployment.
 	MAGController = "manual-approval-gate-controller"
-	MAGWebHook    = "manual-approval-gate-webhook"
+	// MAGWebHook is the name of the manual approval gate webhook deployment.
+	MAGWebHook = "manual-approval-gate-webhook"
 
-	// Default config for auto pruner
-	PrunerSchedule   = "0 8 * * *"
+	// PrunerSchedule is the default cron schedule for the auto pruner.
+	PrunerSchedule = "0 8 * * *"
+	// PrunerNamePrefix is the prefix used for pruner job names.
 	PrunerNamePrefix = "tekton-resource-pruner-"
 
-	// Name of PAC deployment
+	// PacControllerName is the name of the PAC controller deployment.
 	PacControllerName = "pipelines-as-code-controller"
-	PacWatcherName    = "pipelines-as-code-watcher"
-	PacWebhookName    = "pipelines-as-code-webhook"
+	// PacWatcherName is the name of the PAC watcher deployment.
+	PacWatcherName = "pipelines-as-code-watcher"
+	// PacWebhookName is the name of the PAC webhook deployment.
+	PacWebhookName = "pipelines-as-code-webhook"
 
-	// Name of tkn deployment
+	// TknDeployment is the name of the tkn CLI serve deployment.
 	TknDeployment = "tkn-cli-serve"
 
-	// Name of console deployment
+	// ConsolePluginDeployment is the name of the Pipelines console plugin deployment.
 	ConsolePluginDeployment = "pipelines-console-plugin"
 
-	// A token used in triggers tests
+	// TriggersSecretToken is a token used in triggers tests.
 	TriggersSecretToken = "1234567"
 )
 
-// Name prefixes of installerset
-var TektonInstallersetNamePrefixes [34]string = [34]string{
+// TektonInstallersetNamePrefixes lists the name prefixes of all TektonInstallerSet resources.
+var TektonInstallersetNamePrefixes = [34]string{
 	"addon-custom-consolecli",
 	"addon-custom-openshiftconsole",
 	"addon-custom-pipelinestemplate",
@@ -113,13 +126,15 @@ var TektonInstallersetNamePrefixes [34]string = [34]string{
 	"validating-mutating-webhook",
 }
 
-var PrefixesOfDefaultPipelines [9]string = [9]string{"buildah", "s2i-dotnet", "s2i-go", "s2i-java", "s2i-nodejs", "s2i-perl", "s2i-php", "s2i-python", "s2i-ruby"}
+// PrefixesOfDefaultPipelines lists the name prefixes of default pipeline resources.
+var PrefixesOfDefaultPipelines = [9]string{"buildah", "s2i-dotnet", "s2i-go", "s2i-java", "s2i-nodejs", "s2i-perl", "s2i-php", "s2i-python", "s2i-ruby"}
 
 // Flags holds the command line flags or defaults for settings in the user's environment.
 // See EnvironmentFlags for a list of supported fields
 // Todo: change initialization of falgs when required by parsing them or from environment variable
 var Flags = initializeFlags()
 
+// StringArray is a flag type that allows a flag to be specified multiple times.
 type StringArray []string
 
 // String is the method to format the flag's value, part of the flag.Value interface.
@@ -135,6 +150,7 @@ func (s *StringArray) String() string {
 // --spoke-kubeconfig=$HOME/.kube/spoke-1,$HOME/.kube/spoke-2
 // OR Mix of both
 
+// Set implements the flag.Value interface by appending comma-separated values to the array.
 func (s *StringArray) Set(value string) error {
 	*s = append(*s, strings.Split(value, ",")...)
 	return nil
@@ -245,21 +261,25 @@ func initializeFlags() *EnvironmentFlags {
 	return &f
 }
 
+// Dir returns the absolute path to the template directory.
 func Dir() string {
 	_, b, _, _ := runtime.Caller(0)
 	configDir := path.Join(path.Dir(b), "..", "..", "template")
 	return configDir
 }
 
+// File returns the absolute path of a file under the template directory.
 func File(elem ...string) string {
 	path := append([]string{Dir()}, elem...)
 	return filepath.Join(path...)
 }
 
+// Read reads the contents of a file from the template directory.
 func Read(path string) ([]byte, error) {
 	return os.ReadFile(File(path))
 }
 
+// TempDir returns the path to the temporary directory, creating it if it does not exist.
 func TempDir() (string, error) {
 	tmp := filepath.Join(Dir(), "..", "tmp")
 	if _, err := os.Stat(tmp); os.IsNotExist(err) {
@@ -269,6 +289,7 @@ func TempDir() (string, error) {
 	return tmp, nil
 }
 
+// TempFile returns the full path of a file within the temporary directory.
 func TempFile(elem ...string) (string, error) {
 	tmp, err := TempDir()
 	if err != nil {
@@ -278,6 +299,7 @@ func TempFile(elem ...string) (string, error) {
 	return filepath.Join(path...), nil
 }
 
+// RemoveTempDir removes the temporary directory and all its contents.
 func RemoveTempDir() error {
 	tmp, err := TempDir()
 	if err != nil {
@@ -289,6 +311,7 @@ func RemoveTempDir() error {
 	return nil
 }
 
+// Path returns the absolute path to a file under the testdata directory.
 func Path(elem ...string) string {
 	td := filepath.Join(Dir(), "..")
 	if _, err := os.Stat(td); os.IsNotExist(err) {

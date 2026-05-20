@@ -1,3 +1,4 @@
+// Package operator provides helpers for validating and configuring the Tekton Operator.
 package operator
 
 import (
@@ -5,13 +6,14 @@ import (
 	"log"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+
+	"github.com/tektoncd/operator/test/utils"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
-	"github.com/tektoncd/operator/test/utils"
 )
 
 // WaitForTektonConfigCR ensures a TektonConfig CR exists.

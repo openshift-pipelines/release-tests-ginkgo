@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"log"
 
-	. "github.com/onsi/gomega"
-
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	. "github.com/onsi/gomega" //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 	scc "github.com/openshift/client-go/security/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
 // AssertServiceAccountPresent verifies a service account exists in the given namespace.

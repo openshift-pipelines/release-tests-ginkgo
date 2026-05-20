@@ -47,12 +47,12 @@ jobs:
 
       - name: Check gofmt
         run: |
-          DIFF=$(gofmt -l ./pkg ./cmd ./tests 2>&1)
+          DIFF=$(gofmt -l ./pkg ./tests 2>&1)
           if [[ -n "$DIFF" ]]; then
             echo "The following files are not gofmt-formatted:"
             echo "$DIFF"
             echo ""
-            echo "Run: gofmt -w ./pkg ./cmd ./tests"
+            echo "Run: gofmt -w ./pkg ./tests"
             exit 1
           fi
           echo "All Go files are properly formatted."

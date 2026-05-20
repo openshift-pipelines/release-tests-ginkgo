@@ -1,3 +1,4 @@
+// Package monitoring provides helpers for querying Prometheus metrics in integration tests.
 package monitoring
 
 import (
@@ -29,6 +30,7 @@ type authRoundtripper struct {
 	inner         http.RoundTripper
 }
 
+// RoundTrip executes the HTTP request with an Authorization bearer token injected.
 func (a *authRoundtripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Set("Authorization", a.authorization)
 	return a.inner.RoundTrip(r)
@@ -69,11 +71,13 @@ func getPrometheusRoute(cs *clients.Clients) (*v1.Route, error) {
 	return r, nil
 }
 
+// TargetService holds the Prometheus job name and expected value for a metrics assertion.
 type TargetService struct {
 	Job           string
 	ExpectedValue string
 }
 
+// VerifyHealthStatusMetric verifies that the health status metric for the given service is up.
 func VerifyHealthStatusMetric(cs *clients.Clients, targetService TargetService) error {
 	pc, err := newPrometheusClient(cs)
 	if err != nil {
@@ -102,6 +106,7 @@ func VerifyHealthStatusMetric(cs *clients.Clients, targetService TargetService) 
 	return nil
 }
 
+// VerifyPipelinesControlPlaneMetrics verifies that the control plane metrics for Tekton Pipelines are present.
 func VerifyPipelinesControlPlaneMetrics(cs *clients.Clients) error {
 	pc, err := newPrometheusClient(cs)
 	if err != nil {
@@ -143,7 +148,7 @@ func VerifyPipelinesControlPlaneMetrics(cs *clients.Clients) error {
 func getBearerTokenForPrometheusAccount(cs *clients.Clients) (string, error) {
 	secrets, err := cs.KubeClient.Kube.CoreV1().Secrets("openshift-monitoring").List(context.Background(), meta.ListOptions{})
 	if err != nil {
-		return "", fmt.Errorf("error getting secrets from namespace %v: %v", "openshift-monitoring", err)
+		return "", fmt.Errorf("error getting secrets from namespace %v: %w", "openshift-monitoring", err)
 	}
 	tokenSecret := getPrometheusSecretNameForToken(secrets.Items)
 	if tokenSecret == "" {
@@ -154,7 +159,7 @@ func getBearerTokenForPrometheusAccount(cs *clients.Clients) (string, error) {
 		}
 		secrets, err := cs.KubeClient.Kube.CoreV1().Secrets("openshift-monitoring").List(context.Background(), meta.ListOptions{})
 		if err != nil {
-			return "", fmt.Errorf("error getting secrets from namespace %v: %v", "openshift-monitoring", err)
+			return "", fmt.Errorf("error getting secrets from namespace %v: %w", "openshift-monitoring", err)
 		}
 		tokenSecret = getPrometheusSecretNameForToken(secrets.Items)
 		if tokenSecret == "" {
@@ -163,7 +168,7 @@ func getBearerTokenForPrometheusAccount(cs *clients.Clients) (string, error) {
 	}
 	sec, err := cs.KubeClient.Kube.CoreV1().Secrets("openshift-monitoring").Get(context.Background(), tokenSecret, meta.GetOptions{})
 	if err != nil {
-		return "", fmt.Errorf("error getting secret %s %v", tokenSecret, err)
+		return "", fmt.Errorf("error getting secret %s %w", tokenSecret, err)
 	}
 	tokenContents := sec.Data["token"]
 	if len(tokenContents) == 0 {

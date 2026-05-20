@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package approvalgate provides helpers for managing Manual Approval Gate resources.
 package approvalgate
 
 import (
@@ -22,17 +23,19 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/tektoncd/operator/pkg/apis/operator/v1alpha1"
 	mag "github.com/tektoncd/operator/pkg/client/clientset/versioned/typed/operator/v1alpha1"
 	"github.com/tektoncd/operator/test/utils"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
+// ApprovalTaskInfo holds summary information about a Manual Approval Gate task.
 type ApprovalTaskInfo struct {
 	Name                      string
 	NumberOfApprovalsRequired int
@@ -40,6 +43,7 @@ type ApprovalTaskInfo struct {
 	Status                    string
 }
 
+// EnsureManualApprovalGateExists waits until the ManualApprovalGate CR exists and returns it.
 func EnsureManualApprovalGateExists(clients mag.ManualApprovalGateInterface, names utils.ResourceNames) (*v1alpha1.ManualApprovalGate, error) {
 	ks, err := clients.Get(context.TODO(), names.ManualApprovalGate, metav1.GetOptions{})
 	err = wait.PollUntilContextTimeout(context.TODO(), config.APIRetry, config.APITimeout, false, func(context.Context) (bool, error) {
@@ -65,6 +69,7 @@ func ValidateMAGDeployment(cs *clients.Clients) {
 	}
 }
 
+// ListApprovalTask polls until approval tasks are available and returns their info.
 func ListApprovalTask(cs *clients.Clients) ([]ApprovalTaskInfo, error) {
 	var tasks []ApprovalTaskInfo
 
@@ -106,7 +111,7 @@ func ListApprovalTask(cs *clients.Clients) ([]ApprovalTaskInfo, error) {
 func ValidateApprovalGatePipeline(cs *clients.Clients, expectedStatus string) (bool, error) {
 	tasks, err := ListApprovalTask(cs)
 	if err != nil {
-		return false, fmt.Errorf("error fetching approval tasks: %v", err)
+		return false, fmt.Errorf("error fetching approval tasks: %w", err)
 	}
 
 	for _, task := range tasks {
@@ -132,10 +137,12 @@ func checkApprovalTaskStatus(task ApprovalTaskInfo) string {
 	}
 }
 
+// ApproveApprovalGatePipeline approves the named approval task via the opc CLI.
 func ApproveApprovalGatePipeline(taskname string) {
 	cmd.MustSucceed("opc", "approvaltask", "approve", taskname)
 }
 
+// RejectApprovalGatePipeline rejects the named approval task via the opc CLI.
 func RejectApprovalGatePipeline(taskname string) {
 	cmd.MustSucceed("opc", "approvaltask", "reject", taskname)
 }

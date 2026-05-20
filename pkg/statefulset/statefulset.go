@@ -1,3 +1,4 @@
+// Package statefulset provides helpers for validating StatefulSet deployments.
 package statefulset
 
 import (
@@ -5,12 +6,13 @@ import (
 	"fmt"
 	"log"
 
-	. "github.com/onsi/gomega"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	. "github.com/onsi/gomega" //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
 // ValidateStatefulSetDeployment waits until the named StatefulSet exists and
@@ -31,11 +33,11 @@ func ValidateStatefulSetDeployment(cs *clients.Clients, deploymentName string) {
 
 	log.Printf("Starting validation for StatefulSet deployment: %s in namespace: %s", deploymentName, config.TargetNamespace)
 
-	waitErr := wait.PollUntilContextTimeout(context.TODO(), config.APIRetry, config.APITimeout, true, func(ctx context.Context) (bool, error) {
+	waitErr := wait.PollUntilContextTimeout(context.TODO(), config.APIRetry, config.APITimeout, true, func(_ context.Context) (bool, error) {
 		stsList, err := cs.KubeClient.Kube.AppsV1().StatefulSets(config.TargetNamespace).List(context.TODO(), listOptions)
 		if err != nil {
 			log.Printf("Error listing StatefulSets: %v", err)
-			return false, fmt.Errorf("failed to list StatefulSets: %v", err)
+			return false, fmt.Errorf("failed to list StatefulSets: %w", err)
 		}
 
 		log.Printf("Found %d StatefulSets in namespace %s", len(stsList.Items), config.TargetNamespace)

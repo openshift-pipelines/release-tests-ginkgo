@@ -1,3 +1,4 @@
+// Package clients provides Kubernetes and Tekton client wrappers for use in integration tests.
 package clients
 
 import (
@@ -21,7 +22,6 @@ import (
 	operatorv1alpha1 "github.com/tektoncd/operator/pkg/client/clientset/versioned/typed/operator/v1alpha1"
 	pversioned "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	v1 "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/typed/pipeline/v1"
-	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned/typed/pipeline/v1beta1"
 	triggersclientset "github.com/tektoncd/triggers/pkg/client/clientset/versioned"
 )
 
@@ -50,8 +50,9 @@ type Clients struct {
 	TaskRunClient      v1.TaskRunInterface
 	PipelineRunClient  v1.PipelineRunInterface
 	TriggersClient     triggersclientset.Interface
-	ClustertaskClient  v1beta1.ClusterTaskInterface
-	ApprovalTask       apclient.ApprovalTaskInterface
+	// NOTE: ClusterTaskInterface (v1beta1) was removed in tektoncd/pipeline v1.9.x.
+	// ClusterTask resources are no longer supported upstream. Use Task instead.
+	ApprovalTask apclient.ApprovalTaskInterface
 }
 
 // NewClients instantiates and returns several clientsets required for making request to the
@@ -62,7 +63,7 @@ func NewClients(configPath string, clusterName, namespace string) (*Clients, err
 
 	clients.KubeClient, clients.KubeConfig, err = NewKubeClient(configPath, clusterName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubeclient from config file at %s: %s", configPath, err)
+		return nil, fmt.Errorf("failed to create kubeclient from config file at %s: %w", configPath, err)
 	}
 
 	// We poll, so set our limits high.
@@ -76,32 +77,32 @@ func NewClients(configPath string, clusterName, namespace string) (*Clients, err
 
 	clients.Dynamic, err = dynamic.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create dynamic clients from config file at %s: %s", configPath, err)
+		return nil, fmt.Errorf("failed to create dynamic clients from config file at %s: %w", configPath, err)
 	}
 
 	clients.Operator, err = newTektonOperatorAlphaClients(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Operator v1alpha1 clients from config file at %s: %s", configPath, err)
+		return nil, fmt.Errorf("failed to create Operator v1alpha1 clients from config file at %s: %w", configPath, err)
 	}
 
 	clients.OLM, err = olmversioned.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create olm clients from config file at %s: %s", configPath, err)
+		return nil, fmt.Errorf("failed to create olm clients from config file at %s: %w", configPath, err)
 	}
 
 	clients.Tekton, err = pversioned.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pipeline clientset from config file at %s: %s", configPath, err)
+		return nil, fmt.Errorf("failed to create pipeline clientset from config file at %s: %w", configPath, err)
 	}
 
 	clients.TriggersClient, err = triggersclientset.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create triggers clientset from config file at %s: %s", configPath, err)
+		return nil, fmt.Errorf("failed to create triggers clientset from config file at %s: %w", configPath, err)
 	}
 
 	clients.PacClientset, err = pacclientset.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pac clientset from config file at %s: %s", configPath, err)
+		return nil, fmt.Errorf("failed to create pac clientset from config file at %s: %w", configPath, err)
 	}
 	clients.NewClientSet(namespace)
 	return clients, nil
@@ -142,42 +143,52 @@ func newTektonOperatorAlphaClients(cfg *rest.Config) (operatorv1alpha1.OperatorV
 	return cs.OperatorV1alpha1(), nil
 }
 
+// TektonPipeline returns the TektonPipeline interface client.
 func (c *Clients) TektonPipeline() operatorv1alpha1.TektonPipelineInterface {
 	return c.Operator.TektonPipelines()
 }
 
+// TektonTrigger returns the TektonTrigger interface client.
 func (c *Clients) TektonTrigger() operatorv1alpha1.TektonTriggerInterface {
 	return c.Operator.TektonTriggers()
 }
 
+// TektonChains returns the TektonChain interface client.
 func (c *Clients) TektonChains() operatorv1alpha1.TektonChainInterface {
 	return c.Operator.TektonChains()
 }
 
+// TektonHub returns the TektonHub interface client.
 func (c *Clients) TektonHub() operatorv1alpha1.TektonHubInterface {
 	return c.Operator.TektonHubs()
 }
 
+// TektonDashboard returns the TektonDashboard interface client.
 func (c *Clients) TektonDashboard() operatorv1alpha1.TektonDashboardInterface {
 	return c.Operator.TektonDashboards()
 }
 
+// TektonAddon returns the TektonAddon interface client.
 func (c *Clients) TektonAddon() operatorv1alpha1.TektonAddonInterface {
 	return c.Operator.TektonAddons()
 }
 
+// TektonConfig returns the TektonConfig interface client.
 func (c *Clients) TektonConfig() operatorv1alpha1.TektonConfigInterface {
 	return c.Operator.TektonConfigs()
 }
 
+// ManualApprovalGate returns the ManualApprovalGate interface client.
 func (c *Clients) ManualApprovalGate() operatorv1alpha1.ManualApprovalGateInterface {
 	return c.Operator.ManualApprovalGates()
 }
 
+// PipelinesAsCode returns the OpenShiftPipelinesAsCode interface client.
 func (c *Clients) PipelinesAsCode() operatorv1alpha1.OpenShiftPipelinesAsCodeInterface {
 	return c.Operator.OpenShiftPipelinesAsCodes()
 }
 
+// NewClientSet initializes the per-namespace Tekton resource clients.
 func (c *Clients) NewClientSet(namespace string) {
 	c.PipelineClient = c.Tekton.TektonV1().Pipelines(namespace)
 	c.TaskClient = c.Tekton.TektonV1().Tasks(namespace)
@@ -187,7 +198,6 @@ func (c *Clients) NewClientSet(namespace string) {
 	c.ProxyConfig = configV1.NewForConfigOrDie(c.KubeConfig)
 	c.ClusterVersion = configV1.NewForConfigOrDie(c.KubeConfig).ClusterVersions()
 	c.ConsoleCLIDownload = consolev1.NewForConfigOrDie(c.KubeConfig).ConsoleCLIDownloads()
-	c.ClustertaskClient = c.Tekton.TektonV1beta1().ClusterTasks()
 	c.ApprovalTask = apclient.NewForConfigOrDie(c.KubeConfig).ApprovalTasks(namespace)
 	c.PacClientset = pacclientset.NewForConfigOrDie(c.KubeConfig)
 }

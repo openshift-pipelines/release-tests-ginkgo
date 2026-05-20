@@ -1,13 +1,15 @@
+// Package openshift provides helpers for interacting with OpenShift-specific resources.
 package openshift
 
 import (
 	"log"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 	imageStream "github.com/openshift/client-go/image/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 )
 
 // GetImageStreamTags returns the list of tag names for the given imagestream.
@@ -19,7 +21,7 @@ func GetImageStreamTags(c *clients.Clients, namespace, name string) []string {
 		Fail("failed to get imagestream " + name + ": " + err.Error())
 	}
 	tags := isRequired.Spec.Tags
-	var tagNames []string
+	tagNames := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		tagNames = append(tagNames, tag.Name)
 	}

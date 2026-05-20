@@ -10,19 +10,20 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/wait"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	w "k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/wait"
 )
 
 var prGroupResource = schema.GroupVersionResource{Group: "tekton.dev", Resource: "pipelineruns"}
@@ -99,7 +100,7 @@ func validatePipelineRunTimeoutFailure(c *clients.Clients, prname, namespace str
 		Fail(fmt.Sprintf("Error waiting for PipelineRun %s to finish: %s", pipelineRun.Name, err))
 	}
 
-	log.Printf("Waiting for TaskRuns from PipelineRun %s in namespace %s to be cancelled", pipelineRun.Name, namespace)
+	log.Printf("Waiting for TaskRuns from PipelineRun %s in namespace %s to be canceled", pipelineRun.Name, namespace)
 	var wg sync.WaitGroup
 	for _, taskrunItem := range taskrunList.Items {
 		wg.Add(1)
@@ -107,7 +108,7 @@ func validatePipelineRunTimeoutFailure(c *clients.Clients, prname, namespace str
 			defer wg.Done()
 			err := wait.WaitForTaskRunState(c, name, wait.FailedWithReason(v1.TaskRunReasonCancelled.String(), name), v1.TaskRunReasonCancelled.String())
 			if err != nil {
-				Fail(fmt.Sprintf("error waiting for task run %s to be cancelled on pipeline timeout \n %v", name, err))
+				Fail(fmt.Sprintf("error waiting for task run %s to be canceled on pipeline timeout \n %v", name, err))
 			}
 		}(taskrunItem.Name)
 	}
@@ -132,11 +133,11 @@ func validatePipelineRunCancel(c *clients.Clients, prname, namespace string) {
 	var wg sync.WaitGroup
 	log.Printf("Canceling pipeline run: %s\n", cmd.MustSucceed("opc", "pipelinerun", "cancel", prname, "-n", namespace).Stdout())
 
-	if err := wait.WaitForPipelineRunState(c, prname, wait.FailedWithReason("Cancelled", prname), "Cancelled"); err != nil {
+	if err := wait.WaitForPipelineRunState(c, prname, wait.FailedWithReason("Cancelled", prname), "Canceled"); err != nil { //nolint:misspell // "Cancelled" is the Tekton PipelineRun reason string
 		Fail(fmt.Sprintf("Error waiting for PipelineRun `%s` to finished: %s", prname, err))
 	}
 
-	log.Printf("Waiting for TaskRuns in PipelineRun %s in namespace %s to be cancelled", prname, namespace)
+	log.Printf("Waiting for TaskRuns in PipelineRun %s in namespace %s to be canceled", prname, namespace)
 	for _, taskrunItem := range taskrunList.Items {
 		wg.Add(1)
 		go func(name string) {
@@ -169,7 +170,7 @@ func ValidatePipelineRun(c *clients.Clients, prname, status, namespace string) {
 		log.Printf("validating pipeline run %s to time out...", prname)
 		validatePipelineRunTimeoutFailure(c, pr.GetName(), namespace)
 	case strings.Contains(strings.ToLower(status), "cancel"):
-		log.Printf("validating pipeline run %s to be cancelled...", prname)
+		log.Printf("validating pipeline run %s to be canceled...", prname)
 		validatePipelineRunCancel(c, pr.GetName(), namespace)
 	default:
 		Fail(fmt.Sprintf("Not valid status input: %s", status))
@@ -244,7 +245,7 @@ func AssertForNoNewPipelineRunCreation(c *clients.Clients, namespace string) {
 
 // AssertNumberOfPipelineruns waits until the expected number of PipelineRuns exist in the namespace
 // within the given timeout (in seconds).
-func AssertNumberOfPipelineruns(c *clients.Clients, namespace, numberOfPr, timeoutSeconds string) {
+func AssertNumberOfPipelineruns(c *clients.Clients, _, numberOfPr, timeoutSeconds string) {
 	log.Printf("Verifying if %s pipelineruns are present", numberOfPr)
 	timeoutSecondsInt, _ := strconv.Atoi(timeoutSeconds)
 	err := w.PollUntilContextTimeout(c.Ctx, config.APIRetry, time.Second*time.Duration(timeoutSecondsInt), false, func(context.Context) (bool, error) {
@@ -304,4 +305,3 @@ func CheckLogVersion(c *clients.Clients, binary, namespace string) {
 		Fail(fmt.Sprintf("unknown binary for log version check: %s", binary))
 	}
 }
-

@@ -1,12 +1,12 @@
 package triggers_test
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
@@ -22,12 +22,12 @@ var _ = Describe("Tutorial", Label("triggers"), func() {
 		lastNamespace = ns
 
 		// Create pipeline tutorial resources from remote URLs
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/01_apply_manifest_task.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/02_update_deployment_task.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/03_persistent_volume_claim.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/04_pipeline.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/02_pipelinerun/01_build_deploy_api_pipelinerun.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/02_pipelinerun/02_build_deploy_ui_pipelinerun.yaml"), ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/01_apply_manifest_task.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/02_update_deployment_task.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/03_persistent_volume_claim.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/04_pipeline.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/02_pipelinerun/01_build_deploy_api_pipelinerun.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/02_pipelinerun/02_build_deploy_ui_pipelinerun.yaml", ns)
 
 		// Verify both pipelineruns succeed
 		pipelines.ValidatePipelineRun(sharedClients, "build-deploy-api-pipelinerun", "successful", ns)
@@ -51,14 +51,14 @@ var _ = Describe("Tutorial", Label("triggers"), func() {
 		lastNamespace = ns
 
 		// Create pipeline and trigger resources from remote URLs
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/01_apply_manifest_task.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/02_update_deployment_task.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/03_persistent_volume_claim.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/04_pipeline.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/03_triggers/01_binding.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/03_triggers/02_template.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/03_triggers/03_trigger.yaml"), ns)
-		oc.CreateRemote(fmt.Sprintf("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/03_triggers/04_event_listener.yaml"), ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/01_apply_manifest_task.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/02_update_deployment_task.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/03_persistent_volume_claim.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/01_pipeline/04_pipeline.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/03_triggers/01_binding.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/03_triggers/02_template.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/03_triggers/03_trigger.yaml", ns)
+		oc.CreateRemote("https://raw.githubusercontent.com/openshift/pipelines-tutorial/{OSP_TUTORIAL_BRANCH}/03_triggers/04_event_listener.yaml", ns)
 
 		// Expose EventListener
 		routeURL := triggers.ExposeEventListener(sharedClients, "vote-app", ns)

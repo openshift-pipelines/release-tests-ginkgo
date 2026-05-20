@@ -1,3 +1,4 @@
+// Package pipelines provides helpers for creating and verifying Tekton Pipeline resources.
 package pipelines
 
 import (
@@ -5,11 +6,12 @@ import (
 	"fmt"
 	"log"
 
-	. "github.com/onsi/ginkgo/v2"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
 // AssertTaskPresent verifies that a Task with the given name exists in the namespace.

@@ -1,3 +1,4 @@
+// Package oc provides wrappers around the oc/kubectl CLI for use in integration tests.
 package oc
 
 import (
@@ -9,31 +10,33 @@ import (
 	"strings"
 	"time"
 
+	"gotest.tools/v3/icmd"
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
-	"gotest.tools/v3/icmd"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 )
 
-// Create resources using oc command
-func Create(path_dir, namespace string) {
-	runWithLog("create", "-f", config.Path(path_dir), "-n", namespace)
+// Create creates resources from a local file using oc command.
+func Create(pathDir, namespace string) {
+	runWithLog("create", "-f", config.Path(pathDir), "-n", namespace)
 }
 
 // CreateRemote creates resources from a remote URL using oc command
-func CreateRemote(remote_path, namespace string) {
-	runWithLog("create", "-f", remote_path, "-n", namespace)
+func CreateRemote(remotePath, namespace string) {
+	runWithLog("create", "-f", remotePath, "-n", namespace)
 }
 
 // Apply applies resources using oc command.
 // If namespace is not provided, it uses store.Namespace() (set by hooks).
 // Usage:
-//   oc.Apply("testdata/foo.yaml")              // uses store.Namespace()
-//   oc.Apply("testdata/foo.yaml", "my-ns")     // uses explicit namespace
-func Apply(path_dir string, namespace ...string) {
+//
+//	oc.Apply("testdata/foo.yaml")              // uses store.Namespace()
+//	oc.Apply("testdata/foo.yaml", "my-ns")     // uses explicit namespace
+func Apply(pathDir string, namespace ...string) {
 	var ns string
 	if len(namespace) > 0 {
 		ns = namespace[0]
@@ -43,15 +46,15 @@ func Apply(path_dir string, namespace ...string) {
 			panic("oc.Apply: namespace not provided and store.Namespace() is empty - ensure hooks are configured or pass namespace explicitly")
 		}
 	}
-	runWithLog("apply", "-f", config.Path(path_dir), "-n", ns)
+	runWithLog("apply", "-f", config.Path(pathDir), "-n", ns)
 }
 
-// Delete resources using oc command
-func Delete(path_dir, namespace string) {
+// Delete deletes resources from a local file using oc command.
+func Delete(pathDir, namespace string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s\n", runIncreasedTimeout(time.Second*300, "delete", "-f", config.Path(path_dir), "-n", namespace).Stdout())
+	log.Printf("output: %s\n", runIncreasedTimeout(time.Second*300, "delete", "-f", config.Path(pathDir), "-n", namespace).Stdout())
 }
 
 // CreateNewProject creates a new OpenShift project
@@ -74,18 +77,22 @@ func DeleteProjectIgnoreErrors(ns string) {
 	runWithLog("delete", "project", ns)
 }
 
+// LinkSecretToSA links a secret to a service account in the given namespace.
 func LinkSecretToSA(secretname, sa, namespace string) {
 	runWithLog("secret", "link", "serviceaccount/"+sa, "secrets/"+secretname, "-n", namespace)
 }
 
+// CreateSecretWithSecretToken creates a generic secret containing the triggers secret token.
 func CreateSecretWithSecretToken(secretname, namespace string) {
 	runWithLog("create", "secret", "generic", secretname, "--from-literal=secretToken="+config.TriggersSecretToken, "-n", namespace)
 }
 
+// EnableTLSConfigForEventlisteners labels the namespace to enable TLS for EventListeners.
 func EnableTLSConfigForEventlisteners(namespace string) {
 	runWithLog("label", "namespace", namespace, "operator.tekton.dev/enable-annotation=enabled")
 }
 
+// VerifyKubernetesEventsForEventListener asserts that the expected Tekton trigger events exist in the namespace.
 func VerifyKubernetesEventsForEventListener(namespace string) {
 	result := run("-n", namespace, "get", "events")
 	startedEvent := strings.Contains(result.String(), "dev.tekton.event.triggers.started.v1")
@@ -95,12 +102,14 @@ func VerifyKubernetesEventsForEventListener(namespace string) {
 	Expect(all).To(BeTrue(), "No events for successful, done and started")
 }
 
-func UpdateTektonConfig(patch_data string) {
-	runWithLog("patch", "tektonconfig", "config", "-p", patch_data, "--type=merge")
+// UpdateTektonConfig patches the TektonConfig CR with the provided JSON patch data.
+func UpdateTektonConfig(patchData string) {
+	runWithLog("patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
 }
 
-func UpdateTektonConfigwithInvalidData(patch_data, errorMessage string) {
-	result := run("patch", "tektonconfig", "config", "-p", patch_data, "--type=merge")
+// UpdateTektonConfigwithInvalidData patches TektonConfig with invalid data and asserts the expected error message.
+func UpdateTektonConfigwithInvalidData(patchData, errorMessage string) {
+	result := run("patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
 	log.Printf("Output: %s\n", result.Stdout())
 	Expect(result.ExitCode).To(Equal(1),
 		"Expected exit code 1 but got %d", result.ExitCode)
@@ -109,22 +118,27 @@ func UpdateTektonConfigwithInvalidData(patch_data, errorMessage string) {
 		"Expected stderr to contain %q but got %q", errorMessage, result.Stderr())
 }
 
+// AnnotateNamespace annotates the given namespace with the provided annotation.
 func AnnotateNamespace(namespace, annotation string) {
 	runWithLog("annotate", "namespace", namespace, annotation)
 }
 
+// AnnotateNamespaceIgnoreErrors annotates the given namespace, ignoring any errors.
 func AnnotateNamespaceIgnoreErrors(namespace, annotation string) {
 	runWithLog("annotate", "namespace", namespace, annotation)
 }
 
+// RemovePrunerConfig removes the pruner spec from TektonConfig.
 func RemovePrunerConfig() {
 	run("patch", "tektonconfig", "config", "-p", "[{ \"op\": \"remove\", \"path\": \"/spec/pruner\" }]", "--type=json")
 }
 
+// LabelNamespace adds a label to the given namespace.
 func LabelNamespace(namespace, label string) {
 	runWithLog("label", "namespace", namespace, label)
 }
 
+// DeleteResource deletes a resource by type and name from the current namespace.
 func DeleteResource(resourceType, name string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
@@ -132,34 +146,39 @@ func DeleteResource(resourceType, name string) {
 	log.Printf("output: %s\n", runIncreasedTimeout(time.Second*300, "delete", resourceType, name, "-n", store.Namespace()).Stdout())
 }
 
+// DeleteResourceInNamespace deletes a resource by type and name from the given namespace.
 func DeleteResourceInNamespace(resourceType, name, namespace string) {
 	runWithLog("delete", resourceType, name, "-n", namespace)
 }
 
+// CheckProjectExists returns true if the given OpenShift project exists.
 func CheckProjectExists(projectName string) bool {
 	commandResult := run("project", projectName)
 	return commandResult.ExitCode == 0 && !strings.Contains(commandResult.String(), "error")
 }
 
+// SecretExists returns true if the named secret exists in the given namespace.
 func SecretExists(secretName, namespace string) bool {
 	return !strings.Contains(run("get", "secret", secretName, "-n", namespace).String(), "Error")
 }
 
+// CreateSecretForGitResolver creates the github-auth-secret used by the git resolver.
 func CreateSecretForGitResolver(secretData string) {
 	run("create", "secret", "generic", "github-auth-secret", "--from-literal", "github-auth-key="+secretData, "-n", "openshift-pipelines")
 }
 
+// CreateSecretForWebhook creates the gitlab-webhook-config secret in the given namespace.
 func CreateSecretForWebhook(tokenSecretData, webhookSecretData, namespace string) {
 	run("create", "secret", "generic", "gitlab-webhook-config", "--from-literal", "provider.token="+tokenSecretData, "--from-literal", "webhook.secret="+webhookSecretData, "-n", namespace)
 }
 
+// EnableConsolePlugin enables the Pipelines console plugin in the cluster console.
 func EnableConsolePlugin() {
-	json_output := run("get", "consoles.operator.openshift.io", "cluster", "-o", "jsonpath={.spec.plugins}").Stdout()
-	log.Printf("Already enabled console plugins: %s", json_output)
-	var plugins []string
-
-	if len(json_output) > 0 {
-		err := json.Unmarshal([]byte(json_output), &plugins)
+	jsonOutput := run("get", "consoles.operator.openshift.io", "cluster", "-o", "jsonpath={.spec.plugins}").Stdout()
+	log.Printf("Already enabled console plugins: %s", jsonOutput)
+	var plugins = make([]string, 0, 1)
+	if len(jsonOutput) > 0 {
+		err := json.Unmarshal([]byte(jsonOutput), &plugins)
 
 		if err != nil {
 			Fail(fmt.Sprintf("Could not parse consoles.operator.openshift.io CR: %v", err))
@@ -173,24 +192,27 @@ func EnableConsolePlugin() {
 
 	plugins = append(plugins, config.ConsolePluginDeployment)
 
-	patch_data := "{\"spec\":{\"plugins\":[\"" + strings.Join(plugins, "\",\"") + "\"]}}"
-	run("patch", "consoles.operator.openshift.io", "cluster", "-p", patch_data, "--type=merge").Stdout()
+	patchData := "{\"spec\":{\"plugins\":[\"" + strings.Join(plugins, "\",\"") + "\"]}}"
+	run("patch", "consoles.operator.openshift.io", "cluster", "-p", patchData, "--type=merge").Stdout()
 }
 
+// GetSecretsData returns the data field of the named secret in the given namespace.
 func GetSecretsData(secretName, namespace string) string {
 	return run("get", "secrets", secretName, "-n", namespace, "-o", "jsonpath=\"{.data}\"").Stdout()
 }
 
+// CreateChainsImageRegistrySecret creates the chains image registry credentials secret.
 func CreateChainsImageRegistrySecret(dockerConfig string) {
 	run("create", "secret", "generic", "chains-image-registry-credentials", "--from-literal=.dockerconfigjson="+dockerConfig, "--from-literal=config.json="+dockerConfig, "--type=kubernetes.io/dockerconfigjson")
 }
 
+// CopySecret copies a secret from one namespace to another, transforming metadata and data keys.
 func CopySecret(secretName, sourceNamespace, destNamespace string) {
-	secretJson := run("get", "secret", secretName, "-n", sourceNamespace, "-o", "json").Stdout()
+	secretJSON := run("get", "secret", secretName, "-n", sourceNamespace, "-o", "json").Stdout()
 
 	// Process in Go instead of piping through shell to avoid injection
 	var secret map[string]any
-	Expect(json.Unmarshal([]byte(secretJson), &secret)).To(Succeed(), "failed to parse secret JSON")
+	Expect(json.Unmarshal([]byte(secretJSON), &secret)).To(Succeed(), "failed to parse secret JSON")
 
 	// Remove metadata fields
 	if meta, ok := secret["metadata"].(map[string]any); ok {
@@ -207,14 +229,14 @@ func CopySecret(secretName, sourceNamespace, destNamespace string) {
 		}
 	}
 
-	cleanedJson, err := json.Marshal(secret)
+	cleanedJSON, err := json.Marshal(secret)
 	Expect(err).NotTo(HaveOccurred(), "failed to marshal cleaned secret")
 
 	tmpFile, err := os.CreateTemp("", "secret-*.json")
 	Expect(err).NotTo(HaveOccurred(), "failed to create temp file for secret")
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
-	_, err = tmpFile.Write(cleanedJson)
+	_, err = tmpFile.Write(cleanedJSON)
 	Expect(err).NotTo(HaveOccurred(), "failed to write secret to temp file")
 	Expect(tmpFile.Close()).To(Succeed())
 

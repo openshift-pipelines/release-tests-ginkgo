@@ -15,8 +15,6 @@ linters:
     - unused          # Unused code (replaces deadcode/structcheck/varcheck)
 
     # Style / maintainability
-    - gofmt           # Formatting
-    - goimports       # Import ordering
     - misspell        # Spelling mistakes in comments/strings
     - unconvert       # Unnecessary type conversions
     - unparam         # Functions always called with the same argument value
@@ -30,65 +28,77 @@ linters:
     - thelper         # t.Helper() not called in test helpers
 
     # Error handling
-    - wrapcheck       # Errors from external packages should be wrapped
+    # wrapcheck disabled: k8s/Tekton client calls in test helpers are too verbose to wrap
+    # - wrapcheck       # Errors from external packages should be wrapped
     - errorlint       # Detect non-standard error wrapping
 
     # Performance
     - prealloc        # Slice pre-allocation opportunities
 
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment   # Too noisy for test code
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment   # Too noisy for test code
+        - shadow           # Too noisy: common pattern in Go error handling
 
-  revive:
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1001"  # dot-imports: revive already enforces this
+
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+        - name: var-naming
+        - name: indent-error-flow
+        - name: error-return
+        - name: increment-decrement
+
+    gosec:
+      excludes:
+        - G101   # Potential hardcoded credentials — false positives in test fixtures
+
+    misspell:
+      locale: US
+
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+
+  exclusions:
     rules:
-      - name: exported
-        arguments:
-          - checkPrivateReceivers
-          - sayRepetitiveInsteadOfStutters
-      - name: var-naming
-      - name: indent-error-flow
-      - name: error-return
-      - name: increment-decrement
-
-  gosec:
-    excludes:
-      - G101   # Potential hardcoded credentials — false positives in test fixtures
-      - G304   # File path provided as taint input — expected in test helpers
-      - G306   # Permissions — test-only file writes
-
-  misspell:
-    locale: US
-
-  goimports:
-    local-prefixes: github.com/openshift-pipelines/release-tests-ginkgo
-
-  wrapcheck:
-    ignorePackageGlobs:
-      - github.com/openshift-pipelines/release-tests-ginkgo/*
-      - github.com/onsi/gomega/*
-      - github.com/onsi/ginkgo/*
-
-  errorlint:
-    errorf: true
-    asserts: true
-    comparison: true
+      # Test files: relax some rules
+      - path: "_test\\.go$"
+        linters:
+          - wrapcheck
+          - gosec
+          - unparam
+      # dot-imports are idiomatic in Ginkgo/Gomega — suppress all revive in test files
+      - path: "_test\\.go$"
+        linters:
+          - revive
+      # wait package functions use WaitFor* prefix intentionally for clarity
+      - source: "func WaitFor"
+        linters:
+          - revive
+      # gosec: G204/G304/G703 are expected in test helper code
+      - linters:
+          - gosec
+        text: "G204|G304|G703"
 
 issues:
-  exclude-rules:
-    # Test files: relax some rules
-    - path: "_test\\.go$"
-      linters:
-        - wrapcheck
-        - gosec
-        - unparam
-    # Suite bootstrap files are intentionally simple
-    - path: "suite_test\\.go$"
-      linters:
-        - revive
-
   max-issues-per-linter: 50
   max-same-issues: 10
-  fix: false
+
+formatters:
+  enable:
+    - gofmt           # Formatting
+    - goimports       # Import ordering
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/openshift-pipelines/release-tests-ginkgo

@@ -11,21 +11,22 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	resource "github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/wait"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 	"github.com/tektoncd/pipeline/pkg/names"
 	eventReconciler "github.com/tektoncd/triggers/pkg/reconciler/eventlistener"
 	"github.com/tektoncd/triggers/pkg/reconciler/eventlistener/resources"
 	"github.com/tektoncd/triggers/pkg/sink"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	resource "github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/wait"
 )
 
 func getServiceNameAndPort(c *clients.Clients, elname, namespace string) (string, string) {

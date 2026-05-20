@@ -1,22 +1,50 @@
 module github.com/openshift-pipelines/release-tests-ginkgo
 
-go 1.25.7
+go 1.25.10
+
+replace (
+	// tektoncd/operator v0.79.1 declares k8s.io/client-go v1.5.2 (legacy semver) which
+	// Go MVS treats as higher than v0.x. Pin client-go to v0.35.1 to match
+	// openshift/client-go (May 2026) and prevent the legacy semver from being selected.
+	k8s.io/client-go => k8s.io/client-go v0.35.1
+	// TODO(knative-migration): go.mod carries knative.dev/eventing v0.48.2 as an indirect
+	// dep, but v0.48+ requires knative.dev/pkg/observability/* which doesn't exist in our
+	// pinned knative.dev/pkg above. Pin to v0.45.0 which is compatible. Remove this pin
+	// alongside the knative.dev/pkg pin above.
+	knative.dev/eventing => knative.dev/eventing v0.45.0
+	// TODO(knative-migration): Pin knative.dev/pkg to the last version that has both
+	// knative.dev/pkg/metrics AND knative.dev/pkg/observability. We are in the process
+	// of migrating to the newer knative which dropped knative.dev/pkg/metrics. Until
+	// tektoncd/triggers, tektoncd/operator, and pipelines-as-code all migrate away from
+	// knative.dev/pkg/metrics, this pin must stay. Remove once all upstream deps are updated.
+	knative.dev/pkg => knative.dev/pkg v0.0.0-20250424013628-d5e74d29daa3
+)
 
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/onsi/ginkgo/v2 v2.28.3
 	github.com/onsi/gomega v1.40.0
 	github.com/openshift-pipelines/manual-approval-gate v0.8.0
-	github.com/openshift-pipelines/pipelines-as-code v0.46.0
-	github.com/openshift/api v0.0.0-20240521185306-0314f31e7774
-	github.com/openshift/client-go v0.0.0-20240523113335-452272e0496d
+	// TODO(knative-migration): Downgraded from v0.46.0. tektoncd/operator v0.79.1 pins
+	// pipelines-as-code to v0.41.1 (via its own replace directive). Using v0.42.1+ causes
+	// a SyncConfig() signature mismatch in operator's vendored code. Upgrade once operator
+	// is updated to a version compatible with the newer knative.dev/pkg migration.
+	github.com/openshift-pipelines/pipelines-as-code v0.41.1
+	github.com/openshift/api v0.0.0-20260511191110-9b69e5fa27e9
+	// Upgraded from v0.0.0-20240523113335 to May 2026 version which uses
+	// sigs.k8s.io/structured-merge-diff/v6 and go.yaml.in/yaml/v3 (new canonical paths).
+	github.com/openshift/client-go v0.0.0-20260512113608-deb4dc54551a
 	github.com/operator-framework/api v0.16.0
 	github.com/operator-framework/operator-lifecycle-manager v0.22.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.67.5
 	github.com/tektoncd/operator v0.79.1
-	github.com/tektoncd/pipeline v1.11.1
+	// TODO(knative-migration): Downgraded from v1.11.1. v1.10+ requires the newer
+	// knative.dev/pkg (without metrics package) which is incompatible with the current
+	// knative.dev/pkg pin. MVS will resolve this to v1.9.2 via tektoncd/operator v0.79.1
+	// and pipelines-as-code v0.42.1. Upgrade to v1.10+ once the knative.dev/pkg pin is lifted.
+	github.com/tektoncd/pipeline v1.9.2
 	github.com/tektoncd/triggers v0.35.0
 	github.com/xanzy/go-gitlab v0.109.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -27,31 +55,23 @@ require (
 	knative.dev/pkg v0.0.0-20260406140200-cb58ae50e894
 )
 
-replace (
-	k8s.io/api => k8s.io/api v0.29.6
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.29.6
-	k8s.io/apimachinery => k8s.io/apimachinery v0.29.6
-	k8s.io/client-go => k8s.io/client-go v0.29.6
-	k8s.io/code-generator => k8s.io/code-generator v0.29.6
-	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00
-)
-
 require (
 	cel.dev/expr v0.25.1 // indirect
+	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20230502190836-7399e0f8ee5e // indirect
+	contrib.go.opencensus.io/exporter/prometheus v0.4.2 // indirect
 	github.com/AlecAivazis/survey/v2 v2.3.7 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
-	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
+	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudevents/sdk-go/v2 v2.16.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
-	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
-	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
@@ -69,13 +89,11 @@ require (
 	github.com/go-openapi/swag/typeutils v0.25.5 // indirect
 	github.com/go-openapi/swag/yamlutils v0.25.5 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/cel-go v0.28.0 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
-	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
@@ -83,7 +101,6 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
-	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -98,9 +115,10 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/apiserver-library-go v0.0.0-20230816171015-6bfafa975bfb // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/otlptranslator v1.0.0 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
+	github.com/prometheus/statsd_exporter v0.28.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
@@ -109,22 +127,13 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.68.0 // indirect
 	go.opentelemetry.io/otel v1.43.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.43.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.43.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.43.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.43.0 // indirect
-	go.opentelemetry.io/otel/exporters/prometheus v0.65.0 // indirect
-	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
@@ -141,12 +150,13 @@ require (
 	golang.org/x/tools v0.44.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
+	google.golang.org/api v0.269.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260406210006-6f92a3bedf2d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260406210006-6f92a3bedf2d // indirect
 	google.golang.org/grpc v1.80.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
+	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.35.3 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260330154417-16be699c7b31 // indirect
@@ -154,6 +164,7 @@ require (
 	knative.dev/eventing v0.48.2 // indirect
 	sigs.k8s.io/controller-runtime v0.22.4 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
+	sigs.k8s.io/randfill v1.0.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )

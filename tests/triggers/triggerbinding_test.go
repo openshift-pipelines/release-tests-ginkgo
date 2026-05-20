@@ -1,7 +1,8 @@
 package triggers_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
@@ -32,7 +33,7 @@ var _ = Describe("TriggerBindings", Label("triggers"), func() {
 		pipelines.ValidateTaskRun(sharedClients, "trig-parse-json-body-with-annotation", "Success", ns)
 	})
 
-	It("PIPELINES-10-TC03: Verify event message body marshalling error", Label("non-admin"), Pending, func() {
+	It("PIPELINES-10-TC03: Verify event message body marshaling error", Label("non-admin"), Pending, func() {
 		// Pending: tagged bug-to-fix in Gauge suite
 	})
 })

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
@@ -42,7 +42,7 @@ func updateAddonConfigExpectError(resolverTasks, pipelineTemplates string) strin
 
 // assertTaskPresence uses Eventually to poll for the presence or absence of a
 // task with the given name in the specified namespace.
-func assertTaskPresence(taskName, namespace string, shouldBePresent bool) {
+func assertTaskPresence(taskName, namespace string, shouldBePresent bool) { //nolint:unparam // namespace may vary in future tests
 	if shouldBePresent {
 		Eventually(func(g Gomega) {
 			result := cmd.Run("oc", "get", "task", taskName, "-n", namespace)

@@ -27,20 +27,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/tektoncd/operator/pkg/apis/operator/v1alpha1"
 	chainv1alpha "github.com/tektoncd/operator/pkg/client/clientset/versioned/typed/operator/v1alpha1"
 	"github.com/tektoncd/operator/test/utils"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
 // "quay.io/openshift-pipeline/chainstest"
-var repo string = os.Getenv("CHAINS_REPOSITORY")
+var repo = os.Getenv("CHAINS_REPOSITORY")
 var publicKeyPath = config.Path("testdata/chains/key")
 
+// EnsureTektonChainsExists waits until a TektonChain CR with the given name is ready.
 func EnsureTektonChainsExists(clients chainv1alpha.TektonChainInterface, names utils.ResourceNames) (*v1alpha1.TektonChain, error) {
 	ks, err := clients.Get(context.TODO(), names.TektonChain, metav1.GetOptions{})
 	err = wait.PollUntilContextTimeout(context.TODO(), config.APIRetry, config.APITimeout, false, func(context.Context) (bool, error) {
@@ -73,6 +75,7 @@ func RestoreTektonConfigChains() {
 	log.Println("Restored TektonConfig chains settings to defaults")
 }
 
+// VerifySignature verifies that a Tekton Chains signature exists for the given resource type.
 func VerifySignature(resourceType string) error {
 	// Get a signature of taskrun payload
 	resourceUID := cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.uid}'").Stdout()
@@ -115,6 +118,7 @@ func VerifySignature(resourceType string) error {
 	return nil
 }
 
+// StartKanikoTask starts a Kaniko TaskRun to build and push an image, used for chains signing tests.
 func StartKanikoTask() {
 	var tag = time.Now().Format("060102150405")
 	cmd.MustSucceed("oc", "secrets", "link", "pipeline", "chains-image-registry-credentials", "--for=pull,mount")
@@ -124,7 +128,8 @@ func StartKanikoTask() {
 	cmd.MustSucceedIncreasedTimeout(time.Second*130, "sleep", "120")
 }
 
-func GetImageUrlAndDigest() (string, string, error) {
+// GetImageURLAndDigest returns the image URL and digest from the completed Kaniko TaskRun.
+func GetImageURLAndDigest() (string, string, error) {
 	// Get Image digest
 	var imageDigest string
 	jsonOutput := cmd.MustSucceed("opc", "tr", "describe", "--last", "-o", "jsonpath={.status.results}").Stdout()
@@ -152,8 +157,9 @@ func GetImageUrlAndDigest() (string, string, error) {
 	return url, imageDigest, nil
 }
 
+// VerifyImageSignature verifies that the Kaniko-built image has a valid cosign signature.
 func VerifyImageSignature() error {
-	url, _, err := GetImageUrlAndDigest()
+	url, _, err := GetImageURLAndDigest()
 	if err != nil {
 		return err
 	}
@@ -161,8 +167,9 @@ func VerifyImageSignature() error {
 	return nil
 }
 
+// VerifyAttestation verifies that an attestation exists for the Kaniko-built image.
 func VerifyAttestation() error {
-	url, _, err := GetImageUrlAndDigest()
+	url, _, err := GetImageURLAndDigest()
 	if err != nil {
 		return err
 	}
@@ -170,9 +177,10 @@ func VerifyAttestation() error {
 	return nil
 }
 
+// CheckAttestationExists checks whether a cosign attestation exists for the built image.
 func CheckAttestationExists() error {
 	// Get UUID
-	_, imageDigest, err := GetImageUrlAndDigest()
+	_, imageDigest, err := GetImageURLAndDigest()
 	if err != nil {
 		return err
 	}
@@ -196,6 +204,7 @@ func CheckAttestationExists() error {
 	return nil
 }
 
+// CreateFileWithCosignPubKey creates a temporary file containing the cosign public key from the cluster secret.
 func CreateFileWithCosignPubKey() error {
 	chainsPublicKey := cmd.MustSucceed("oc", "get", "secrets", "signing-secrets", "-n", "openshift-pipelines", "-o", "jsonpath='{.data.cosign\\.pub}'").Stdout()
 	chainsPublicKey = strings.Trim(chainsPublicKey, "'")

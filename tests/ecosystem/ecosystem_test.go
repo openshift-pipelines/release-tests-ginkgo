@@ -3,8 +3,9 @@ package ecosystem_test
 import (
 	"fmt"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
@@ -29,19 +30,19 @@ func createTestNamespace(prefix string) string {
 // DescribeTable 1: Ecosystem Task Pipelines (simple create-verify pattern)
 //
 // These tests follow the most common ecosystem pattern:
-//   1. Create a unique namespace and register cleanup
-//   2. Create YAML resources (pipelines, PVCs, pipelineruns) via oc
-//   3. Verify pipelinerun reaches expected status
+//  1. Create a unique namespace and register cleanup
+//  2. Create YAML resources (pipelines, PVCs, pipelineruns) via oc
+//  3. Verify pipelinerun reaches expected status
 //
 // CRITICAL: Entry parameters are evaluated at TREE CONSTRUCTION TIME.
 //   - Only string literals, slice literals, and constant values are used as Entry args.
 //   - Dynamic values (namespace, client handles) are created INSIDE the table body
 //     function at spec execution time, never passed through Entry.
 //   - The `resources []string` parameter is a slice literal, safe for tree-construction.
+//
 // -----------------------------------------------------------------------
 var _ = DescribeTable("Ecosystem Task Pipelines",
-	func(testcaseID, pipelineRunName string, resources []string, expectedStatus string) {
-		// Create isolated namespace for this test
+	func(_, pipelineRunName string, resources []string, expectedStatus string) {
 		ns := createTestNamespace("eco-simple")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -149,7 +150,7 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 // variables initialized at runtime -- they are compile-time constants.
 // -----------------------------------------------------------------------
 var _ = DescribeTable("Ecosystem Task Pipelines with Extra Verification",
-	func(testcaseID, pipelineRunName string, resources []string, expectedStatus string, postVerify func(ns string)) {
+	func(_, pipelineRunName string, resources []string, expectedStatus string, postVerify func(ns string)) {
 		ns := createTestNamespace("eco-extra")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -266,7 +267,7 @@ var _ = Describe("Ecosystem Special Tasks", Label("ecosystem", "e2e"), func() {
 // Architecture checks happen inside the body function at spec execution time.
 // -----------------------------------------------------------------------
 var _ = DescribeTable("Multiarch Ecosystem Task Pipelines",
-	func(testcaseID, pipelineRunName string, resources []string, expectedStatus string, requiredArchs []string) {
+	func(_, pipelineRunName string, resources []string, expectedStatus string, requiredArchs []string) {
 		// Skip if cluster architecture does not match
 		if len(requiredArchs) > 0 {
 			archMatch := false

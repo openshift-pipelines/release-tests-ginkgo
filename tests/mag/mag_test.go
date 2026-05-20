@@ -4,11 +4,12 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	approvalgate "github.com/openshift-pipelines/release-tests-ginkgo/pkg/manualapprovalgate"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	approvalgate "github.com/openshift-pipelines/release-tests-ginkgo/pkg/manualapprovalgate"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 )
 
@@ -85,7 +86,7 @@ var _ = Describe("Manual Approval Gate", Label("approvalgate", "e2e", "sanity"),
 				"opc", "pipelinerun", "describe", "--last", "-o", "jsonpath={.status.conditions[0].reason}",
 				"-n", config.TargetNamespace).Stdout()
 			reason = strings.TrimSpace(reason)
-			// MAG rejection causes the pipelinerun to fail or be cancelled
+			// MAG rejection causes the pipelinerun to fail or be canceled
 			Expect(strings.ToLower(reason)).To(SatisfyAny(
 				Equal("failed"),
 				Equal("pipelineruntimeout"),

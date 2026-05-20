@@ -1,7 +1,7 @@
 package operator_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 )
 
 var _ = Describe("Console", Label("console"), func() {

@@ -1,3 +1,4 @@
+// Package opc provides wrappers around the opc CLI for pipeline and PAC operations.
 package opc
 
 import (
@@ -7,25 +8,30 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 	"gotest.tools/v3/icmd"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 )
 
+// Cmd holds the path to the opc binary for running opc CLI commands.
 type Cmd struct {
 	// path to opc binary
 	Path string
 }
 
+// PipelineRunList holds the name and status of a PipelineRun.
 type PipelineRunList struct {
 	Name   string
 	Status string
 }
 
+// PacInfoInstall holds installation info for Pipelines-as-Code.
 type PacInfoInstall struct {
 	PipelinesAsCode PipelinesAsCodeSection
 }
 
+// PipelinesAsCodeSection holds version and namespace info for the PipelinesAsCode installation.
 type PipelinesAsCodeSection struct {
 	InstallVersion   string
 	InstallNamespace string
@@ -38,6 +44,7 @@ func New(opcPath string) Cmd {
 	}
 }
 
+// GetOPCServerVersion returns the server-side version of the given Tekton component.
 func GetOPCServerVersion(component string) string {
 	var version string
 	output := cmd.MustSucceed("opc", "version", "-s").Stdout()
@@ -57,7 +64,7 @@ func GetOPCServerVersion(component string) string {
 	return version
 }
 
-// Verify the versions of Openshift Pipelines components
+// AssertComponentVersion verifies the installed version of the given OpenShift Pipelines component.
 func AssertComponentVersion(version string, component string) {
 	var actualVersion string
 	switch component {
@@ -83,6 +90,7 @@ func AssertComponentVersion(version string, component string) {
 	}
 }
 
+// DownloadCLIFromCluster downloads the tkn CLI binary from the cluster's console download URL.
 func DownloadCLIFromCluster() {
 	var architecture = strings.Trim(cmd.MustSucceed("uname").Stdout(), "\n") + " " + strings.Trim(cmd.MustSucceed("uname", "-m").Stdout(), "\n")
 	var cliDownloadURL = cmd.MustSucceed("oc", "get", "consoleclidownloads", "tkn", "-o", "jsonpath={.spec.links[?(@.text==\"Download tkn and tkn-pac for "+architecture+"\")].href}").Stdout()
@@ -90,6 +98,7 @@ func DownloadCLIFromCluster() {
 	cmd.MustSucceed("tar", "-xf", "/tmp/tkn-binary.tar.gz", "-C", "/tmp")
 }
 
+// AssertClientVersion verifies that the client-side version of the given binary matches the expected version.
 func AssertClientVersion(binary string) {
 	var commandResult, unexpectedVersion string
 
@@ -133,6 +142,7 @@ func AssertClientVersion(binary string) {
 	}
 }
 
+// AssertServerVersion verifies that the server-side component versions match the expected versions.
 func AssertServerVersion(binary string) {
 	var commandResult, unexpectedVersion string
 
@@ -156,25 +166,27 @@ func AssertServerVersion(binary string) {
 
 }
 
+// ValidateQuickstarts verifies that the expected console quickstart resources exist.
 func ValidateQuickstarts() {
 	cmd.MustSucceed("oc", "get", "consolequickstart", "install-app-and-associate-pipeline").Stdout()
 	cmd.MustSucceed("oc", "get", "consolequickstart", "configure-pipeline-metrics").Stdout()
 }
 
-// Run opc with given arguments
+// MustSucceed runs opc with the given arguments and fails the test on non-zero exit.
 func (opc Cmd) MustSucceed(args ...string) string {
 	return opc.Assert(icmd.Success, args...)
 }
 
-// Run opc with given arguments
+// Assert runs opc with the given arguments and asserts the expected result.
 func (opc Cmd) Assert(exp icmd.Expected, args ...string) string {
 	run := append([]string{opc.Path}, args...)
 	output := cmd.Assert(exp, run...)
 	return output.Stdout()
 }
 
+// StartPipeline starts the given pipeline with the specified params, workspaces, and extra args.
 func StartPipeline(pipelineName string, params map[string]string, workspaces map[string]string, namespace string, args ...string) string {
-	var commandArgs []string
+	commandArgs := make([]string, 0, 8+len(params)+len(workspaces)+len(args))
 	commandArgs = append(commandArgs, "opc", "pipeline", "start", pipelineName, "-o", "name", "-n", namespace)
 	for key, value := range params {
 		commandArgs = append(commandArgs, fmt.Sprintf("-p %s=%s", key, value))
@@ -184,7 +196,7 @@ func StartPipeline(pipelineName string, params map[string]string, workspaces map
 	}
 	commandArgs = append(commandArgs, args...)
 	// Build args correctly without join+split (which breaks args containing spaces)
-	var flatArgs []string
+	flatArgs := make([]string, 0, len(commandArgs))
 	for _, arg := range commandArgs {
 		flatArgs = append(flatArgs, strings.Fields(arg)...)
 	}
@@ -300,6 +312,7 @@ func resourceExists(output, resourceName string) bool {
 	return false
 }
 
+// VerifyResourceListMatchesName verifies that the named resource appears in the opc resource list for the given namespace.
 func VerifyResourceListMatchesName(resourceType, name, namespace string) (string, error) {
 	output := cmd.MustSucceed("opc", resourceType, "list", "-n", namespace).Stdout()
 	if !resourceExists(output, name) {

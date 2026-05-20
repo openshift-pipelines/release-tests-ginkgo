@@ -6,13 +6,14 @@ import (
 	"strconv"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/openshift"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/openshift"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/triggers"
 )
@@ -36,16 +37,17 @@ import (
 // DescribeTable: S2I imagestream-start pattern (8 tests: TC02-TC09)
 //
 // For each imagestream tag (excluding "latest"):
-//   1. Set VERSION param to the tag value
-//   2. Start pipeline via opc with --prefix-name for unique pipelinerun names
-//   3. Validate each pipelinerun succeeds
+//  1. Set VERSION param to the tag value
+//  2. Start pipeline via opc with --prefix-name for unique pipelinerun names
+//  3. Validate each pipelinerun succeeds
 //
 // The dotnet imagestream (TC02) has special EXAMPLE_REVISION param logic:
 //   - version >= 5.0 -> EXAMPLE_REVISION = "dotnet-<version>"
 //   - version < 5.0  -> EXAMPLE_REVISION = "dotnetcore-<version>"
+//
 // -----------------------------------------------------------------------
 var _ = DescribeTable("S2I Ecosystem Task Pipelines",
-	func(testcaseID, pipelineName, imagestreamName string, resources []string, skipArchs []string) {
+	func(_, pipelineName, imagestreamName string, resources []string, skipArchs []string) {
 		// Skip if cluster architecture matches skip list
 		if len(skipArchs) > 0 {
 			for _, arch := range skipArchs {

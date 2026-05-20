@@ -1,3 +1,4 @@
+// Package olm provides helpers for managing OLM subscriptions in integration tests.
 package olm
 
 import (
@@ -9,24 +10,28 @@ import (
 	"os"
 	"time"
 
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
 
 const (
 	// Interval specifies the time between two polls.
 	Interval = 10 * time.Second
 	// Timeout specifies the timeout for the function PollImmediate to reach a certain status.
-	Timeout            = 8 * time.Minute
+	Timeout = 8 * time.Minute
+	// OperatorsNamespace is the namespace where OLM operators are installed.
 	OperatorsNamespace = "openshift-operators"
-	OLMNamespace       = "openshift-marketplace"
+	// OLMNamespace is the namespace where OLM marketplace resources are located.
+	OLMNamespace = "openshift-marketplace"
 )
 
+// SubscribeAndWaitForOperatorToBeReady creates a subscription and waits until the operator is ready.
 func SubscribeAndWaitForOperatorToBeReady(cs *clients.Clients, subscriptionName, channel, catalogsource string) (*v1alpha1.Subscription, error) {
 	if err := createSubscription(subscriptionName, channel, catalogsource); err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %w", err)
@@ -45,6 +50,7 @@ func SubscribeAndWaitForOperatorToBeReady(cs *clients.Clients, subscriptionName,
 	return subs, nil
 }
 
+// UptadeSubscriptionAndWaitForOperatorToBeReady updates a subscription channel and waits until the operator is ready.
 func UptadeSubscriptionAndWaitForOperatorToBeReady(cs *clients.Clients, subscriptionName, channel string) (*v1alpha1.Subscription, error) {
 	if _, err := UpdateSubscription(cs, subscriptionName, channel); err != nil {
 		return nil, err
@@ -90,7 +96,7 @@ func createSubscription(name, channel, catalogsource string) error {
 	if _, err := config.TempDir(); err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	defer config.RemoveTempDir()
+	defer func() { _ = config.RemoveTempDir() }()
 
 	tmpl, err := config.Read("subscription.yaml.tmp")
 	if err != nil {
@@ -138,6 +144,7 @@ func OperatorCleanup(cs *clients.Clients, name string) error {
 	return nil
 }
 
+// UpdateSubscription updates the channel of an existing OLM subscription.
 func UpdateSubscription(cs *clients.Clients, name, channel string) (*v1alpha1.Subscription, error) {
 	subscription, err := getSubcription(cs, name)
 	if err != nil {
@@ -151,6 +158,7 @@ func UpdateSubscription(cs *clients.Clients, name, channel string) (*v1alpha1.Su
 	return subs, nil
 }
 
+// WaitForSubscriptionState polls until the given subscription reaches the desired state.
 func WaitForSubscriptionState(cs *clients.Clients, name, namespace string, inState func(s *v1alpha1.Subscription, err error) (bool, error)) (*v1alpha1.Subscription, error) {
 	var lastState *v1alpha1.Subscription
 	var err error
@@ -165,6 +173,7 @@ func WaitForSubscriptionState(cs *clients.Clients, name, namespace string, inSta
 	return lastState, nil
 }
 
+// WaitForClusterServiceVersionState polls until the given CSV reaches the desired state.
 func WaitForClusterServiceVersionState(cs *clients.Clients, name, namespace string, inState func(s *v1alpha1.ClusterServiceVersion, err error) (bool, error)) (*v1alpha1.ClusterServiceVersion, error) {
 	var lastState *v1alpha1.ClusterServiceVersion
 	var err error
@@ -179,10 +188,12 @@ func WaitForClusterServiceVersionState(cs *clients.Clients, name, namespace stri
 	return lastState, nil
 }
 
+// IsCSVSucceeded returns true when the ClusterServiceVersion phase is Succeeded.
 func IsCSVSucceeded(c *v1alpha1.ClusterServiceVersion, err error) (bool, error) {
 	return c.Status.Phase == "Succeeded", err
 }
 
+// IsSubscriptionInstalledCSVPresent returns true when the subscription has a non-empty InstalledCSV.
 func IsSubscriptionInstalledCSVPresent(s *v1alpha1.Subscription, err error) (bool, error) {
 	return s.Status.InstalledCSV != "" && s.Status.InstalledCSV != "<none>", err
 }

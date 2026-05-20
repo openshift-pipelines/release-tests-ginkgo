@@ -3,8 +3,9 @@ package pipelines_test
 import (
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 )
@@ -45,7 +46,7 @@ var _ = Describe("PIPELINES-03: Pipeline E2E", Label("e2e", "pipelines"), func()
 	It("PIPELINES-03-TC06: Cancel pipelinerun", Label("integration", "non-admin", "sanity"), SpecTimeout(10*time.Minute), func(_ SpecContext) {
 		oc.Create("testdata/pvc/pvc.yaml", ns)
 		oc.Create("testdata/v1beta1/pipelinerun/pipelinerun.yaml", ns)
-		pipelines.ValidatePipelineRun(sharedClients, "output-pipeline-run-v1b1", "cancelled", ns)
+		pipelines.ValidatePipelineRun(sharedClients, "output-pipeline-run-v1b1", "canceled", ns)
 	})
 
 	It("PIPELINES-03-TC07: Pipelinerun with pipelinespec and taskspec", Label("integration", "non-admin"), func() {

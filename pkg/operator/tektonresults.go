@@ -9,13 +9,15 @@ import (
 	"strings"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
+// CreateSecretsForTektonResults creates the required secrets for Tekton Results.
 func CreateSecretsForTektonResults() {
 	var password = cmd.MustSucceed("openssl", "rand", "-base64", "20").Stdout()
 	password = strings.ReplaceAll(password, "\n", "")
@@ -26,20 +28,24 @@ func CreateSecretsForTektonResults() {
 	cmd.MustSucceed("oc", "create", "secret", "tls", "-n", "openshift-pipelines", "tekton-results-tls", "--cert=cert.pem", "--key=key.pem")
 }
 
+// EnsureResultsReady waits until the TektonResults deployment is ready.
 func EnsureResultsReady() {
 	cmd.MustSucceedIncreasedTimeout(time.Minute*5, "oc", "wait", "--for=condition=Ready", "tektoninstallerset", "-l", "operator.tekton.dev/type=result", "--timeout=120s")
 }
 
+// CreateResultsRoute creates the OpenShift route for the Tekton Results API.
 func CreateResultsRoute() {
 	cmd.Run("oc", "create", "route", "-n", "openshift-pipelines", "passthrough", "tekton-results-api-service", "--service=tekton-results-api-service", "--port=8080")
 }
 
-func GetResultsApi() string {
+// GetResultsAPI returns the Tekton Results API endpoint URL from the route.
+func GetResultsAPI() string {
 	var resultsAPI = cmd.MustSucceed("oc", "get", "route", "tekton-results-api-service", "-n", "openshift-pipelines", "--no-headers", "-o", "custom-columns=:spec.host").Stdout() + ":443"
 	resultsAPI = strings.ReplaceAll(resultsAPI, "\n", "")
 	return resultsAPI
 }
 
+// GetResultsAnnotations returns the results name, record UUID, and log URL annotations for the given resource.
 func GetResultsAnnotations(resourceType string) (string, string, string) {
 	var resultUUID = cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.annotations.results\\.tekton\\.dev/result}'").Stdout()
 	var recordUUID = cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.annotations.results\\.tekton\\.dev/record}'").Stdout()
@@ -69,6 +75,7 @@ func getRunsAnnotations(cs *clients.Clients, resourceType, name string) (map[str
 	}
 }
 
+// VerifyResultsAnnotationStored verifies that Results annotations are stored on the resource.
 func VerifyResultsAnnotationStored(cs *clients.Clients, resourceType string) error {
 	resourceName := cmd.MustSucceed("tkn", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.name}'").Stdout()
 	resourceName = strings.ReplaceAll(resourceName, "'", "")
@@ -90,16 +97,17 @@ func VerifyResultsAnnotationStored(cs *clients.Clients, resourceType string) err
 	})
 
 	if err != nil {
-		return fmt.Errorf("annotation 'results.tekton.dev/stored' is not true: %v", err)
+		return fmt.Errorf("annotation 'results.tekton.dev/stored' is not true: %w", err)
 	}
 	return nil
 }
 
+// VerifyResultsLogs verifies that Results logs are available for the given resource type.
 func VerifyResultsLogs(resourceType string) error {
 	var recordUUID string
 	var resultsAPI string
 	_, recordUUID, _ = GetResultsAnnotations(resourceType)
-	resultsAPI = GetResultsApi()
+	resultsAPI = GetResultsAPI()
 
 	if recordUUID == "" {
 		return fmt.Errorf("annotation results.tekton.dev/record is not set")
@@ -110,8 +118,8 @@ func VerifyResultsLogs(resourceType string) error {
 	log.Printf("Waiting 10 seconds for Results API to index data\n")
 	time.Sleep(10 * time.Second)
 
-	var resultsJsonData = cmd.MustSucceed("opc", "results", "logs", "get", "--insecure", "--addr", resultsAPI, recordUUID).Stdout()
-	if strings.Contains(resultsJsonData, "record not found") {
+	var resultsJSONData = cmd.MustSucceed("opc", "results", "logs", "get", "--insecure", "--addr", resultsAPI, recordUUID).Stdout()
+	if strings.Contains(resultsJSONData, "record not found") {
 		return fmt.Errorf("results log not found")
 	}
 
@@ -120,7 +128,7 @@ func VerifyResultsLogs(resourceType string) error {
 		Data string `json:"data"`
 	}
 	var resultLogs ResultLogs
-	err := json.Unmarshal([]byte(resultsJsonData), &resultLogs)
+	err := json.Unmarshal([]byte(resultsJSONData), &resultLogs)
 	if err != nil {
 		return fmt.Errorf("error parsing JSON: %w", err)
 	}
@@ -134,11 +142,12 @@ func VerifyResultsLogs(resourceType string) error {
 	return nil
 }
 
+// VerifyResultsRecords verifies that the expected result records exist via the Results API.
 func VerifyResultsRecords(resourceType string) error {
 	var recordUUID string
 	var resultsAPI string
 	_, recordUUID, _ = GetResultsAnnotations(resourceType)
-	resultsAPI = GetResultsApi()
+	resultsAPI = GetResultsAPI()
 
 	// Wait for Results API to finish indexing after annotation is set
 	// The annotation=true means data was sent, but API needs time to index it
@@ -156,9 +165,9 @@ func VerifyResultsRecords(resourceType string) error {
 			Value string `json:"value"`
 		} `json:"data"`
 	}
-	resultsJsonData := cmd.MustSucceed("opc", "results", "records", "get", "--insecure", "--addr", resultsAPI, recordUUID, "-o", "json").Stdout()
+	resultsJSONData := cmd.MustSucceed("opc", "results", "records", "get", "--insecure", "--addr", resultsAPI, recordUUID, "-o", "json").Stdout()
 	var resultRecords ResultRecords
-	err := json.Unmarshal([]byte(resultsJsonData), &resultRecords)
+	err := json.Unmarshal([]byte(resultsJSONData), &resultRecords)
 	if err != nil {
 		return fmt.Errorf("error parsing JSON: %w", err)
 	}
