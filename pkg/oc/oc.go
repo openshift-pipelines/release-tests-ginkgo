@@ -83,7 +83,10 @@ func Delete(pathDir, namespace string) {
 
 // CreateNewProject creates a new OpenShift project
 func CreateNewProject(ns string) {
-	runWithLog("new-project", ns)
+	// runWithLog("new-project", ns)
+	// Run with log was too chatty hence following the below approach
+	run("new-project", ns)
+	log.Printf("Created project %q\n", ns)
 }
 
 // CreateNewProjectIgnoreErrors creates a new OpenShift project, ignoring errors (e.g., if it already exists)
