@@ -15,6 +15,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
 // CreateSecretsForTektonResults creates the required secrets for Tekton Results.
@@ -47,9 +48,13 @@ func GetResultsAPI() string {
 
 // GetResultsAnnotations returns the results name, record UUID, and log URL annotations for the given resource.
 func GetResultsAnnotations(resourceType string) (string, string, string) {
-	var resultUUID = cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.annotations.results\\.tekton\\.dev/result}'").Stdout()
-	var recordUUID = cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.annotations.results\\.tekton\\.dev/record}'").Stdout()
-	var stored = cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.annotations.results\\.tekton\\.dev/stored}'").Stdout()
+	ns := store.Namespace()
+	if ns == "" {
+		panic("GetResultsAnnotations: store.Namespace() is empty - ensure hooks are configured")
+	}
+	var resultUUID = cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.annotations.results\\.tekton\\.dev/result}'", "-n", ns).Stdout()
+	var recordUUID = cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.annotations.results\\.tekton\\.dev/record}'", "-n", ns).Stdout()
+	var stored = cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.annotations.results\\.tekton\\.dev/stored}'", "-n", ns).Stdout()
 	recordUUID = strings.ReplaceAll(recordUUID, "'", "")
 	resultUUID = strings.ReplaceAll(resultUUID, "'", "")
 	stored = strings.ReplaceAll(stored, "'", "")
@@ -77,7 +82,11 @@ func getRunsAnnotations(cs *clients.Clients, resourceType, name string) (map[str
 
 // VerifyResultsAnnotationStored verifies that Results annotations are stored on the resource.
 func VerifyResultsAnnotationStored(cs *clients.Clients, resourceType string) error {
-	resourceName := cmd.MustSucceed("tkn", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.name}'").Stdout()
+	ns := store.Namespace()
+	if ns == "" {
+		return fmt.Errorf("VerifyResultsAnnotationStored: store.Namespace() is empty - ensure hooks are configured")
+	}
+	resourceName := cmd.MustSucceed("tkn", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.name}'", "-n", ns).Stdout()
 	resourceName = strings.ReplaceAll(resourceName, "'", "")
 
 	log.Printf("Waiting for annotation 'results.tekton.dev/stored' to be true \n")

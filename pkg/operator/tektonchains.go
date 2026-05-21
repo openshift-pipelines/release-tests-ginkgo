@@ -34,6 +34,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
@@ -77,17 +79,21 @@ func RestoreTektonConfigChains() {
 
 // VerifySignature verifies that a Tekton Chains signature exists for the given resource type.
 func VerifySignature(resourceType string) error {
+	ns := store.Namespace()
+	if ns == "" {
+		return fmt.Errorf("VerifySignature: store.Namespace() is empty - ensure hooks are configured")
+	}
 	// Get a signature of taskrun payload
-	resourceUID := cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.uid}'").Stdout()
+	resourceUID := cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", "jsonpath='{.metadata.uid}'", "-n", ns).Stdout()
 	resourceUID = strings.Trim(resourceUID, "'")
 	jsonpath := fmt.Sprintf("jsonpath=\"{.metadata.annotations.chains\\.tekton\\.dev/signature-%s-%s}\"", resourceType, resourceUID)
 	log.Println("Waiting 30 seconds")
 	cmd.MustSucceedIncreasedTimeout(time.Second*45, "sleep", "30")
-	signature := cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", jsonpath).Stdout()
+	signature := cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", jsonpath, "-n", ns).Stdout()
 	signature = strings.Trim(signature, "\"")
 
 	jsonpath = "jsonpath=\"{.metadata.annotations.chains\\.tekton\\.dev/signed}\""
-	isSigned := cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", jsonpath).Stdout()
+	isSigned := cmd.MustSucceed("opc", resourceType, "describe", "--last", "-o", jsonpath, "-n", ns).Stdout()
 	isSigned = strings.Trim(isSigned, "\"")
 
 	if isSigned != "true" {
@@ -120,19 +126,27 @@ func VerifySignature(resourceType string) error {
 
 // StartKanikoTask starts a Kaniko TaskRun to build and push an image, used for chains signing tests.
 func StartKanikoTask() {
+	ns := store.Namespace()
+	if ns == "" {
+		panic("StartKanikoTask: store.Namespace() is empty - ensure hooks are configured")
+	}
 	var tag = time.Now().Format("060102150405")
-	cmd.MustSucceed("oc", "secrets", "link", "pipeline", "chains-image-registry-credentials", "--for=pull,mount")
+	cmd.MustSucceed("oc", "secrets", "link", "pipeline", "chains-image-registry-credentials", "--for=pull,mount", "-n", ns)
 	image := fmt.Sprintf("IMAGE=%s:%s", repo, tag)
-	cmd.MustSucceed("opc", "task", "start", "--param", image, "--use-param-defaults", "--workspace", "name=source,claimName=chains-pvc", "--workspace", "name=dockerconfig,secret=chains-image-registry-credentials", "kaniko-chains")
+	cmd.MustSucceed("opc", "task", "start", "--param", image, "--use-param-defaults", "--workspace", "name=source,claimName=chains-pvc", "--workspace", "name=dockerconfig,secret=chains-image-registry-credentials", "kaniko-chains", "-n", ns)
 	log.Println("Waiting 2 minutes for images to appear in image registry")
 	cmd.MustSucceedIncreasedTimeout(time.Second*130, "sleep", "120")
 }
 
 // GetImageURLAndDigest returns the image URL and digest from the completed Kaniko TaskRun.
 func GetImageURLAndDigest() (string, string, error) {
+	ns := store.Namespace()
+	if ns == "" {
+		return "", "", fmt.Errorf("GetImageURLAndDigest: store.Namespace() is empty - ensure hooks are configured")
+	}
 	// Get Image digest
 	var imageDigest string
-	jsonOutput := cmd.MustSucceed("opc", "tr", "describe", "--last", "-o", "jsonpath={.status.results}").Stdout()
+	jsonOutput := cmd.MustSucceed("opc", "tr", "describe", "--last", "-o", "jsonpath={.status.results}", "-n", ns).Stdout()
 	// Parse Json Output
 	type Result struct {
 		Name  string `json:"name"`

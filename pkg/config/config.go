@@ -258,6 +258,21 @@ func initializeFlags() *EnvironmentFlags {
 	}
 	flag.BoolVar(&f.IsDisconnected, "isdisconnected", defaultIsDiconnected,
 		"Provide the info if the testing cluster is disconnected. By default `false` will be used.")
+
+	// Directly assign environment variable values to fields since flag.Parse() is not called
+	// in Ginkgo tests. This ensures config values are available immediately.
+	f.Kubeconfig = defaultKubeconfig
+	f.DockerRepo = defaultRepo
+	f.Channel = defaultChannel
+	f.CatalogSource = defaultCatalogSource
+	f.SubscriptionName = defaultSubscriptionName
+	f.InstallPlan = defaultPlan
+	f.OperatorVersion = defaultOpVersion
+	f.CSV = defaultCsv + defaultOpVersion
+	f.TknVersion = defaultTkn
+	f.ClusterArch = defaultClusterArch
+	f.IsDisconnected = defaultIsDiconnected
+
 	return &f
 }
 

@@ -7,22 +7,18 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
-var _ = Describe("PIPELINES-02: Pipeline Failures", Label("e2e", "negative"), func() {
+var _ = Describe("PIPELINES-02-TC01: Run Pipeline with non-existent ServiceAccount", Label("e2e", "negative", "non-admin", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {
-		ns = uniqueNS("fail-e2e")
-		oc.CreateNewProject(ns)
-		lastNamespace = ns
+		ns = store.Namespace()
 		sharedClients.NewClientSet(ns)
-		DeferCleanup(func() {
-			oc.DeleteProjectIgnoreErrors(ns)
-		})
 	})
 
-	It("PIPELINES-02-TC01: Run Pipeline with non-existent ServiceAccount", Label("non-admin", "sanity"), func() {
+	It("should fail when ServiceAccount does not exist", func() {
 		// Verify ServiceAccount "foobar" does not exist
 		result := cmd.Run("oc", "get", "serviceaccount", "foobar", "-n", ns)
 		Expect(result.ExitCode).NotTo(Equal(0), "ServiceAccount 'foobar' should not exist")
@@ -30,8 +26,17 @@ var _ = Describe("PIPELINES-02: Pipeline Failures", Label("e2e", "negative"), fu
 		oc.Create("testdata/negative/v1beta1/pipelinerun.yaml", ns)
 		pipelines.ValidatePipelineRun(sharedClients, "output-pipeline-run-vb", "Failure", ns)
 	})
+})
 
-	It("PIPELINES-02-TC02: Run Task with non-existent ServiceAccount", Label("non-admin"), func() {
+var _ = Describe("PIPELINES-02-TC02: Run Task with non-existent ServiceAccount", Label("e2e", "negative", "non-admin"), func() {
+	var ns string
+
+	BeforeEach(func() {
+		ns = store.Namespace()
+		sharedClients.NewClientSet(ns)
+	})
+
+	It("should fail when ServiceAccount does not exist", func() {
 		// Verify ServiceAccount "foobar" does not exist
 		result := cmd.Run("oc", "get", "serviceaccount", "foobar", "-n", ns)
 		Expect(result.ExitCode).NotTo(Equal(0), "ServiceAccount 'foobar' should not exist")

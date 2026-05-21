@@ -4,6 +4,7 @@
 package hooks
 
 import (
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -74,7 +75,14 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 		spec := CurrentSpecReport()
 
 		// Build container path from hierarchy (exclude the It block itself)
-		containerPath := strings.Join(spec.ContainerHierarchyTexts, " > ")
+		// Include NumAttempts so retries get a fresh namespace
+		baseContainerPath := strings.Join(spec.ContainerHierarchyTexts, " > ")
+		containerPath := baseContainerPath
+		if spec.NumAttempts > 1 {
+			// This is a retry - append attempt number to get unique key
+			log.Printf("Retry detected: Attempt #%d for '%s'", spec.NumAttempts, baseContainerPath)
+			containerPath = fmt.Sprintf("%s [attempt-%d]", baseContainerPath, spec.NumAttempts)
+		}
 
 		manager.mu.Lock()
 		defer manager.mu.Unlock()
@@ -97,8 +105,13 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 		}
 
 		// Check if we're in a new container that doesn't have a namespace yet
+		// For retries, containerPath includes attempt number, so this will be true
 		if _, exists := manager.containerToNS[containerPath]; !exists {
-			log.Printf("AutoNamespacePerDescribe: New Describe block detected: %s", containerPath)
+			if spec.NumAttempts > 1 {
+				log.Printf("AutoNamespacePerDescribe: Creating fresh namespace for retry attempt #%d", spec.NumAttempts)
+			} else {
+				log.Printf("AutoNamespacePerDescribe: New Describe block detected: %s", containerPath)
+			}
 
 			// Get clients
 			cs := clientsFunc()
@@ -136,7 +149,13 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 	AfterEach(func() {
 		spec := CurrentSpecReport()
 		if spec.Failed() {
-			containerPath := strings.Join(spec.ContainerHierarchyTexts, " > ")
+			// Use same containerPath calculation as BeforeEach to match the namespace key
+			baseContainerPath := strings.Join(spec.ContainerHierarchyTexts, " > ")
+			containerPath := baseContainerPath
+			if spec.NumAttempts > 1 {
+				containerPath = fmt.Sprintf("%s [attempt-%d]", baseContainerPath, spec.NumAttempts)
+			}
+
 			manager.mu.Lock()
 			manager.containerFailed[containerPath] = true
 			manager.mu.Unlock()
