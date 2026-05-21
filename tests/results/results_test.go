@@ -9,6 +9,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
 var _ = Describe("Tekton Results", Label("results", "e2e"), func() {
@@ -22,7 +23,7 @@ var _ = Describe("Tekton Results", Label("results", "e2e"), func() {
 			oc.Apply("testdata/results/taskrun.yaml")
 
 			// Wait for taskrun to complete (namespace from store)
-			ns := lastNamespace
+			ns := store.Namespace()
 			cmd.MustSucceedIncreasedTimeout(time.Minute*5, "oc", "wait", "--for=condition=Succeeded", "taskrun/results-task", "-n", ns, "--timeout=120s")
 		})
 
@@ -52,7 +53,7 @@ var _ = Describe("Tekton Results", Label("results", "e2e"), func() {
 			oc.Apply("testdata/results/pipelinerun.yaml")
 
 			// Wait for pipelinerun to complete
-			ns := lastNamespace
+			ns := store.Namespace()
 			cmd.MustSucceedIncreasedTimeout(time.Minute*5, "oc", "wait", "--for=condition=Succeeded", "pipelinerun/pipeline-results", "-n", ns, "--timeout=120s")
 		})
 

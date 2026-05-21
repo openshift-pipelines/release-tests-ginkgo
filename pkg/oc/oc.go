@@ -21,13 +21,37 @@ import (
 )
 
 // Create creates resources from a local file using oc command.
-func Create(pathDir, namespace string) {
-	runWithLog("create", "-f", config.Path(pathDir), "-n", namespace)
+// If namespace is not provided, it uses store.Namespace() (set by hooks).
+// Usage:
+//
+//	oc.Create("testdata/foo.yaml")              // uses store.Namespace()
+//	oc.Create("testdata/foo.yaml", "my-ns")     // uses explicit namespace
+func Create(pathDir string, namespace ...string) {
+	var ns string
+	if len(namespace) > 0 {
+		ns = namespace[0]
+	} else {
+		ns = store.Namespace()
+		if ns == "" {
+			panic("oc.Create: namespace not provided and store.Namespace() is empty - ensure hooks are configured or pass namespace explicitly")
+		}
+	}
+	runWithLog("create", "-f", config.Path(pathDir), "-n", ns)
 }
 
-// CreateRemote creates resources from a remote URL using oc command
-func CreateRemote(remotePath, namespace string) {
-	runWithLog("create", "-f", remotePath, "-n", namespace)
+// CreateRemote creates resources from a remote URL using oc command.
+// If namespace is not provided, it uses store.Namespace() (set by hooks).
+func CreateRemote(remotePath string, namespace ...string) {
+	var ns string
+	if len(namespace) > 0 {
+		ns = namespace[0]
+	} else {
+		ns = store.Namespace()
+		if ns == "" {
+			panic("oc.CreateRemote: namespace not provided and store.Namespace() is empty - ensure hooks are configured or pass namespace explicitly")
+		}
+	}
+	runWithLog("create", "-f", remotePath, "-n", ns)
 }
 
 // Apply applies resources using oc command.
@@ -62,6 +86,16 @@ func CreateNewProject(ns string) {
 	runWithLog("new-project", ns)
 }
 
+// CreateNewProjectIgnoreErrors creates a new OpenShift project, ignoring errors (e.g., if it already exists)
+func CreateNewProjectIgnoreErrors(ns string) {
+	result := runIgnoreErrors("new-project", ns)
+	if result.ExitCode == 0 {
+		log.Printf("output: %s\n", result.Stdout())
+	} else {
+		log.Printf("output: %s\n", result.Combined())
+	}
+}
+
 // CreateNewNamespace creates a new Kubernetes namespace
 func CreateNewNamespace(ns string) {
 	runWithLog("create", "ns", ns)
@@ -72,9 +106,14 @@ func DeleteProject(ns string) {
 	runWithLog("delete", "project", ns)
 }
 
-// DeleteProjectIgnoreErrors deletes an OpenShift project, ignoring errors
+// DeleteProjectIgnoreErrors deletes an OpenShift project, ignoring errors (e.g., if it doesn't exist)
 func DeleteProjectIgnoreErrors(ns string) {
-	runWithLog("delete", "project", ns)
+	result := runIgnoreErrors("delete", "project", ns)
+	if result.ExitCode == 0 {
+		log.Printf("output: %s\n", result.Stdout())
+	} else {
+		log.Printf("output (non-zero exit %d): %s\n", result.ExitCode, result.Combined())
+	}
 }
 
 // LinkSecretToSA links a secret to a service account in the given namespace.
@@ -203,7 +242,36 @@ func GetSecretsData(secretName, namespace string) string {
 
 // CreateChainsImageRegistrySecret creates the chains image registry credentials secret.
 func CreateChainsImageRegistrySecret(dockerConfig string) {
-	run("create", "secret", "generic", "chains-image-registry-credentials", "--from-literal=.dockerconfigjson="+dockerConfig, "--from-literal=config.json="+dockerConfig, "--type=kubernetes.io/dockerconfigjson")
+	ns := store.Namespace()
+	if ns == "" {
+		panic("CreateChainsImageRegistrySecret: store.Namespace() is empty - ensure hooks are configured")
+	}
+	run("create", "secret", "generic", "chains-image-registry-credentials", "--from-literal=.dockerconfigjson="+dockerConfig, "--from-literal=config.json="+dockerConfig, "--type=kubernetes.io/dockerconfigjson", "-n", ns)
+}
+
+// ValidateAndCreateJibMavenSecret validates required environment variables and creates
+// the jib-maven registry credentials secret, then links it to the pipeline service account.
+// Skips the test if required environment variables are not set.
+func ValidateAndCreateJibMavenSecret(namespace string) {
+	repo := os.Getenv("JIB_MAVEN_REPOSITORY")
+	if repo == "" {
+		Skip("JIB_MAVEN_REPOSITORY not set -- skipping jib-maven test")
+	}
+
+	dockerConfig := os.Getenv("JIB_MAVEN_DOCKER_CONFIG_JSON")
+	if dockerConfig == "" {
+		Skip("JIB_MAVEN_DOCKER_CONFIG_JSON not set -- skipping jib-maven test")
+	}
+
+	// Create secret with docker config
+	run("create", "secret", "generic", "jib-maven-image-registry-credentials",
+		"--from-literal=.dockerconfigjson="+dockerConfig,
+		"--from-literal=config.json="+dockerConfig,
+		"--type=kubernetes.io/dockerconfigjson",
+		"-n", namespace)
+
+	// Link secret to pipeline service account
+	LinkSecretToSA("jib-maven-image-registry-credentials", "pipeline", namespace)
 }
 
 // CopySecret copies a secret from one namespace to another, transforming metadata and data keys.
@@ -253,6 +321,11 @@ func runWithLog(args ...string) {
 func run(args ...string) *icmd.Result {
 	command := append([]string{"oc"}, args...)
 	return cmd.MustSucceed(command...)
+}
+
+func runIgnoreErrors(args ...string) *icmd.Result {
+	command := append([]string{"oc"}, args...)
+	return cmd.Run(command...)
 }
 
 func runIncreasedTimeout(timeout time.Duration, args ...string) *icmd.Result {
