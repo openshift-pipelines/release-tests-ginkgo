@@ -6,7 +6,6 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 )
@@ -15,7 +14,6 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 
 	Describe("PIPELINES-27-TC01: Using Tekton Chains to create and verify task run signatures", Label("sanity"), Ordered, func() {
 		BeforeAll(func() {
-			lastNamespace = config.TargetNamespace
 			// Update TektonConfig for taskrun signing
 			operator.UpdateTektonConfigForChains("in-toto", "tekton", "", "false")
 			DeferCleanup(operator.RestoreTektonConfigChains)
@@ -26,8 +24,7 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 		})
 
 		It("applies the task-output-image task and verifies taskrun signature", func() {
-			ns := config.TargetNamespace
-			oc.Apply("testdata/chains/task-output-image.yaml", ns)
+			oc.Apply("testdata/chains/task-output-image.yaml")
 
 			err := operator.VerifySignature("taskrun")
 			Expect(err).NotTo(HaveOccurred(), "Failed to verify taskrun signature")
@@ -36,9 +33,12 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 
 	Describe("PIPELINES-27-TC02: Using Tekton Chains to sign and verify image and provenance", Ordered, func() {
 		BeforeAll(func() {
-			lastNamespace = config.TargetNamespace
 			if os.Getenv("CHAINS_REPOSITORY") == "" {
 				Skip("CHAINS_REPOSITORY not set -- skipping image signature test")
+			}
+
+			if os.Getenv("CHAINS_DOCKER_CONFIG_JSON") == "" {
+				Skip("CHAINS_DOCKER_CONFIG_JSON not set -- skipping image signature test")
 			}
 
 			// Update TektonConfig for image signing with OCI storage
@@ -50,13 +50,12 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to store cosign public key")
 
 			// Create image registry credentials secret
-			oc.CreateChainsImageRegistrySecret(os.Getenv("DOCKER_CONFIG"))
+			oc.CreateChainsImageRegistrySecret(os.Getenv("CHAINS_DOCKER_CONFIG_JSON"))
 		})
 
 		It("starts kaniko task and applies chain resources", func() {
-			ns := config.TargetNamespace
-			oc.Apply("testdata/pvc/chains-pvc.yaml", ns)
-			oc.Apply("testdata/chains/kaniko.yaml", ns)
+			oc.Apply("testdata/pvc/chains-pvc.yaml")
+			oc.Apply("testdata/chains/kaniko.yaml")
 			operator.StartKanikoTask()
 		})
 

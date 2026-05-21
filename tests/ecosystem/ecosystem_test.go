@@ -4,16 +4,20 @@ import (
 	"fmt"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
-	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
-// nsCounter provides unique namespace names per test within this file.
-// Using GinkgoParallelProcess ensures uniqueness across parallel processes.
+// ========================================================================
+// PIPELINES-29: Ecosystem Task Pipelines (ecosystem.spec)
+// ========================================================================
+
+// ecoNsCounter provides unique namespace names per test. Incremented each time
+// createTestNamespace is called within this file.
 var ecoNsCounter int
 
 // createTestNamespace creates a new OpenShift project with a unique name derived from
@@ -50,10 +54,9 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 		// Initialize typed clients scoped to the new namespace
 		sharedClients.NewClientSet(ns)
 
-		// Create all resources in order
-		for _, resource := range resources {
-			oc.Create(resource, ns)
-		}
+		oc.Create("testdata/ecosystem/pipelines/buildah.yaml")
+		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelineruns/buildah.yaml")
 
 		// Verify the pipelinerun reaches the expected status
 		pipelines.ValidatePipelineRun(sharedClients, pipelineRunName, expectedStatus, ns)
@@ -236,112 +239,22 @@ var _ = Describe("Ecosystem Special Tasks", Label("ecosystem", "e2e"), func() {
 
 		pipelines.ValidatePipelineRun(sharedClients, "pull-request-pipeline-run", "successful", ns)
 	})
+})
 
-	// TC02: buildah disconnected requires IS_DISCONNECTED=true
-	It("buildah disconnected pipelinerun: PIPELINES-29-TC02", Label("disconnected", "buildah"), func() {
+// TC02: buildah disconnected pipelinerun
+var _ = Describe("buildah disconnected pipelinerun: PIPELINES-29-TC02", Label("ecosystem", "e2e", "disconnected", "buildah"), func() {
+	It("should create and verify buildah disconnected pipelinerun", func() {
 		if !config.Flags.IsDisconnected {
 			Skip("requires disconnected cluster (set IS_DISCONNECTED=true)")
 		}
 
-		ns := createTestNamespace("eco-buildah-disc")
-		lastNamespace = ns
-		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
+		ns := store.Namespace()
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/buildah.yaml", ns)
-		oc.Create("testdata/pvc/pvc.yaml", ns)
-		oc.Create("testdata/ecosystem/pipelineruns/buildah-disconnected.yaml", ns)
+		oc.Create("testdata/ecosystem/pipelines/buildah.yaml")
+		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelineruns/buildah-disconnected.yaml")
 
 		pipelines.ValidatePipelineRun(sharedClients, "buildah-disconnected-run", "successful", ns)
 	})
 })
-
-// -----------------------------------------------------------------------
-// DescribeTable 3: Multiarch Ecosystem Task Pipelines
-//
-// Architecture-specific tests. The requiredArchs parameter specifies which
-// cluster architectures the test supports. If the current cluster architecture
-// does not match any entry in requiredArchs, the test is skipped.
-//
-// The requiredArchs parameter is a []string literal, safe for tree-construction.
-// Architecture checks happen inside the body function at spec execution time.
-// -----------------------------------------------------------------------
-var _ = DescribeTable("Multiarch Ecosystem Task Pipelines",
-	func(_, pipelineRunName string, resources []string, expectedStatus string, requiredArchs []string) {
-		// Skip if cluster architecture does not match
-		if len(requiredArchs) > 0 {
-			archMatch := false
-			for _, arch := range requiredArchs {
-				if config.Flags.ClusterArch == arch {
-					archMatch = true
-					break
-				}
-			}
-			if !archMatch {
-				Skip(fmt.Sprintf("requires one of architectures: %v (cluster is %s)", requiredArchs, config.Flags.ClusterArch))
-			}
-		}
-
-		ns := createTestNamespace("eco-multiarch")
-		lastNamespace = ns
-		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
-		sharedClients.NewClientSet(ns)
-
-		for _, resource := range resources {
-			oc.Create(resource, ns)
-		}
-
-		pipelines.ValidatePipelineRun(sharedClients, pipelineRunName, expectedStatus, ns)
-	},
-
-	Label("ecosystem", "e2e"),
-
-	Entry("jib-maven pipelinerun: PIPELINES-32-TC01", Label("sanity", "jib-maven"),
-		"PIPELINES-32-TC01", "jib-maven-run",
-		[]string{
-			"testdata/ecosystem/pipelines/jib-maven.yaml",
-			"testdata/pvc/pvc.yaml",
-			"testdata/ecosystem/pipelineruns/jib-maven.yaml",
-		},
-		"successful", []string{"amd64"}),
-
-	Entry("jib-maven P&Z pipelinerun: PIPELINES-32-TC02", Label("sanity", "jib-maven"),
-		"PIPELINES-32-TC02", "jib-maven-pz-run",
-		[]string{
-			"testdata/ecosystem/pipelines/jib-maven-pz.yaml",
-			"testdata/pvc/pvc.yaml",
-			"testdata/ecosystem/pipelineruns/jib-maven-pz.yaml",
-		},
-		"successful", []string{"ppc64le", "s390x", "arm64"}),
-
-	Entry("kn-apply pipelinerun: PIPELINES-32-TC03", Label("kn-apply"),
-		"PIPELINES-32-TC03", "kn-apply-run",
-		[]string{
-			"testdata/ecosystem/pipelineruns/kn-apply.yaml",
-		},
-		"successful", []string{"amd64"}),
-
-	Entry("kn-apply p&z pipelinerun: PIPELINES-32-TC04", Label("kn-apply"),
-		"PIPELINES-32-TC04", "kn-apply-pz-run",
-		[]string{
-			"testdata/ecosystem/pipelineruns/kn-apply-multiarch.yaml",
-		},
-		"successful", []string{"ppc64le", "s390x"}),
-
-	Entry("kn pipelinerun: PIPELINES-32-TC05", Label("kn"),
-		"PIPELINES-32-TC05", "kn-run",
-		[]string{
-			"testdata/ecosystem/pipelineruns/kn.yaml",
-		},
-		"successful", []string{"amd64"}),
-
-	Entry("kn p&z pipelinerun: PIPELINES-32-TC06", Label("kn"),
-		"PIPELINES-32-TC06", "kn-pz-run",
-		[]string{
-			"testdata/ecosystem/pipelineruns/kn-pz.yaml",
-		},
-		"successful", []string{"ppc64le", "s390x"}),
-)
-
-// Ensure gomega import is used (for Expect in standalone It blocks)
-var _ = Expect

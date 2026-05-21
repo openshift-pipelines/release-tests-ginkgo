@@ -9,7 +9,8 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/diagnostics"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/hooks"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 )
 
 var sharedClients *clients.Clients
@@ -40,7 +41,14 @@ var _ = SynchronizedBeforeSuite(
 			config.TargetNamespace,
 		)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients on node 1")
-		_ = cs // validation only on node 1
+
+		// Detect cluster architecture if not set via ARCH environment variable
+		if config.Flags.ClusterArch == "" {
+			detectedArch := k8s.GetClusterArchitecture(cs)
+			if detectedArch != "" {
+				config.Flags.ClusterArch = detectedArch
+			}
+		}
 
 		cfg := clientConfig{
 			Kubeconfig:      config.Flags.Kubeconfig,
@@ -59,12 +67,22 @@ var _ = SynchronizedBeforeSuite(
 		var err error
 		sharedClients, err = clients.NewClients(cfg.Kubeconfig, cfg.Cluster, cfg.TargetNamespace)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients")
+
+		// Detect cluster architecture on parallel nodes if not already set
+		if config.Flags.ClusterArch == "" {
+			detectedArch := k8s.GetClusterArchitecture(sharedClients)
+			if detectedArch != "" {
+				config.Flags.ClusterArch = detectedArch
+			}
+		}
 	},
 )
 
+// Enable namespace isolation for parallel test execution in CI.
+// Each Describe block gets its own namespace automatically.
+var _ = hooks.AutoNamespacePerDescribe(&lastNamespace, func() *clients.Clients { return sharedClients })
+
 var _ = AfterSuite(func() {
+	hooks.CleanupNamespaces()
 	_ = config.RemoveTempDir()
 })
-
-// Collect diagnostics (pod logs, events, resource state) on test failure.
-var _ = ReportAfterEach(diagnostics.CollectOnFailure(&lastNamespace))

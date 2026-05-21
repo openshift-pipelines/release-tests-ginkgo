@@ -10,13 +10,13 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/diagnostics"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/hooks"
 )
 
 var sharedClients *clients.Clients
 
-// lastNamespace tracks the current test namespace for diagnostic collection.
-// Set in BeforeEach by test specs; read in ReportAfterEach by diagnostics collector.
+// lastNamespace tracks the current test namespace for hooks-based namespace isolation.
+// Set automatically by hooks.AutoNamespacePerDescribe().
 var lastNamespace string
 
 // nsCounter provides unique namespace names per test.
@@ -71,9 +71,12 @@ var _ = SynchronizedBeforeSuite(
 	},
 )
 
+// Enable namespace isolation for parallel test execution in CI.
+// Each Describe block gets its own namespace automatically.
+var _ = hooks.AutoNamespacePerDescribe(&lastNamespace, func() *clients.Clients { return sharedClients })
+
 var _ = AfterSuite(func() {
+	hooks.CleanupNamespaces()
+	CleanupClusterResolverNamespaces() // Cleanup shared namespaces for cluster resolver tests
 	_ = config.RemoveTempDir()
 })
-
-// Collect diagnostics (pod logs, events, resource state) on test failure.
-var _ = ReportAfterEach(diagnostics.CollectOnFailure(&lastNamespace))
