@@ -32,9 +32,20 @@ func DefineArtifactHubAPIVariable() {
 	oc.UpdateTektonConfig(patchData)
 }
 
-// VerifyNamespaceExists checks that a namespace exists via oc.
+// VerifyNamespaceExists waits for a namespace to exist, polling until it
+// appears or the timeout is reached.
 func VerifyNamespaceExists(namespace string) {
-	cmd.MustSucceed("oc", "get", "namespace", namespace)
+	log.Printf("Waiting for namespace %s to exist...", namespace)
+	err := wait.PollUntilContextTimeout(context.Background(), config.APIRetry, config.APITimeout, true, func(_ context.Context) (bool, error) {
+		res := cmd.Run("oc", "get", "namespace", namespace)
+		if res.ExitCode != 0 {
+			log.Printf("Namespace %s not found yet, retrying...", namespace)
+			return false, nil
+		}
+		return true, nil
+	})
+	Expect(err).NotTo(HaveOccurred(), "namespace %s did not appear within timeout", namespace)
+	log.Printf("Namespace %s exists", namespace)
 }
 
 // ConfigureGitResolverToken configures the GitHub token for git resolver in TektonConfig.

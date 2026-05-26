@@ -4,6 +4,7 @@
 package hooks
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 	"github.com/tektoncd/pipeline/pkg/names"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
@@ -127,10 +129,16 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 			log.Printf("Creating test namespace: %s for container: %s", ns, containerPath)
 			oc.CreateNewProject(ns)
 
-			// Wait for pipeline service account to be ready
-			sa := k8s.WaitForServiceAccount(cs, ns, "pipeline")
-			if sa == nil {
-				Fail("service account 'pipeline' not available in namespace " + ns)
+			// Only wait for the pipeline SA if the operator is already installed.
+			// On a fresh cluster, the OLM install test creates the operator — the
+			// pipeline SA won't exist until after that first It step runs.
+			if isOperatorInstalled(cs) {
+				sa := k8s.WaitForServiceAccount(cs, ns, "pipeline")
+				if sa == nil {
+					Fail("service account 'pipeline' not available in namespace " + ns)
+				}
+			} else {
+				log.Printf("Operator not installed yet — skipping pipeline SA wait for namespace %s", ns)
 			}
 		}
 
@@ -164,4 +172,11 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 	})
 
 	return true
+}
+
+// isOperatorInstalled returns true if the TektonConfig CR "config" exists,
+// indicating the OpenShift Pipelines operator is installed.
+func isOperatorInstalled(cs *clients.Clients) bool {
+	_, err := cs.TektonConfig().Get(context.Background(), "config", metav1.GetOptions{})
+	return err == nil
 }
