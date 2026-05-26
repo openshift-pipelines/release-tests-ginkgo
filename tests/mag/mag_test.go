@@ -10,9 +10,10 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	approvalgate "github.com/openshift-pipelines/release-tests-ginkgo/pkg/manualapprovalgate"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 )
 
+var oc = occmd.OC{}
 var _ = Describe("Manual Approval Gate", Label("approvalgate", "e2e", "sanity"), func() {
 
 	BeforeEach(func() {

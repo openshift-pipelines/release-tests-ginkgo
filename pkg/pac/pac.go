@@ -31,10 +31,12 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 )
+
+var oc = occmd.OC{}
 
 const (
 	initialBackoffDuration   = 5 * time.Second

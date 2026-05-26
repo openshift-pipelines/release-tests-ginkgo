@@ -6,10 +6,11 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 )
 
+var oc = occmd.OC{}
 var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 
 	Describe("PIPELINES-27-TC01: Using Tekton Chains to create and verify task run signatures", Label("sanity"), Ordered, func() {

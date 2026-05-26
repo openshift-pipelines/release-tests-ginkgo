@@ -6,7 +6,6 @@ import (
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 )
 
