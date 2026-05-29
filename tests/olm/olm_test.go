@@ -8,12 +8,13 @@ import (
 	"github.com/tektoncd/operator/test/utils"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	oc "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	olmpkg "github.com/openshift-pipelines/release-tests-ginkgo/pkg/olm"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 )
 
+var oc = occmd.OC{}
 var rnames = utils.ResourceNames{TektonConfig: "config"}
 
 var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func() {

@@ -11,10 +11,12 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
+
+var oc = occmd.OC{}
 
 // removePrunerConfig patches TektonConfig to remove the pruner configuration.
 // It wraps the removal in a recovery since the pruner section may not exist.

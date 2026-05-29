@@ -7,11 +7,12 @@ import (
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/operator"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
+var oc = occmd.OC{}
 var _ = Describe("Tekton Results", Label("results", "e2e"), func() {
 
 	Describe("PIPELINES-26-TC01: Test Tekton results with TaskRun", Label("sanity"), Ordered, func() {

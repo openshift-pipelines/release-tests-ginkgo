@@ -3,7 +3,6 @@ package pipelines_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )

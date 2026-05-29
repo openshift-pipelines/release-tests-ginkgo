@@ -5,9 +5,10 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 )
 
+var oc = occmd.OC{}
 var _ = Describe("Hub", Serial, Label("hub"), func() {
 
 	Describe("PIPELINES-21-TC01: Install HUB without authentication", Label("sanity"), Ordered, func() {

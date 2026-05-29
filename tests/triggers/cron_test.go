@@ -6,11 +6,12 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/triggers"
 )
 
+var oc = occmd.OC{}
 var _ = Describe("CronJob Triggers", Label("triggers"), func() {
 	It("PIPELINES-04-TC01: Create Triggers using k8s cronJob", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace

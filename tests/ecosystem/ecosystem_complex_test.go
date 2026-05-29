@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/opc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 )

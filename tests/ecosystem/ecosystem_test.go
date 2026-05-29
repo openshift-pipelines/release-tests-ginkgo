@@ -7,10 +7,12 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
+	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
+
+var oc = occmd.OC{}
 
 // ========================================================================
 // PIPELINES-29: Ecosystem Task Pipelines (ecosystem.spec)

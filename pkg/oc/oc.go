@@ -20,13 +20,18 @@ import (
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 )
 
+// OC struct holds  params which can be used to customize the oc commands.
+type OC struct {
+	Context string
+}
+
 // Create creates resources from a local file using oc command.
 // If namespace is not provided, it uses store.Namespace() (set by hooks).
 // Usage:
 //
 //	oc.Create("testdata/foo.yaml")              // uses store.Namespace()
 //	oc.Create("testdata/foo.yaml", "my-ns")     // uses explicit namespace
-func Create(pathDir string, namespace ...string) {
+func (oc *OC) Create(pathDir string, namespace ...string) {
 	var ns string
 	if len(namespace) > 0 {
 		ns = namespace[0]
@@ -36,12 +41,12 @@ func Create(pathDir string, namespace ...string) {
 			panic("oc.Create: namespace not provided and store.Namespace() is empty - ensure hooks are configured or pass namespace explicitly")
 		}
 	}
-	runWithLog("create", "-f", config.Path(pathDir), "-n", ns)
+	oc.runWithLog("create", "-f", config.Path(pathDir), "-n", ns)
 }
 
 // CreateRemote creates resources from a remote URL using oc command.
 // If namespace is not provided, it uses store.Namespace() (set by hooks).
-func CreateRemote(remotePath string, namespace ...string) {
+func (oc *OC) CreateRemote(remotePath string, namespace ...string) {
 	var ns string
 	if len(namespace) > 0 {
 		ns = namespace[0]
@@ -51,7 +56,7 @@ func CreateRemote(remotePath string, namespace ...string) {
 			panic("oc.CreateRemote: namespace not provided and store.Namespace() is empty - ensure hooks are configured or pass namespace explicitly")
 		}
 	}
-	runWithLog("create", "-f", remotePath, "-n", ns)
+	oc.runWithLog("create", "-f", remotePath, "-n", ns)
 }
 
 // Apply applies resources using oc command.
@@ -60,7 +65,7 @@ func CreateRemote(remotePath string, namespace ...string) {
 //
 //	oc.Apply("testdata/foo.yaml")              // uses store.Namespace()
 //	oc.Apply("testdata/foo.yaml", "my-ns")     // uses explicit namespace
-func Apply(pathDir string, namespace ...string) {
+func (oc *OC) Apply(pathDir string, namespace ...string) {
 	var ns string
 	if len(namespace) > 0 {
 		ns = namespace[0]
@@ -70,28 +75,28 @@ func Apply(pathDir string, namespace ...string) {
 			panic("oc.Apply: namespace not provided and store.Namespace() is empty - ensure hooks are configured or pass namespace explicitly")
 		}
 	}
-	runWithLog("apply", "-f", config.Path(pathDir), "-n", ns)
+	oc.runWithLog("apply", "-f", config.Path(pathDir), "-n", ns)
 }
 
 // Delete deletes resources from a local file using oc command.
-func Delete(pathDir, namespace string) {
+func (oc *OC) Delete(pathDir, namespace string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s\n", runIncreasedTimeout(time.Second*300, "delete", "-f", config.Path(pathDir), "-n", namespace).Stdout())
+	log.Printf("output: %s\n", oc.runIncreasedTimeout(time.Second*300, "delete", "-f", config.Path(pathDir), "-n", namespace).Stdout())
 }
 
 // CreateNewProject creates a new OpenShift project
-func CreateNewProject(ns string) {
-	// runWithLog("new-project", ns)
+func (oc *OC) CreateNewProject(ns string) {
+	// oc.runWithLog("new-project", ns)
 	// Run with log was too chatty hence following the below approach
-	run("new-project", ns)
+	oc.run("new-project", ns)
 	log.Printf("Created project %q\n", ns)
 }
 
 // CreateNewProjectIgnoreErrors creates a new OpenShift project, ignoring errors (e.g., if it already exists)
-func CreateNewProjectIgnoreErrors(ns string) {
-	result := runIgnoreErrors("new-project", ns)
+func (oc *OC) CreateNewProjectIgnoreErrors(ns string) {
+	result := oc.runIgnoreErrors("new-project", ns)
 	if result.ExitCode == 0 {
 		log.Printf("output: %s\n", result.Stdout())
 	} else {
@@ -100,18 +105,18 @@ func CreateNewProjectIgnoreErrors(ns string) {
 }
 
 // CreateNewNamespace creates a new Kubernetes namespace
-func CreateNewNamespace(ns string) {
-	runWithLog("create", "ns", ns)
+func (oc *OC) CreateNewNamespace(ns string) {
+	oc.runWithLog("create", "ns", ns)
 }
 
 // DeleteProject deletes an OpenShift project
-func DeleteProject(ns string) {
-	runWithLog("delete", "project", ns)
+func (oc *OC) DeleteProject(ns string) {
+	oc.runWithLog("delete", "project", ns)
 }
 
 // DeleteProjectIgnoreErrors deletes an OpenShift project, ignoring errors (e.g., if it doesn't exist)
-func DeleteProjectIgnoreErrors(ns string) {
-	result := runIgnoreErrors("delete", "project", ns)
+func (oc *OC) DeleteProjectIgnoreErrors(ns string) {
+	result := oc.runIgnoreErrors("delete", "project", ns)
 	if result.ExitCode == 0 {
 		log.Printf("output: %s\n", result.Stdout())
 	} else {
@@ -120,23 +125,23 @@ func DeleteProjectIgnoreErrors(ns string) {
 }
 
 // LinkSecretToSA links a secret to a service account in the given namespace.
-func LinkSecretToSA(secretname, sa, namespace string) {
-	runWithLog("secret", "link", "serviceaccount/"+sa, "secrets/"+secretname, "-n", namespace)
+func (oc *OC) LinkSecretToSA(secretname, sa, namespace string) {
+	oc.runWithLog("secret", "link", "serviceaccount/"+sa, "secrets/"+secretname, "-n", namespace)
 }
 
 // CreateSecretWithSecretToken creates a generic secret containing the triggers secret token.
-func CreateSecretWithSecretToken(secretname, namespace string) {
-	runWithLog("create", "secret", "generic", secretname, "--from-literal=secretToken="+config.TriggersSecretToken, "-n", namespace)
+func (oc *OC) CreateSecretWithSecretToken(secretname, namespace string) {
+	oc.runWithLog("create", "secret", "generic", secretname, "--from-literal=secretToken="+config.TriggersSecretToken, "-n", namespace)
 }
 
 // EnableTLSConfigForEventlisteners labels the namespace to enable TLS for EventListeners.
-func EnableTLSConfigForEventlisteners(namespace string) {
-	runWithLog("label", "namespace", namespace, "operator.tekton.dev/enable-annotation=enabled")
+func (oc *OC) EnableTLSConfigForEventlisteners(namespace string) {
+	oc.runWithLog("label", "namespace", namespace, "operator.tekton.dev/enable-annotation=enabled")
 }
 
 // VerifyKubernetesEventsForEventListener asserts that the expected Tekton trigger events exist in the namespace.
-func VerifyKubernetesEventsForEventListener(namespace string) {
-	result := run("-n", namespace, "get", "events")
+func (oc *OC) VerifyKubernetesEventsForEventListener(namespace string) {
+	result := oc.run("-n", namespace, "get", "events")
 	startedEvent := strings.Contains(result.String(), "dev.tekton.event.triggers.started.v1")
 	successfulEvent := strings.Contains(result.String(), "dev.tekton.event.triggers.successful.v1")
 	doneEvent := strings.Contains(result.String(), "dev.tekton.event.triggers.done.v1")
@@ -145,13 +150,13 @@ func VerifyKubernetesEventsForEventListener(namespace string) {
 }
 
 // UpdateTektonConfig patches the TektonConfig CR with the provided JSON patch data.
-func UpdateTektonConfig(patchData string) {
-	runWithLog("patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
+func (oc *OC) UpdateTektonConfig(patchData string) {
+	oc.runWithLog("patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
 }
 
 // UpdateTektonConfigwithInvalidData patches TektonConfig with invalid data and asserts the expected error message.
-func UpdateTektonConfigwithInvalidData(patchData, errorMessage string) {
-	result := run("patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
+func (oc *OC) UpdateTektonConfigwithInvalidData(patchData, errorMessage string) {
+	result := oc.run("patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
 	log.Printf("Output: %s\n", result.Stdout())
 	Expect(result.ExitCode).To(Equal(1),
 		"Expected exit code 1 but got %d", result.ExitCode)
@@ -161,62 +166,62 @@ func UpdateTektonConfigwithInvalidData(patchData, errorMessage string) {
 }
 
 // AnnotateNamespace annotates the given namespace with the provided annotation.
-func AnnotateNamespace(namespace, annotation string) {
-	runWithLog("annotate", "namespace", namespace, annotation)
+func (oc *OC) AnnotateNamespace(namespace, annotation string) {
+	oc.runWithLog("annotate", "namespace", namespace, annotation)
 }
 
 // AnnotateNamespaceIgnoreErrors annotates the given namespace, ignoring any errors.
-func AnnotateNamespaceIgnoreErrors(namespace, annotation string) {
-	runWithLog("annotate", "namespace", namespace, annotation)
+func (oc *OC) AnnotateNamespaceIgnoreErrors(namespace, annotation string) {
+	oc.runWithLog("annotate", "namespace", namespace, annotation)
 }
 
 // RemovePrunerConfig removes the pruner spec from TektonConfig.
-func RemovePrunerConfig() {
-	run("patch", "tektonconfig", "config", "-p", "[{ \"op\": \"remove\", \"path\": \"/spec/pruner\" }]", "--type=json")
+func (oc *OC) RemovePrunerConfig() {
+	oc.run("patch", "tektonconfig", "config", "-p", "[{ \"op\": \"remove\", \"path\": \"/spec/pruner\" }]", "--type=json")
 }
 
 // LabelNamespace adds a label to the given namespace.
-func LabelNamespace(namespace, label string) {
-	runWithLog("label", "namespace", namespace, label)
+func (oc *OC) LabelNamespace(namespace, label string) {
+	oc.runWithLog("label", "namespace", namespace, label)
 }
 
 // DeleteResource deletes a resource by type and name from the current namespace.
-func DeleteResource(resourceType, name string) {
+func (oc *OC) DeleteResource(resourceType, name string) {
 	// Tekton Results sets a finalizer that prevent resource removal for some time
 	// see parameters "store_deadline" and "forward_buffer"
 	// by default, it waits at least 150 seconds
-	log.Printf("output: %s\n", runIncreasedTimeout(time.Second*300, "delete", resourceType, name, "-n", store.Namespace()).Stdout())
+	log.Printf("output: %s\n", oc.runIncreasedTimeout(time.Second*300, "delete", resourceType, name, "-n", store.Namespace()).Stdout())
 }
 
 // DeleteResourceInNamespace deletes a resource by type and name from the given namespace.
-func DeleteResourceInNamespace(resourceType, name, namespace string) {
-	runWithLog("delete", resourceType, name, "-n", namespace)
+func (oc *OC) DeleteResourceInNamespace(resourceType, name, namespace string) {
+	oc.runWithLog("delete", resourceType, name, "-n", namespace)
 }
 
 // CheckProjectExists returns true if the given OpenShift project exists.
-func CheckProjectExists(projectName string) bool {
-	commandResult := run("project", projectName)
+func (oc *OC) CheckProjectExists(projectName string) bool {
+	commandResult := oc.run("project", projectName)
 	return commandResult.ExitCode == 0 && !strings.Contains(commandResult.String(), "error")
 }
 
 // SecretExists returns true if the named secret exists in the given namespace.
-func SecretExists(secretName, namespace string) bool {
-	return !strings.Contains(run("get", "secret", secretName, "-n", namespace).String(), "Error")
+func (oc *OC) SecretExists(secretName, namespace string) bool {
+	return !strings.Contains(oc.run("get", "secret", secretName, "-n", namespace).String(), "Error")
 }
 
 // CreateSecretForGitResolver creates the github-auth-secret used by the git resolver.
-func CreateSecretForGitResolver(secretData string) {
-	run("create", "secret", "generic", "github-auth-secret", "--from-literal", "github-auth-key="+secretData, "-n", "openshift-pipelines")
+func (oc *OC) CreateSecretForGitResolver(secretData string) {
+	oc.run("create", "secret", "generic", "github-auth-secret", "--from-literal", "github-auth-key="+secretData, "-n", "openshift-pipelines")
 }
 
 // CreateSecretForWebhook creates the gitlab-webhook-config secret in the given namespace.
-func CreateSecretForWebhook(tokenSecretData, webhookSecretData, namespace string) {
-	run("create", "secret", "generic", "gitlab-webhook-config", "--from-literal", "provider.token="+tokenSecretData, "--from-literal", "webhook.secret="+webhookSecretData, "-n", namespace)
+func (oc *OC) CreateSecretForWebhook(tokenSecretData, webhookSecretData, namespace string) {
+	oc.run("create", "secret", "generic", "gitlab-webhook-config", "--from-literal", "provider.token="+tokenSecretData, "--from-literal", "webhook.secret="+webhookSecretData, "-n", namespace)
 }
 
 // EnableConsolePlugin enables the Pipelines console plugin in the cluster console.
-func EnableConsolePlugin() {
-	jsonOutput := run("get", "consoles.operator.openshift.io", "cluster", "-o", "jsonpath={.spec.plugins}").Stdout()
+func (oc *OC) EnableConsolePlugin() {
+	jsonOutput := oc.run("get", "consoles.operator.openshift.io", "cluster", "-o", "jsonpath={.spec.plugins}").Stdout()
 	log.Printf("Already enabled console plugins: %s", jsonOutput)
 	var plugins = make([]string, 0, 1)
 	if len(jsonOutput) > 0 {
@@ -235,27 +240,27 @@ func EnableConsolePlugin() {
 	plugins = append(plugins, config.ConsolePluginDeployment)
 
 	patchData := "{\"spec\":{\"plugins\":[\"" + strings.Join(plugins, "\",\"") + "\"]}}"
-	run("patch", "consoles.operator.openshift.io", "cluster", "-p", patchData, "--type=merge").Stdout()
+	oc.run("patch", "consoles.operator.openshift.io", "cluster", "-p", patchData, "--type=merge").Stdout()
 }
 
 // GetSecretsData returns the data field of the named secret in the given namespace.
-func GetSecretsData(secretName, namespace string) string {
-	return run("get", "secrets", secretName, "-n", namespace, "-o", "jsonpath=\"{.data}\"").Stdout()
+func (oc *OC) GetSecretsData(secretName, namespace string) string {
+	return oc.run("get", "secrets", secretName, "-n", namespace, "-o", "jsonpath=\"{.data}\"").Stdout()
 }
 
 // CreateChainsImageRegistrySecret creates the chains image registry credentials secret.
-func CreateChainsImageRegistrySecret(dockerConfig string) {
+func (oc *OC) CreateChainsImageRegistrySecret(dockerConfig string) {
 	ns := store.Namespace()
 	if ns == "" {
 		panic("CreateChainsImageRegistrySecret: store.Namespace() is empty - ensure hooks are configured")
 	}
-	run("create", "secret", "generic", "chains-image-registry-credentials", "--from-literal=.dockerconfigjson="+dockerConfig, "--from-literal=config.json="+dockerConfig, "--type=kubernetes.io/dockerconfigjson", "-n", ns)
+	oc.run("create", "secret", "generic", "chains-image-registry-credentials", "--from-literal=.dockerconfigjson="+dockerConfig, "--from-literal=config.json="+dockerConfig, "--type=kubernetes.io/dockerconfigjson", "-n", ns)
 }
 
 // ValidateAndCreateJibMavenSecret validates required environment variables and creates
 // the jib-maven registry credentials secret, then links it to the pipeline service account.
 // Skips the test if required environment variables are not set.
-func ValidateAndCreateJibMavenSecret(namespace string) {
+func (oc *OC) ValidateAndCreateJibMavenSecret(namespace string) {
 	repo := os.Getenv("JIB_MAVEN_REPOSITORY")
 	if repo == "" {
 		Skip("JIB_MAVEN_REPOSITORY not set -- skipping jib-maven test")
@@ -267,19 +272,19 @@ func ValidateAndCreateJibMavenSecret(namespace string) {
 	}
 
 	// Create secret with docker config
-	run("create", "secret", "generic", "jib-maven-image-registry-credentials",
+	oc.run("create", "secret", "generic", "jib-maven-image-registry-credentials",
 		"--from-literal=.dockerconfigjson="+dockerConfig,
 		"--from-literal=config.json="+dockerConfig,
 		"--type=kubernetes.io/dockerconfigjson",
 		"-n", namespace)
 
 	// Link secret to pipeline service account
-	LinkSecretToSA("jib-maven-image-registry-credentials", "pipeline", namespace)
+	oc.LinkSecretToSA("jib-maven-image-registry-credentials", "pipeline", namespace)
 }
 
 // CopySecret copies a secret from one namespace to another, transforming metadata and data keys.
-func CopySecret(secretName, sourceNamespace, destNamespace string) {
-	secretJSON := run("get", "secret", secretName, "-n", sourceNamespace, "-o", "json").Stdout()
+func (oc *OC) CopySecret(secretName, sourceNamespace, destNamespace string) {
+	secretJSON := oc.run("get", "secret", secretName, "-n", sourceNamespace, "-o", "json").Stdout()
 
 	// Process in Go instead of piping through shell to avoid injection
 	var secret map[string]any
@@ -311,27 +316,35 @@ func CopySecret(secretName, sourceNamespace, destNamespace string) {
 	Expect(err).NotTo(HaveOccurred(), "failed to write secret to temp file")
 	Expect(tmpFile.Close()).To(Succeed())
 
-	run("apply", "-n", destNamespace, "-f", tmpFile.Name())
+	oc.run("apply", "-n", destNamespace, "-f", tmpFile.Name())
 	log.Printf("Successfully copied secret %s from %s to %s", secretName, sourceNamespace, destNamespace)
 }
 
 // ── internal helpers ──────────────────────────────────────────────────────────
 
-func runWithLog(args ...string) {
-	log.Printf("output: %s\n", run(args...).Stdout())
+func (oc *OC) runWithLog(args ...string) {
+	log.Printf("output: %s\n", oc.run(args...).Stdout())
 }
 
-func run(args ...string) *icmd.Result {
-	command := append([]string{"oc"}, args...)
+func (oc *OC) run(args ...string) *icmd.Result {
+	command := oc.getOcCommand(args)
 	return cmd.MustSucceed(command...)
 }
 
-func runIgnoreErrors(args ...string) *icmd.Result {
-	command := append([]string{"oc"}, args...)
+func (oc *OC) runIgnoreErrors(args ...string) *icmd.Result {
+	command := oc.getOcCommand(args)
 	return cmd.Run(command...)
 }
-
-func runIncreasedTimeout(timeout time.Duration, args ...string) *icmd.Result {
-	command := append([]string{"oc"}, args...)
+func (oc *OC) runIncreasedTimeout(timeout time.Duration, args ...string) *icmd.Result {
+	command := oc.getOcCommand(args)
 	return cmd.MustSucceedIncreasedTimeout(timeout, command...)
+}
+
+func (oc *OC) getOcCommand(args []string) []string {
+	command := []string{"oc"}
+	if oc.Context != "" {
+		command = append(command, "--context", oc.Context)
+	}
+	command = append(command, args...)
+	return command
 }

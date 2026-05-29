@@ -9,7 +9,6 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/triggers"
