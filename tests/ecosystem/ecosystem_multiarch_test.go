@@ -102,6 +102,10 @@ var _ = Describe("kn-apply pipelinerun", Label("ecosystem", "e2e", "kn-apply"), 
 			}
 		}
 
+		if !k8s.IsAPIGroupAvailable(sharedClients, "serving.knative.dev") {
+			Skip("serving.knative.dev API not available on this cluster — Knative Serving is not installed")
+		}
+
 		ns := createTestNamespace("eco-kn-apply")
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
@@ -129,6 +133,10 @@ var _ = Describe("kn-apply p&z pipelinerun", Label("ecosystem", "e2e", "kn-apply
 			if !archMatch {
 				Skip(fmt.Sprintf("requires one of architectures: %v (cluster is %s)", []string{"ppc64le", "s390x"}, config.Flags.ClusterArch))
 			}
+		}
+
+		if !k8s.IsAPIGroupAvailable(sharedClients, "serving.knative.dev") {
+			Skip("serving.knative.dev API not available on this cluster — Knative Serving is not installed")
 		}
 
 		ns := createTestNamespace("eco-kn-apply-pz")
@@ -159,6 +167,10 @@ var _ = Describe("kn pipelinerun", Label("ecosystem", "e2e", "kn"), func() {
 			}
 		}
 
+		if !k8s.IsAPIGroupAvailable(sharedClients, "serving.knative.dev") {
+			Skip("serving.knative.dev API not available on this cluster — Knative Serving is not installed")
+		}
+
 		ns := createTestNamespace("eco-kn")
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
@@ -185,6 +197,10 @@ var _ = Describe("kn p&z pipelinerun", Label("ecosystem", "e2e", "kn"), func() {
 			if !archMatch {
 				Skip(fmt.Sprintf("requires one of architectures: %v (cluster is %s)", []string{"ppc64le", "s390x"}, config.Flags.ClusterArch))
 			}
+		}
+
+		if !k8s.IsAPIGroupAvailable(sharedClients, "serving.knative.dev") {
+			Skip("serving.knative.dev API not available on this cluster — Knative Serving is not installed")
 		}
 
 		ns := createTestNamespace("eco-kn-pz")

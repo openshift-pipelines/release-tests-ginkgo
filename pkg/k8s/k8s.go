@@ -86,6 +86,22 @@ func GetGroupVersionResource(gr schema.GroupVersionResource, discovery discovery
 	return &gvr, nil
 }
 
+// IsAPIGroupAvailable returns true if the given API group (e.g. "serving.knative.dev")
+// is registered on the cluster. Use this to skip tests that require optional components
+// like Knative Serving that may not be installed on every cluster.
+func IsAPIGroupAvailable(cs *clients.Clients, apiGroup string) bool {
+	groups, err := cs.KubeClient.Kube.Discovery().ServerGroups()
+	if err != nil {
+		return false
+	}
+	for _, g := range groups.Groups {
+		if g.Name == apiGroup {
+			return true
+		}
+	}
+	return false
+}
+
 // WaitForDeployment waits until a deployment has the expected number of available replicas.
 func WaitForDeployment(ctx context.Context, kc kubernetes.Interface, namespace, name string, replicas int, retryInterval, timeout time.Duration) error {
 	err := wait.PollUntilContextTimeout(ctx, retryInterval, timeout, false, func(context.Context) (bool, error) {
