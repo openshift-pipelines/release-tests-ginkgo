@@ -25,4 +25,4 @@ spec:
         - "--image=quay.io/multi-arch/knative-samples-helloworld-go:latest"
         - "-eTARGET=Pipeline"
   timeouts: 
-    pipeline: 10m
+    pipeline: 8m

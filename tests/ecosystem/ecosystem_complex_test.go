@@ -25,7 +25,7 @@ import (
 
 var _ = Describe("Ecosystem Secret-Link Tasks", Label("ecosystem", "e2e"), func() {
 
-	It("git-cli read private repo pipelinerun: PIPELINES-29-TC04", Label("git-cli"), func() {
+	It("git-cli read private repo pipelinerun", Label("git-cli"), func() {
 		ns := createTestNamespace("eco-git-cli-priv")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -46,7 +46,7 @@ var _ = Describe("Ecosystem Secret-Link Tasks", Label("ecosystem", "e2e"), func(
 		pipelines.ValidatePipelineRun(sharedClients, "git-cli-read-private-run", "successful", ns)
 	})
 
-	It("git-cli read private repo using different SA: PIPELINES-29-TC05", Label("git-cli"), func() {
+	It("git-cli read private repo using different SA", Label("git-cli"), func() {
 		ns := createTestNamespace("eco-git-cli-sa")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -66,7 +66,7 @@ var _ = Describe("Ecosystem Secret-Link Tasks", Label("ecosystem", "e2e"), func(
 		pipelines.ValidatePipelineRun(sharedClients, "git-cli-read-private-sa-run", "successful", ns)
 	})
 
-	It("git-clone read private repo taskrun: PIPELINES-29-TC06", Label("sanity", "git-clone"), func() {
+	It("git-clone read private repo taskrun", Label("sanity", "git-clone"), func() {
 		ns := createTestNamespace("eco-git-clone-priv")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -84,7 +84,7 @@ var _ = Describe("Ecosystem Secret-Link Tasks", Label("ecosystem", "e2e"), func(
 		pipelines.ValidatePipelineRun(sharedClients, "git-clone-read-private-pipeline-run", "successful", ns)
 	})
 
-	It("git-clone read private repo using different SA: PIPELINES-29-TC07", Label("git-clone"), func() {
+	It("git-clone read private repo using different SA", Label("git-clone"), func() {
 		ns := createTestNamespace("eco-git-clone-sa")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -119,7 +119,7 @@ var _ = Describe("Ecosystem Secret-Link Tasks", Label("ecosystem", "e2e"), func(
 
 var _ = Describe("Ecosystem Cache Tasks", Label("ecosystem", "e2e", "cache"), func() {
 
-	It("cache-upload stepaction: PIPELINES-29-TC15", Label("sanity"), func() {
+	It("cache-upload stepaction", Label("sanity"), func() {
 		ns := createTestNamespace("eco-cache-upload")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -152,7 +152,7 @@ var _ = Describe("Ecosystem Cache Tasks", Label("ecosystem", "e2e", "cache"), fu
 		Expect(strings.ToLower(logs2)).To(ContainSubstring("no need to upload cache"))
 	})
 
-	It("cache upload with revision change: PIPELINES-29-TC16", func() {
+	It("cache upload with revision change", func() {
 		ns := createTestNamespace("eco-cache-rev")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)

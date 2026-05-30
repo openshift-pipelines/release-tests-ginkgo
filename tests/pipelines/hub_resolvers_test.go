@@ -8,8 +8,7 @@ import (
 )
 
 // Hub resolvers spec had no Polarion test case ID in the original Gauge spec.
-// Assigned PIPELINES-32-TC01 for Ginkgo migration.
-var _ = Describe("PIPELINES-32-TC01: Test hub resolver functionality", Label("e2e", "sanity"), func() {
+var _ = Describe("Test hub resolver functionality", Label("e2e", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {

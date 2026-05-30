@@ -149,6 +149,24 @@ func EnableChainsSigningSecret(_ *clients.Clients) {
 	}
 }
 
+// WaitForOperatorWebhooks waits for the Tekton operator webhook deployments to become
+// Available before proceeding with tests that interact with the API server webhooks.
+// On a fresh CI cluster the operator webhook pod may not be serving yet even after
+// the CSV reports Succeeded, which causes any admission webhook call (e.g. patching
+// TektonConfig) to fail with a "connection refused" error.
+//
+// Both deployments live in openshift-pipelines:
+//   - tekton-operator-proxy-webhook  – validates/mutates TektonConfig
+//   - tekton-pipelines-webhook       – validates/mutates Tekton pipeline resources
+func WaitForOperatorWebhooks(cs *clients.Clients) {
+	log.Printf("Waiting for operator webhook deployments to be Available...")
+	k8s.ValidateDeployments(cs, config.TargetNamespace,
+		"tekton-operator-proxy-webhook",
+		config.PipelineWebhookName,
+	)
+	log.Printf("Operator webhook deployments are Available")
+}
+
 // ValidateHubDeployment validates the hub deployment.
 func ValidateHubDeployment(cs *clients.Clients) {
 	k8s.ValidateDeployments(cs, config.TargetNamespace,

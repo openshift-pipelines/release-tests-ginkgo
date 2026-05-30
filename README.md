@@ -10,7 +10,7 @@ End-to-end test suite for [OpenShift Pipelines](https://docs.openshift.com/pipel
 - `oc` CLI authenticated to the cluster
 
 > **Note:** These tests support two scenarios:
-> - **Fresh cluster** — operator not yet installed: run the `olm` suite first to install it via OLM (see [Operator Installation](#operator-installation)).
+> - **Fresh cluster** — operator not yet installed: run the `install` suite first to install it via OLM (see [Operator Installation](#operator-installation)).
 > - **Pre-installed operator** — `TektonConfig` CR already in a ready state: skip the `olm` suite and run feature tests directly (see [Running Tests on a Pre-installed Cluster](#running-tests-on-a-pre-installed-cluster)).
 
 ## Configuration
@@ -48,12 +48,13 @@ The operator is **not** assumed to be pre-installed. The `olm` test suite (`test
 
 ### How it works
 
-The install test (`PIPELINES-09-TC01`) is an `Ordered` Ginkgo block that runs the following steps sequentially:
+The install test (`Install openshift-pipelines operator`) is an `Ordered` Ginkgo block that runs the following steps sequentially:
 
 1. **Create OLM Subscription** — renders `template/subscription.yaml.tmp` with values from `config.Flags` and applies it via `oc apply`.
 2. **Wait for CSV** — polls until `Subscription.Status.InstalledCSV` is set and the `ClusterServiceVersion` phase reaches `Succeeded` (timeout: 8 minutes).
 3. **Wait for TektonConfig CR** — ensures the `TektonConfig` CR named `config` exists and is ready.
-4. **Post-install configuration** — a series of ordered steps:
+4. **Wait for webhook deployments** — explicitly waits for `tekton-operator-proxy-webhook` and `tekton-pipelines-webhook` (both in `openshift-pipelines`) to have `AvailableReplicas ≥ 1`. This prevents a race condition on fresh CI clusters where the webhook pods are still starting when the first `oc patch TektonConfig` is attempted.
+5. **Post-install configuration** — a series of ordered steps:
    - Define `artifact-hub-api` variable
    - Apply `testdata/hub/tektonhub.yaml`
    - Configure GitHub token for the git resolver
@@ -86,18 +87,24 @@ spec:
 
 ```bash
 # Install the operator on a fresh cluster
+./scripts/run-tests.sh install
+# or equivalently:
 ginkgo run --label-filter=install --timeout=30m ./tests/olm/
 ```
 
 To upgrade the operator, set `UPGRADE_CHANNEL` and run with the `upgrade` label:
 
 ```bash
+UPGRADE_CHANNEL=pipelines-1.18 ./scripts/run-tests.sh upgrade
+# or equivalently:
 UPGRADE_CHANNEL=pipelines-1.18 ginkgo run --label-filter=upgrade --timeout=30m ./tests/olm/
 ```
 
 To uninstall:
 
 ```bash
+./scripts/run-tests.sh uninstall
+# or equivalently:
 ginkgo run --label-filter=uninstall --timeout=30m ./tests/olm/
 ```
 
@@ -161,15 +168,18 @@ ginkgo run --label-filter=sanity --timeout=30m --junit-report=report.xml ./tests
 
 ### `run-tests.sh` modes
 
-| Mode | Description |
-|------|-------------|
-| `sanity` | Sanity-labelled tests |
-| `smoke` | Smoke-labelled tests |
-| `e2e` | Full e2e suite |
-| `e2e-connected` | e2e, excluding disconnected scenarios |
-| `disconnected` | Disconnected-only tests |
-| `all` | No label filter — every test |
-| `<any string>` | Used directly as `--label-filter` |
+| Mode | Label filter | Test path |
+|------|-------------|-----------|
+| `install` | `install` | `tests/olm/` |
+| `upgrade` | `upgrade` | `tests/olm/` |
+| `uninstall` | `uninstall` | `tests/olm/` |
+| `sanity` | `sanity` | `tests/...` |
+| `smoke` | `smoke` | `tests/...` |
+| `e2e` | `e2e` | `tests/...` |
+| `e2e-connected` | `e2e && !disconnected` | `tests/...` |
+| `disconnected` | `disconnected` | `tests/...` |
+| `all` | *(none)* | `tests/...` |
+| `<any string>` | used directly as `--label-filter` | `tests/...` |
 
 ```bash
 ./scripts/run-tests.sh e2e
@@ -199,16 +209,16 @@ The Chains suite has two test cases with different requirements:
 
 | Test case | What it tests | Extra env vars required |
 |-----------|---------------|------------------------|
-| `PIPELINES-27-TC01` | TaskRun signing — signature stored as annotation (`tekton` storage) | None |
-| `PIPELINES-27-TC02` | Image signing + attestation via Kaniko + Rekor | `CHAINS_REPOSITORY`, `CHAINS_DOCKER_CONFIG_JSON` |
+| TaskRun signing | Signature stored as annotation (`tekton` storage) | None |
+| Image signing + attestation | Kaniko build → sign + attest via Rekor | `CHAINS_REPOSITORY`, `CHAINS_DOCKER_CONFIG_JSON` |
 
-**TC01 only (no registry needed):**
+**TaskRun signing only (no registry needed):**
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
 ginkgo run --label-filter='chains && sanity' --timeout=10m ./tests/chains/
 ```
 
-**TC01 + TC02 (image signing, requires a registry):**
+**Full Chains suite (image signing, requires a registry):**
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
 export CHAINS_REPOSITORY=quay.io/<your-org>/chainstest        # repo to push signed images to
@@ -221,6 +231,144 @@ ginkgo run --label-filter=chains --timeout=30m ./tests/chains/
 > (i.e. the output of `cat ~/.docker/config.json`) that has push access to `CHAINS_REPOSITORY`.
 > Do **not** base64-encode it — the test passes it directly to `oc create secret` as
 > `--from-literal=.dockerconfigjson=<value>` which requires plain JSON.
+
+## Local Testing Walkthrough
+
+This section walks through the full cycle for testing changes on your own OpenShift cluster.
+
+### 1 — One-time setup
+
+```bash
+# Clone and enter the repo
+git clone https://github.com/openshift-pipelines/release-tests-ginkgo
+cd release-tests-ginkgo
+
+# Install the ginkgo CLI (if not already installed)
+go install github.com/onsi/ginkgo/v2/ginkgo@latest
+
+# Log in to your local cluster
+oc login --server=https://<api-url>:6443 -u kubeadmin -p <password>
+# or point KUBECONFIG at an existing kubeconfig file:
+export KUBECONFIG=$HOME/.kube/config
+
+# Verify cluster access
+oc whoami
+oc get nodes
+```
+
+### 2 — Configure component versions
+
+Edit `env/default/default.properties` to match the operator version installed on your cluster:
+
+```bash
+# Check what's currently installed
+oc get csv -n openshift-operators | grep pipelines
+
+# Then update env/default/default.properties accordingly, e.g.:
+OPERATOR_VERSION = 0.79
+OSP_VERSION = 1.22
+PIPELINE_VERSION = v1.9
+```
+
+### 3 — Compile-check your changes
+
+```bash
+go build ./...
+# or just the packages you changed:
+go build ./pkg/operator/... ./pkg/diagnostics/... ./tests/olm/...
+```
+
+### 4a — Testing on a fresh cluster (operator not yet installed)
+
+Use this path when running on a cluster where the operator has never been installed (mirrors CI exactly):
+
+```bash
+# Install the operator via OLM — runs the full ordered install sequence
+# including the webhook readiness wait added in this PR
+./scripts/run-tests.sh install
+
+# Watch the install progress in another terminal:
+oc get pods -n openshift-operators -w
+oc get tektonconfig config -w
+
+# Once install completes, run sanity tests to validate everything works
+./scripts/run-tests.sh sanity
+```
+
+To simulate CI failure diagnostics: introduce a deliberate failure then inspect the JUnit report:
+
+```bash
+ARTIFACTS_DIR=./test-reports ./scripts/run-tests.sh install
+# On failure, test-reports/junit-report.xml will contain an <operator-diagnostics>
+# attachment with logs from openshift-operators pods
+cat test-reports/junit-report.xml | grep -A 50 "operator-diagnostics"
+```
+
+### 4b — Testing on a cluster with the operator already installed
+
+```bash
+# Quick sanity pass — runs all sanity-labelled tests across all suites
+./scripts/run-tests.sh sanity
+
+# Run a specific suite
+ginkgo run --timeout=30m ./tests/operator/
+ginkgo run --timeout=30m ./tests/pipelines/
+ginkgo run --timeout=30m ./tests/triggers/
+
+# Run only the webhook-wait step in isolation
+ginkgo run --label-filter=install --focus="waits for operator and pipelines webhook" \
+    --timeout=5m ./tests/olm/
+
+# Run a single named test by focusing on its description
+ginkgo run --focus="validates RBAC" --timeout=5m ./tests/operator/
+```
+
+### 5 — Running with verbose output
+
+```bash
+# -v streams each spec name and GinkgoWriter output as it runs
+ginkgo run -v --timeout=30m ./tests/operator/
+
+# Show full failure detail including the cluster-diagnostics report entry
+ginkgo run -v --label-filter=install --timeout=30m ./tests/olm/
+```
+
+### 6 — Running the full suite
+
+```bash
+# All feature tests — excludes install/upgrade/uninstall and disconnected
+ginkgo run \
+    --label-filter='!install && !upgrade && !uninstall && !disconnected' \
+    --timeout=60m \
+    ./tests/...
+```
+
+### 7 — Generating a JUnit report
+
+```bash
+ARTIFACTS_DIR=./test-reports ./scripts/run-tests.sh sanity
+# report written to: ./test-reports/junit-report.xml
+```
+
+### 8 — Cleanup
+
+The test framework automatically creates per-`Describe` namespaces and deletes them after each block (unless the block failed — failed namespaces are preserved for debugging).
+
+To manually clean up any leftover test namespaces:
+
+```bash
+oc get projects | grep -E 'eco-|chains-|results-|triggers-|pipelines-' | awk '{print $1}' | xargs oc delete project
+```
+
+### Troubleshooting common local failures
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `webhook not ready` / `connection refused` on patch | Operator webhook pod not up | The `WaitForOperatorWebhooks` step now handles this; if it still fails, check `oc get pods -n openshift-operators` |
+| `TektonConfig CR not found` | OLM install slow | Increase `GINKGO_TIMEOUT`; check `oc get csv -n openshift-operators` |
+| `namespace already exists` | Previous test run leaked namespaces | Run the manual cleanup command above |
+| `oc: command not found` | `oc` not in PATH | Install from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/ |
+| Chains TC02 fails with auth error | `CHAINS_DOCKER_CONFIG_JSON` not set / wrong format | Must be raw JSON from `cat ~/.docker/config.json`, not base64 |
 
 ## Project Layout
 

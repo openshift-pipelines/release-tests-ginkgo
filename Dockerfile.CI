@@ -6,9 +6,13 @@ RUN dnf update -y &&\
 
 RUN pip install pyyaml reportportal-client
 
+# Red Hat internal CA — only reachable on the corporate network / VPN.
+# The `|| true` makes this a no-op in external / CI environments where the
+# host is not resolvable, so the image still builds successfully.
 RUN wget https://certs.corp.redhat.com/certs/Current-IT-Root-CAs.pem \
-    -O /etc/pki/ca-trust/source/anchors/Current-IT-Root-CAs.pem && \
-    update-ca-trust extract
+    -O /etc/pki/ca-trust/source/anchors/Current-IT-Root-CAs.pem \
+    && update-ca-trust extract \
+    || true
 
 ENV OC_VERSION=4.21
 RUN wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/fast-${OC_VERSION}/openshift-client-linux.tar.gz \
@@ -47,8 +51,8 @@ RUN wget https://developers.redhat.com/content-gateway/rest/browse/pub/cgw/pipel
 RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/bin/mc &&\
     chmod u+x /usr/bin/mc
 
-# Install Ginkgo CLI
-ENV GINKGO_VERSION=v2.28.1
+# Install Ginkgo CLI — version must match github.com/onsi/ginkgo/v2 in go.mod
+ENV GINKGO_VERSION=v2.28.3
 RUN ln -s /usr/bin/oc /usr/bin/kubectl &&\
     go env -w GOPROXY="https://proxy.golang.org,direct" &&\
     go install github.com/onsi/ginkgo/v2/ginkgo@${GINKGO_VERSION} &&\

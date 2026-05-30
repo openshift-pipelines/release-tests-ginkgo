@@ -9,7 +9,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 )
 
-var _ = Describe("PIPELINES-25: Bundles Resolver", Label("e2e"), func() {
+var _ = Describe("Bundles Resolver", Label("e2e"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -22,18 +22,18 @@ var _ = Describe("PIPELINES-25: Bundles Resolver", Label("e2e"), func() {
 		})
 	})
 
-	It("PIPELINES-25-TC01: Test bundles resolver functionality", func() {
+	It("Test bundles resolver functionality", func() {
 		oc.Create("testdata/resolvers/pipelineruns/bundles-resolver-pipelinerun.yaml", ns)
 		pipelines.ValidatePipelineRun(sharedClients, "bundles-resolver-pipelinerun", "successful", ns)
 	})
 
-	It("PIPELINES-25-TC02: Test bundles resolver with parameter", Label("sanity"), func() {
+	It("Test bundles resolver with parameter", Label("sanity"), func() {
 		oc.Create("testdata/resolvers/pipelineruns/bundles-resolver-pipelinerun-param.yaml", ns)
 		pipelines.ValidatePipelineRun(sharedClients, "bundles-resolver-pipelinerun-param", "successful", ns)
 	})
 })
 
-var _ = Describe("PIPELINES-23: Cluster Resolvers", Ordered, Label("e2e"), func() {
+var _ = Describe("Cluster Resolvers", Ordered, Label("e2e"), func() {
 	var ns string
 
 	BeforeAll(func() {
@@ -50,7 +50,7 @@ var _ = Describe("PIPELINES-23: Cluster Resolvers", Ordered, Label("e2e"), func(
 		oc.DeleteProjectIgnoreErrors("releasetest-pipelines")
 	})
 
-	It("PIPELINES-23-TC01: Cluster resolver cross-namespace resolution", Label("sanity"), func() {
+	It("Cluster resolver cross-namespace resolution", Label("sanity"), func() {
 		ns = uniqueNS("resolver-cluster")
 		oc.CreateNewProject(ns)
 		lastNamespace = ns
@@ -63,7 +63,7 @@ var _ = Describe("PIPELINES-23: Cluster Resolvers", Ordered, Label("e2e"), func(
 		pipelines.ValidatePipelineRun(sharedClients, "resolver-pipelinerun", "successful", ns)
 	})
 
-	It("PIPELINES-23-TC02: Cluster resolver same-namespace resolution", func() {
+	It("Cluster resolver same-namespace resolution", func() {
 		ns = uniqueNS("resolver-cluster-sns")
 		oc.CreateNewProject(ns)
 		lastNamespace = ns
@@ -78,7 +78,7 @@ var _ = Describe("PIPELINES-23: Cluster Resolvers", Ordered, Label("e2e"), func(
 	})
 })
 
-var _ = Describe("PIPELINES-24: Git Resolvers", Label("e2e"), func() {
+var _ = Describe("Git Resolvers", Label("e2e"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -91,12 +91,12 @@ var _ = Describe("PIPELINES-24: Git Resolvers", Label("e2e"), func() {
 		})
 	})
 
-	It("PIPELINES-24-TC01: Test git resolver functionality", Label("sanity"), func() {
+	It("Test git resolver functionality", Label("sanity"), func() {
 		oc.Create("testdata/resolvers/pipelineruns/git-resolver-pipelinerun.yaml", ns)
 		pipelines.ValidatePipelineRun(sharedClients, "git-resolver-pipelinerun", "successful", ns)
 	})
 
-	It("PIPELINES-24-TC02: Test git resolver with authentication and token", func() {
+	It("Test git resolver with authentication and token", func() {
 		token := os.Getenv("GITHUB_TOKEN")
 		if token == "" {
 			Skip("GITHUB_TOKEN not set -- skipping private repo resolver test")
@@ -119,8 +119,8 @@ var _ = Describe("PIPELINES-24: Git Resolvers", Label("e2e"), func() {
 	})
 })
 
-var _ = Describe("PIPELINES-31: HTTP Resolvers", Label("e2e"), func() {
-	It("PIPELINES-31-TC01: Test HTTP resolver functionality", Label("sanity"), func() {
+var _ = Describe("HTTP Resolvers", Label("e2e"), func() {
+	It("Test HTTP resolver functionality", Label("sanity"), func() {
 		ns := uniqueNS("resolver-http")
 		oc.CreateNewProject(ns)
 		lastNamespace = ns
@@ -135,9 +135,8 @@ var _ = Describe("PIPELINES-31: HTTP Resolvers", Label("e2e"), func() {
 })
 
 // Hub resolvers spec had no Polarion test case ID in the original Gauge spec.
-// Assigned PIPELINES-32-TC01 for Ginkgo migration.
-var _ = Describe("PIPELINES-32: Hub Resolvers", Label("e2e"), func() {
-	It("PIPELINES-32-TC01: Test hub resolver functionality", Label("sanity"), func() {
+var _ = Describe("Hub Resolvers", Label("e2e"), func() {
+	It("Test hub resolver functionality", Label("sanity"), func() {
 		ns := uniqueNS("resolver-hub")
 		oc.CreateNewProject(ns)
 		lastNamespace = ns

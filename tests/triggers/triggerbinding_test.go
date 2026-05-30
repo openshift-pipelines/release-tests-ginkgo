@@ -10,7 +10,7 @@ import (
 
 var _ = Describe("TriggerBindings", Label("triggers"), func() {
 
-	It("PIPELINES-10-TC01: Verify CEL marshaljson function", Label("e2e", "triggers", "non-admin", "sanity"), func() {
+	It("Verify CEL marshaljson function", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
 		lastNamespace = ns
 		oc.Create("testdata/triggers/triggerbindings/cel-marshalJson.yaml", ns)
@@ -21,7 +21,7 @@ var _ = Describe("TriggerBindings", Label("triggers"), func() {
 		pipelines.ValidateTaskRun(sharedClients, "cel-trig-marshaljson", "Success", ns)
 	})
 
-	It("PIPELINES-10-TC02: Verify event message body parsing with old annotation", Label("e2e", "triggers", "non-admin", "sanity"), func() {
+	It("Verify event message body parsing with old annotation", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
 		lastNamespace = ns
 		oc.Create("testdata/triggers/triggerbindings/parse-json-body-with-annotation.yaml", ns)
@@ -32,7 +32,7 @@ var _ = Describe("TriggerBindings", Label("triggers"), func() {
 		pipelines.ValidateTaskRun(sharedClients, "trig-parse-json-body-with-annotation", "Success", ns)
 	})
 
-	It("PIPELINES-10-TC03: Verify event message body marshaling error", Label("non-admin"), Pending, func() {
+	It("Verify event message body marshaling error", Label("non-admin"), Pending, func() {
 		// Pending: tagged bug-to-fix in Gauge suite
 	})
 })

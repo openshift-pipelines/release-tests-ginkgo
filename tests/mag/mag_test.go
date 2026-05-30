@@ -20,7 +20,7 @@ var _ = Describe("Manual Approval Gate", Label("approvalgate", "e2e", "sanity"),
 		lastNamespace = config.TargetNamespace
 	})
 
-	Describe("PIPELINES-28-TC01: Approve Manual Approval gate pipeline", Ordered, func() {
+	Describe("Approve Manual Approval gate pipeline", Ordered, func() {
 		It("validates MAG deployment is ready", func() {
 			approvalgate.ValidateMAGDeployment(sharedClients)
 		})
@@ -58,7 +58,7 @@ var _ = Describe("Manual Approval Gate", Label("approvalgate", "e2e", "sanity"),
 		})
 	})
 
-	Describe("PIPELINES-28-TC02: Reject Manual Approval gate pipeline", Ordered, func() {
+	Describe("Reject Manual Approval gate pipeline", Ordered, func() {
 		It("creates the manual approval pipeline", func() {
 			ns := config.TargetNamespace
 			oc.Create("testdata/manualapprovalgate/manual-approval-pipeline.yaml", ns)

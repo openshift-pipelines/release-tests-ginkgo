@@ -10,7 +10,7 @@ import (
 
 var _ = Describe("Versions of OpenShift Pipelines", Label("versions", "e2e"), func() {
 
-	Describe("PIPELINES-22-TC01: Check server side components versions", Label("sanity"), func() {
+	Describe("Check server side components versions", Label("sanity"), func() {
 
 		DescribeTable("verifies component version",
 			func(component, envVar string) {
@@ -34,7 +34,7 @@ var _ = Describe("Versions of OpenShift Pipelines", Label("versions", "e2e"), fu
 		)
 	})
 
-	Describe("PIPELINES-22-TC02: Check client versions", Label("sanity"), Ordered, func() {
+	Describe("Check client versions", Label("sanity"), Ordered, func() {
 		It("downloads and extracts CLI from cluster", func() {
 			By("Downloading CLI binaries from cluster")
 			opc.DownloadCLIFromCluster()

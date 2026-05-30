@@ -24,3 +24,5 @@ spec:
   - name: output
     persistentVolumeClaim:
       claimName: shared-pvc
+  timeouts:
+    pipeline: 5m

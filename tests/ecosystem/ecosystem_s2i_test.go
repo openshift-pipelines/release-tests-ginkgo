@@ -10,12 +10,11 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/triggers"
 )
 
 // -----------------------------------------------------------------------
-// S2I Ecosystem Tests (9 tests: PIPELINES-33-TC01 through TC09)
+// S2I Ecosystem Tests
 //
 // Source-to-Image (S2I) tests verify that S2I builder images can compile
 // and deploy applications.
@@ -31,18 +30,20 @@ import (
 // TC01: S2I nodejs full flow with route validation
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I nodejs pipelinerun with route validation: PIPELINES-33-TC01", Label("ecosystem", "e2e", "s2i", "sanity"), func() {
+var _ = Describe("S2I nodejs pipelinerun with route validation", Label("ecosystem", "e2e", "s2i", "sanity"), func() {
 
 	It("should create nodejs pipeline, verify pipelinerun, expose route and validate response", func() {
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-nodejs-route")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
 		// Create all resources
-		oc.Create("testdata/ecosystem/pipelines/nodejs-ex-git.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
-		oc.Create("testdata/ecosystem/deploymentconfigs/nodejs-ex-git.yaml")
-		oc.Create("testdata/ecosystem/imagestreams/nodejs-ex-git.yaml")
-		oc.Create("testdata/ecosystem/pipelineruns/nodejs-ex-git.yaml")
+		oc.Create("testdata/ecosystem/pipelines/nodejs-ex-git.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
+		oc.Create("testdata/ecosystem/deploymentconfigs/nodejs-ex-git.yaml", ns)
+		oc.Create("testdata/ecosystem/imagestreams/nodejs-ex-git.yaml", ns)
+		oc.Create("testdata/ecosystem/pipelineruns/nodejs-ex-git.yaml", ns)
 
 		// Verify pipelinerun
 		pipelines.ValidatePipelineRun(sharedClients, "nodejs-ex-git-pr", "successful", ns)
@@ -63,7 +64,7 @@ var _ = Describe("S2I nodejs pipelinerun with route validation: PIPELINES-33-TC0
 // TC02: S2I dotnet pipelinerun
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I dotnet pipelinerun: PIPELINES-33-TC02", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I dotnet pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create dotnet pipeline and verify pipelinerun for each imagestream tag", func() {
 		// Skip on ppc64le architecture
@@ -71,12 +72,14 @@ var _ = Describe("S2I dotnet pipelinerun: PIPELINES-33-TC02", Label("ecosystem",
 			Skip(fmt.Sprintf("test skipped on architecture: %s", config.Flags.ClusterArch))
 		}
 
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-dotnet")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
 		// Create pipeline and PVC resources
-		oc.Create("testdata/ecosystem/pipelines/s2i-dotnet.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelines/s2i-dotnet.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
 
 		// Validate all imagestream tags using helper with dotnet-specific customizer
 		pipelines.ValidateS2IPipelineForAllTags(sharedClients, ns, "dotnet", "s2i-dotnet-pipeline", pipelines.DotnetParamCustomizer)
@@ -87,14 +90,16 @@ var _ = Describe("S2I dotnet pipelinerun: PIPELINES-33-TC02", Label("ecosystem",
 // TC03: S2I golang pipelinerun
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I golang pipelinerun: PIPELINES-33-TC03", Label("ecosystem", "e2e", "sanity", "s2i"), func() {
+var _ = Describe("S2I golang pipelinerun", Label("ecosystem", "e2e", "sanity", "s2i"), func() {
 
 	It("should create golang pipeline and verify pipelinerun for each imagestream tag", func() {
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-golang")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/s2i-go.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelines/s2i-go.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
 
 		pipelines.ValidateS2IPipelineForAllTags(sharedClients, ns, "golang", "s2i-go-pipeline", nil)
 	})
@@ -104,14 +109,16 @@ var _ = Describe("S2I golang pipelinerun: PIPELINES-33-TC03", Label("ecosystem",
 // TC04: S2I java pipelinerun
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I java pipelinerun: PIPELINES-33-TC04", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I java pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create java pipeline and verify pipelinerun for each imagestream tag", func() {
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-java")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/s2i-java.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelines/s2i-java.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
 
 		pipelines.ValidateS2IPipelineForAllTags(sharedClients, ns, "java", "s2i-java-pipeline", nil)
 	})
@@ -121,14 +128,16 @@ var _ = Describe("S2I java pipelinerun: PIPELINES-33-TC04", Label("ecosystem", "
 // TC05: S2I nodejs pipelinerun
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I nodejs pipelinerun: PIPELINES-33-TC05", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I nodejs pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create nodejs pipeline and verify pipelinerun for each imagestream tag", func() {
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-nodejs")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/s2i-nodejs.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelines/s2i-nodejs.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
 
 		pipelines.ValidateS2IPipelineForAllTags(sharedClients, ns, "nodejs", "s2i-nodejs-pipeline", nil)
 	})
@@ -138,14 +147,16 @@ var _ = Describe("S2I nodejs pipelinerun: PIPELINES-33-TC05", Label("ecosystem",
 // TC06: S2I perl pipelinerun
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I perl pipelinerun: PIPELINES-33-TC06", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I perl pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create perl pipeline and verify pipelinerun for each imagestream tag", func() {
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-perl")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/s2i-perl.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelines/s2i-perl.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
 
 		pipelines.ValidateS2IPipelineForAllTags(sharedClients, ns, "perl", "s2i-perl-pipeline", nil)
 	})
@@ -155,14 +166,16 @@ var _ = Describe("S2I perl pipelinerun: PIPELINES-33-TC06", Label("ecosystem", "
 // TC07: S2I php pipelinerun
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I php pipelinerun: PIPELINES-33-TC07", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I php pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create php pipeline and verify pipelinerun for each imagestream tag", func() {
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-php")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/s2i-php.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelines/s2i-php.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
 
 		pipelines.ValidateS2IPipelineForAllTags(sharedClients, ns, "php", "s2i-php-pipeline", nil)
 	})
@@ -172,14 +185,16 @@ var _ = Describe("S2I php pipelinerun: PIPELINES-33-TC07", Label("ecosystem", "e
 // TC08: S2I python pipelinerun
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I python pipelinerun: PIPELINES-33-TC08", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I python pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create python pipeline and verify pipelinerun for each imagestream tag", func() {
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-python")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/s2i-python.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelines/s2i-python.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
 
 		pipelines.ValidateS2IPipelineForAllTags(sharedClients, ns, "python", "s2i-python-pipeline", nil)
 	})
@@ -189,14 +204,16 @@ var _ = Describe("S2I python pipelinerun: PIPELINES-33-TC08", Label("ecosystem",
 // TC09: S2I ruby pipelinerun
 // -----------------------------------------------------------------------
 
-var _ = Describe("S2I ruby pipelinerun: PIPELINES-33-TC09", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I ruby pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create ruby pipeline and verify pipelinerun for each imagestream tag", func() {
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-s2i-ruby")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/s2i-ruby.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
+		oc.Create("testdata/ecosystem/pipelines/s2i-ruby.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
 
 		pipelines.ValidateS2IPipelineForAllTags(sharedClients, ns, "ruby", "s2i-ruby-pipeline", nil)
 	})

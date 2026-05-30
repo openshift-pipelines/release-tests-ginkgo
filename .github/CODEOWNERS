@@ -1,0 +1,22 @@
+# CODEOWNERS — GitHub will automatically request reviews from these users
+# when a pull request touches the matching paths.
+#
+# Order matters: the last matching rule wins.
+# Mirrors the reviewers/approvers in the top-level OWNERS file.
+
+# Default owners for everything in the repo
+* @anithapriyanatarajan @manthinasai @pramodbindal @srivickynesh @waveywaves
+
+# CI configuration
+.github/                  @anithapriyanatarajan @pramodbindal @srivickynesh
+scripts/                  @anithapriyanatarajan @pramodbindal @srivickynesh
+Dockerfile.CI             @anithapriyanatarajan @pramodbindal @srivickynesh
+
+# Core test packages
+pkg/                      @anithapriyanatarajan @manthinasai @pramodbindal @srivickynesh @waveywaves
+tests/                    @anithapriyanatarajan @bharatmajjiga @jayesh-garg @manthinasai @pramodbindal @srivickynesh @waveywaves
+
+# Dependency updates
+go.mod                    @anithapriyanatarajan @pramodbindal @srivickynesh
+go.sum                    @anithapriyanatarajan @pramodbindal @srivickynesh
+vendor/                   @anithapriyanatarajan @pramodbindal @srivickynesh

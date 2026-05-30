@@ -140,7 +140,7 @@ func createAdditionalPrunerResources() {
 	oc.Create("testdata/pruner/task/taskrun-for-pruner.yaml", ns)
 }
 
-var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
+var _ = Describe("Verify auto-prune E2E", Serial,
 	Label("e2e", "operator", "auto-prune", "admin"), func() {
 
 		BeforeEach(func() {
@@ -149,7 +149,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC01: Verify auto prune for taskrun
-		Context("PIPELINES-12-TC01: Verify auto prune for taskrun", Ordered, Label("sanity"), func() {
+		Context("Verify auto prune for taskrun", Ordered, Label("sanity"), func() {
 			It("should prune taskruns to keep 2", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -168,7 +168,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC02: Verify auto prune for pipelinerun
-		Context("PIPELINES-12-TC02: Verify auto prune for pipelinerun", Ordered, func() {
+		Context("Verify auto prune for pipelinerun", Ordered, func() {
 			It("should prune pipelineruns to keep 2", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -187,7 +187,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC03: Verify auto prune for pipelinerun and taskrun
-		Context("PIPELINES-12-TC03: Verify auto prune for pipelinerun and taskrun", Ordered, func() {
+		Context("Verify auto prune for pipelinerun and taskrun", Ordered, func() {
 			It("should prune both pipelineruns and taskruns to keep 2", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -206,7 +206,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC04: Verify auto prune with keep-since
-		Context("PIPELINES-12-TC04: Verify auto prune with keep-since", Ordered, Label("sanity"), func() {
+		Context("Verify auto prune with keep-since", Ordered, Label("sanity"), func() {
 			It("should prune with keep-since strategy", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -232,7 +232,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC05: Verify auto prune skip namespace with annotation
-		Context("PIPELINES-12-TC05: Verify auto prune skip namespace with annotation", Ordered, func() {
+		Context("Verify auto prune skip namespace with annotation", Ordered, func() {
 			It("should not prune resources in namespace with prune.skip annotation", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -259,7 +259,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC06: Verify auto prune add resources taskrun per namespace with annotation
-		Context("PIPELINES-12-TC06: Verify auto prune add resources taskrun per namespace", Ordered, func() {
+		Context("Verify auto prune add resources taskrun per namespace", Ordered, func() {
 			It("should only prune taskruns when namespace annotation specifies taskrun", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -285,7 +285,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC07: Verify auto prune add resources taskrun and pipelinerun per namespace
-		Context("PIPELINES-12-TC07: Verify auto prune add resources taskrun and pipelinerun per namespace", Ordered, Label("sanity"), func() {
+		Context("Verify auto prune add resources taskrun and pipelinerun per namespace", Ordered, Label("sanity"), func() {
 			It("should prune both resources with per-namespace annotation override", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -314,7 +314,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC08: Verify auto prune add keep per namespace with global strategy keep
-		Context("PIPELINES-12-TC08: Verify auto prune add keep per namespace with global keep", Ordered, func() {
+		Context("Verify auto prune add keep per namespace with global keep", Ordered, func() {
 			It("should use per-namespace keep annotation override", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -340,7 +340,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC09: Verify auto prune with keep-since per namespace with global keep-since
-		Context("PIPELINES-12-TC09: Verify auto prune with keep-since per namespace", Ordered, func() {
+		Context("Verify auto prune with keep-since per namespace", Ordered, func() {
 			It("should use per-namespace keep-since annotation override", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -371,7 +371,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC10: Verify auto prune with keep per namespace with global keep-since
-		Context("PIPELINES-12-TC10: Verify auto prune with keep per namespace with global keep-since", Ordered, func() {
+		Context("Verify auto prune with keep per namespace with global keep-since", Ordered, func() {
 			It("should use per-namespace keep with strategy annotation when global uses keep-since", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -401,7 +401,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC11: Verify auto prune schedule per namespace
-		Context("PIPELINES-12-TC11: Verify auto prune schedule per namespace", Ordered, func() {
+		Context("Verify auto prune schedule per namespace", Ordered, func() {
 			It("should use per-namespace schedule annotation override", func() {
 				removePrunerConfig()
 				createPrunerResources()
@@ -442,7 +442,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC12: Verify auto prune validation
-		Context("PIPELINES-12-TC12: Verify auto prune validation", Ordered, func() {
+		Context("Verify auto prune validation", Ordered, func() {
 			It("should reject invalid pruner configurations", func() {
 				removePrunerConfig()
 
@@ -464,7 +464,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC13: Verify auto prune cronjob re-creation for addition of random annotation/label
-		Context("PIPELINES-12-TC13: Verify auto prune cronjob stability", Ordered, func() {
+		Context("Verify auto prune cronjob stability", Ordered, func() {
 			It("should not re-create cronjob for random annotation/label changes", func() {
 				removePrunerConfig()
 
@@ -507,7 +507,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC14: Verify auto prune cronjob contains single container
-		Context("PIPELINES-12-TC14: Verify auto prune cronjob single container", Ordered, Label("sanity"), func() {
+		Context("Verify auto prune cronjob single container", Ordered, Label("sanity"), func() {
 			It("should have a single container in pruner cronjob", func() {
 				updatePrunerConfig("2", "20 * * * *", "taskrun", "", true, false)
 
@@ -532,7 +532,7 @@ var _ = Describe("PIPELINES-12: Verify auto-prune E2E", Serial,
 		})
 
 		// TC15: Verify operator stability after deleting namespace with pruner annotation
-		Context("PIPELINES-12-TC15: Verify operator stability after namespace deletion", Ordered, Label("sanity"), func() {
+		Context("Verify operator stability after namespace deletion", Ordered, Label("sanity"), func() {
 			It("should remain stable after deleting namespace with pruner annotation", func() {
 				removePrunerConfig()
 				assertCronjobPresence(config.PrunerNamePrefix, store.Namespace(), false)

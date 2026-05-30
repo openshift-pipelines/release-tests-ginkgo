@@ -11,7 +11,7 @@ import (
 var oc = occmd.OC{}
 var _ = Describe("Hub", Serial, Label("hub"), func() {
 
-	Describe("PIPELINES-21-TC01: Install HUB without authentication", Label("sanity"), Ordered, func() {
+	Describe("Install HUB without authentication", Label("sanity"), Ordered, func() {
 
 		It("creates TektonHub resource", func() {
 			oc.Apply("testdata/hub/tektonhub.yaml", "")

@@ -16,7 +16,7 @@ import (
 
 var _ = Describe("Tutorial", Label("triggers"), func() {
 
-	It("PIPELINES-06-TC01: Run pipelines tutorials", Label("e2e", "integration", "non-admin", "pipelines", "tutorial", "skip-4.14"), func() {
+	It("Run pipelines tutorials", Label("e2e", "integration", "non-admin", "pipelines", "tutorial", "skip-4.14"), func() {
 		ns := config.TargetNamespace
 		lastNamespace = ns
 
@@ -45,7 +45,7 @@ var _ = Describe("Tutorial", Label("triggers"), func() {
 		Expect(output).To(ContainSubstring("Cat"), "route URL should contain expected tutorial content")
 	})
 
-	It("PIPELINES-06-TC02: Run pipelines tutorial using triggers", Label("e2e", "integration", "triggers", "non-admin", "tutorial", "sanity", "skip-4.14"), func() {
+	It("Run pipelines tutorial using triggers", Label("e2e", "integration", "triggers", "non-admin", "tutorial", "sanity", "skip-4.14"), func() {
 		ns := config.TargetNamespace
 		lastNamespace = ns
 

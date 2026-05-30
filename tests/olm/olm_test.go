@@ -19,7 +19,7 @@ var rnames = utils.ResourceNames{TektonConfig: "config"}
 
 var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func() {
 
-	Describe("PIPELINES-09-TC01: Install openshift-pipelines operator", Label("install", "sanity"), Ordered, func() {
+	Describe("Install openshift-pipelines operator", Label("install", "sanity"), Ordered, func() {
 		It("subscribes to operator", func() {
 			_, err := olmpkg.SubscribeAndWaitForOperatorToBeReady(
 				sharedClients,
@@ -32,6 +32,14 @@ var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func()
 
 		It("waits for TektonConfig CR availability", func() {
 			operator.WaitForTektonConfigCR(sharedClients, rnames)
+		})
+
+		// On a brand-new CI cluster the operator and pipelines webhook pods may not
+		// be serving yet even though the CSV reports Succeeded. Any subsequent step
+		// that patches a Tekton CR (or creates a Pipeline/TaskRun) hits the
+		// admission webhook and fails with "connection refused" if we don't wait.
+		It("waits for operator and pipelines webhook deployments to be ready", func() {
+			operator.WaitForOperatorWebhooks(sharedClients)
 		})
 
 		It("defines artifact-hub-api variable", func() {
@@ -155,7 +163,7 @@ var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func()
 		})
 	})
 
-	Describe("PIPELINES-09-TC02: Upgrade openshift-pipelines operator", Label("upgrade"), Ordered, func() {
+	Describe("Upgrade openshift-pipelines operator", Label("upgrade"), Ordered, func() {
 		It("upgrades operator subscription", func() {
 			upgradeChannel := os.Getenv("UPGRADE_CHANNEL")
 			if upgradeChannel == "" {
@@ -187,7 +195,7 @@ var _ = Describe("OLM Operator Lifecycle", Serial, Label("olm", "admin"), func()
 		})
 	})
 
-	Describe("PIPELINES-09-TC03: Uninstall openshift-pipelines operator", Label("uninstall"), Ordered, func() {
+	Describe("Uninstall openshift-pipelines operator", Label("uninstall"), Ordered, func() {
 		It("uninstalls the operator", func() {
 			err := olmpkg.OperatorCleanup(sharedClients, config.Flags.SubscriptionName)
 			Expect(err).NotTo(HaveOccurred(), "Failed to uninstall operator")

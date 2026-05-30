@@ -129,6 +129,20 @@ func (oc *OC) LinkSecretToSA(secretname, sa, namespace string) {
 	oc.runWithLog("secret", "link", "serviceaccount/"+sa, "secrets/"+secretname, "-n", namespace)
 }
 
+// AddSCCToServiceAccount grants an SCC to a service account in the given namespace.
+// Equivalent to: oc adm policy add-scc-to-user <scc> -z <sa> -n <namespace>
+// Required for tasks that use user namespaces or elevated privileges (e.g. buildah-ns).
+func (oc *OC) AddSCCToServiceAccount(scc, sa, namespace string) {
+	oc.runWithLog("adm", "policy", "add-scc-to-user", scc, "-z", sa, "-n", namespace)
+}
+
+// AddRoleToServiceAccount binds a ClusterRole/Role to a service account in the given namespace.
+// Equivalent to: oc adm policy add-role-to-user <role> -z <sa> -n <namespace>
+// Required for tasks that need elevated namespace permissions (e.g. kn tasks need Knative Serving RBAC).
+func (oc *OC) AddRoleToServiceAccount(role, sa, namespace string) {
+	oc.runWithLog("adm", "policy", "add-role-to-user", role, "-z", sa, "-n", namespace)
+}
+
 // CreateSecretWithSecretToken creates a generic secret containing the triggers secret token.
 func (oc *OC) CreateSecretWithSecretToken(secretname, namespace string) {
 	oc.runWithLog("create", "secret", "generic", secretname, "--from-literal=secretToken="+config.TriggersSecretToken, "-n", namespace)
