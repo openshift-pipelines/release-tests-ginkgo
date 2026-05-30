@@ -18,7 +18,7 @@ on:
       push_image:
         description: "Push image to registry (true/false)"
         required: false
-        default: "false"
+        default: "true"
 
 env:
   REGISTRY: quay.io
@@ -47,21 +47,18 @@ jobs:
         with:
           images: ${{ env.IMAGE_REPO }}
           tags: |
-            # Branch push → :latest / :main
+            # Branch push → :main; main branch also gets :latest
             type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
             # Tag push → :v1.2.3 and :1.2
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            # PR → :pr-42 (not pushed)
+            # PR → :pr-42
             type=ref,event=pr
             # Short SHA always attached
             type=sha,prefix=sha-
 
       - name: Log in to Quay.io
-        # Only on push/tag or manual with push_image=true
-        if: >
-          (github.event_name == 'push') ||
-          (github.event_name == 'workflow_dispatch' && inputs.push_image == 'true')
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -74,11 +71,7 @@ jobs:
           context: .
           file: Dockerfile.CI
           platforms: linux/amd64
-          push: >-
-            ${{
-              (github.event_name == 'push') ||
-              (github.event_name == 'workflow_dispatch' && inputs.push_image == 'true')
-            }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -93,8 +86,6 @@ jobs:
     name: Scan CI Image for CVEs
     runs-on: ubuntu-latest
     needs: build
-    # Only scan images that were pushed
-    if: github.event_name == 'push'
     permissions:
       contents: read
       security-events: write

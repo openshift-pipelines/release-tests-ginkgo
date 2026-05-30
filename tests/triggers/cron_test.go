@@ -13,7 +13,7 @@ import (
 
 var oc = occmd.OC{}
 var _ = Describe("CronJob Triggers", Label("triggers"), func() {
-	It("PIPELINES-04-TC01: Create Triggers using k8s cronJob", Label("e2e", "triggers", "non-admin", "sanity"), func() {
+	It("Create Triggers using k8s cronJob", Label("e2e", "triggers", "non-admin", "sanity"), func() {
 		ns := config.TargetNamespace
 		lastNamespace = ns
 

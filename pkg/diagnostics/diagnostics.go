@@ -28,6 +28,31 @@ const (
 	maxLogLines = 50
 )
 
+// CollectOperatorLogsOnFailure returns a ReportAfterEach function that captures
+// pod logs and events from the openshift-operators namespace on test failure.
+// This is the namespace where the Tekton operator controller, proxy-webhook and
+// OLM CSV pods run — the most useful source of information when the install or
+// webhook steps fail in CI.
+//
+// Usage:
+//
+//	var _ = ReportAfterEach(diagnostics.CollectOperatorLogsOnFailure())
+func CollectOperatorLogsOnFailure() func(SpecReport) {
+	return func(report SpecReport) {
+		if !report.Failed() {
+			return
+		}
+		const ns = "openshift-operators"
+		var sb strings.Builder
+		sb.WriteString("\n=== Operator Diagnostics (" + ns + ") ===\n")
+		sb.WriteString("\n--- Events ---\n")
+		sb.WriteString(collectEvents(ns))
+		sb.WriteString("\n--- Pod Logs (operator/webhook pods) ---\n")
+		sb.WriteString(collectPodLogs(ns))
+		AddReportEntry("operator-diagnostics", sb.String())
+	}
+}
+
 // CollectOnFailure returns a function suitable for use with ReportAfterEach.
 // It collects cluster diagnostics (events, resource state, pod logs) only when
 // a spec fails, panics, times out, or is interrupted.

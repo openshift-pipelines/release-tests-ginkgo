@@ -13,7 +13,7 @@ import (
 var oc = occmd.OC{}
 var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 
-	Describe("PIPELINES-27-TC01: Using Tekton Chains to create and verify task run signatures", Label("sanity"), Ordered, func() {
+	Describe("Using Tekton Chains to create and verify task run signatures", Label("sanity"), Ordered, func() {
 		BeforeAll(func() {
 			// Update TektonConfig for taskrun signing
 			operator.UpdateTektonConfigForChains("in-toto", "tekton", "", "false")
@@ -32,7 +32,7 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 		})
 	})
 
-	Describe("PIPELINES-27-TC02: Using Tekton Chains to sign and verify image and provenance", Ordered, func() {
+	Describe("Using Tekton Chains to sign and verify image and provenance", Ordered, func() {
 		BeforeAll(func() {
 			if os.Getenv("CHAINS_REPOSITORY") == "" {
 				Skip("CHAINS_REPOSITORY not set -- skipping image signature test")

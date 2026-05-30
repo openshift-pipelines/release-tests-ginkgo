@@ -80,7 +80,7 @@ func assertPipelinesPresence(namespace string, shouldBePresent bool) {
 	}
 }
 
-var _ = Describe("PIPELINES-15: Verify Addon E2E", Serial, Ordered,
+var _ = Describe("Verify Addon E2E", Serial, Ordered,
 	Label("e2e", "operator", "addon", "admin"), func() {
 
 		BeforeAll(func() {
@@ -95,7 +95,7 @@ var _ = Describe("PIPELINES-15: Verify Addon E2E", Serial, Ordered,
 			})
 		})
 
-		It("PIPELINES-15-TC06: Disable/Enable resolverTasks", Label("sanity"), func() {
+		It("Disable/Enable resolverTasks", Label("sanity"), func() {
 			updateAddonConfig("false", "false")
 			assertTaskPresence("s2i-java", "openshift-pipelines", false)
 
@@ -103,7 +103,7 @@ var _ = Describe("PIPELINES-15: Verify Addon E2E", Serial, Ordered,
 			assertTaskPresence("s2i-java", "openshift-pipelines", true)
 		})
 
-		It("PIPELINES-15-TC07: Disable/Enable resolverTasks with additional Tasks", func() {
+		It("Disable/Enable resolverTasks with additional Tasks", func() {
 			updateAddonConfig("true", "false")
 			assertTaskPresence("s2i-java", "openshift-pipelines", true)
 
@@ -125,7 +125,7 @@ var _ = Describe("PIPELINES-15: Verify Addon E2E", Serial, Ordered,
 			assertTaskPresence("hello", "openshift-pipelines", true)
 		})
 
-		It("PIPELINES-15-TC08: Disable/Enable pipeline templates", Label("sanity"), func() {
+		It("Disable/Enable pipeline templates", Label("sanity"), func() {
 			updateAddonConfig("true", "true")
 			assertPipelinesPresence("openshift", true)
 
@@ -136,17 +136,17 @@ var _ = Describe("PIPELINES-15: Verify Addon E2E", Serial, Ordered,
 			assertPipelinesPresence("openshift", true)
 		})
 
-		It("PIPELINES-15-TC05: Enable pipeline templates when clustertask is disabled", Label("negative"), func() {
+		It("Enable pipeline templates when clustertask is disabled", Label("negative"), func() {
 			stderr := updateAddonConfigExpectError("false", "true")
 			Expect(stderr).To(ContainSubstring("pipelineTemplates cannot be true if resolverTask is false"),
 				"expected validation error when enabling pipelineTemplates with resolverTasks disabled")
 		})
 
-		It("PIPELINES-15-TC09: Verify versioned ecosystem tasks", func() {
+		It("Verify versioned ecosystem tasks", func() {
 			operator.VerifyVersionedTasks()
 		})
 
-		It("PIPELINES-15-TC010: Verify versioned stepaction tasks", func() {
+		It("Verify versioned stepaction tasks", func() {
 			operator.VerifyVersionedStepActions()
 		})
 	})

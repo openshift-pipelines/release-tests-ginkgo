@@ -7,6 +7,9 @@ set -euo pipefail
 #   ./scripts/run-tests.sh [MODE] [OPTIONS]
 #
 # Modes:
+#   install         Install the operator via OLM (runs tests/olm/ with label=install)
+#   upgrade         Upgrade the operator (runs tests/olm/ with label=upgrade)
+#   uninstall       Uninstall the operator (runs tests/olm/ with label=uninstall)
 #   sanity          Run sanity-labeled tests
 #   smoke           Run smoke-labeled tests
 #   e2e             Run e2e-labeled tests
@@ -26,6 +29,7 @@ set -euo pipefail
 #   ARTIFACTS_DIR       Output directory for reports (default: ./artifacts)
 #   GINKGO_TIMEOUT      Test timeout (default: 4h)
 #   GINKGO_PROCS        Number of parallel processes (default: 4)
+#   UPGRADE_CHANNEL     Target channel for the upgrade mode (e.g. pipelines-1.18)
 
 usage() {
     sed -n '3,28p' "$0" | sed 's/^# \?//'
@@ -84,7 +88,20 @@ fi
 
 # Map mode to label filter
 LABEL_FILTER=""
+TEST_SUITE=""
 case "$MODE" in
+    install)
+        LABEL_FILTER="install"
+        TEST_SUITE="./tests/olm/"
+        ;;
+    upgrade)
+        LABEL_FILTER="upgrade"
+        TEST_SUITE="./tests/olm/"
+        ;;
+    uninstall)
+        LABEL_FILTER="uninstall"
+        TEST_SUITE="./tests/olm/"
+        ;;
     sanity)
         LABEL_FILTER="sanity"
         ;;
@@ -108,6 +125,11 @@ case "$MODE" in
         LABEL_FILTER="$MODE"
         ;;
 esac
+
+# Dedicated suite path (set by install/upgrade/uninstall modes) overrides --path
+if [[ -n "$TEST_SUITE" ]]; then
+    TEST_PATH="$TEST_SUITE"
+fi
 
 # Create artifacts directory
 mkdir -p "$ARTIFACTS"

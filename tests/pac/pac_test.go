@@ -23,9 +23,8 @@ import (
 var _ = Describe("Pipelines As Code GitLab tests", func() {
 
 	// =========================================================================
-	// PIPELINES-30-TC01: Configure PAC with push and pull_request events
 	// =========================================================================
-	Describe("PIPELINES-30-TC01: Configure PAC with push and pull_request events", Ordered, Label("pac", "sanity", "e2e"), func() {
+	Describe("Configure PAC with push and pull_request events", Ordered, Label("pac", "sanity", "e2e"), func() {
 		var (
 			gitlabClient *gitlab.Client
 			project      *gitlab.Project
@@ -96,9 +95,8 @@ var _ = Describe("Pipelines As Code GitLab tests", func() {
 	})
 
 	// =========================================================================
-	// PIPELINES-30-TC02: Configure PAC with on-label annotation
 	// =========================================================================
-	Describe("PIPELINES-30-TC02: Configure PAC with on-label annotation", Ordered, Label("pac", "e2e"), func() {
+	Describe("Configure PAC with on-label annotation", Ordered, Label("pac", "e2e"), func() {
 		var (
 			gitlabClient *gitlab.Client
 			project      *gitlab.Project
@@ -174,9 +172,8 @@ var _ = Describe("Pipelines As Code GitLab tests", func() {
 	})
 
 	// =========================================================================
-	// PIPELINES-30-TC03: Configure PAC with on-comment annotation
 	// =========================================================================
-	Describe("PIPELINES-30-TC03: Configure PAC with on-comment annotation", Ordered, Label("pac", "e2e"), func() {
+	Describe("Configure PAC with on-comment annotation", Ordered, Label("pac", "e2e"), func() {
 		var (
 			gitlabClient *gitlab.Client
 			project      *gitlab.Project
@@ -261,9 +258,8 @@ var _ = Describe("Pipelines As Code GitLab tests", func() {
 var _ = Describe("Pipelines As Code TektonConfig tests", func() {
 
 	// =========================================================================
-	// PIPELINES-20-TC01: Enable/Disable PAC
 	// =========================================================================
-	Describe("PIPELINES-20-TC01: Enable/Disable PAC", Ordered, Serial, Label("pac", "sanity"), func() {
+	Describe("Enable/Disable PAC", Ordered, Serial, Label("pac", "sanity"), func() {
 
 		BeforeAll(func() {
 			lastNamespace = config.TargetNamespace
@@ -420,9 +416,8 @@ var _ = Describe("Pipelines As Code TektonConfig tests", func() {
 	})
 
 	// =========================================================================
-	// PIPELINES-20-TC02: Application name change visible in GitHub UI (Pending)
 	// =========================================================================
-	PDescribe("PIPELINES-20-TC02: Application name change visible in GitHub UI", Label("pac", "sanity"), func() {
+	PDescribe("Application name change visible in GitHub UI", Label("pac", "sanity"), func() {
 		// TODO: Requires GitHub App configuration not available in current test infrastructure
 		// Steps from Gauge spec:
 		// - Change application-name in tektonconfig
@@ -435,9 +430,8 @@ var _ = Describe("Pipelines As Code TektonConfig tests", func() {
 	})
 
 	// =========================================================================
-	// PIPELINES-20-TC03: Auto-configure new GitHub repo (Pending)
 	// =========================================================================
-	PDescribe("PIPELINES-20-TC03: Auto-configure new GitHub repo", Label("pac", "sanity"), func() {
+	PDescribe("Auto-configure new GitHub repo", Label("pac", "sanity"), func() {
 		// TODO: Requires GitHub App configuration not available in current test infrastructure
 		// Steps from Gauge spec:
 		// - Set auto-configure-new-github-repo to true
@@ -452,9 +446,8 @@ var _ = Describe("Pipelines As Code TektonConfig tests", func() {
 	})
 
 	// =========================================================================
-	// PIPELINES-20-TC04: Error log snippet visibility (Pending)
 	// =========================================================================
-	PDescribe("PIPELINES-20-TC04: Error log snippet visibility", Label("pac", "sanity"), func() {
+	PDescribe("Error log snippet visibility", Label("pac", "sanity"), func() {
 		// TODO: Requires GitHub App configuration not available in current test infrastructure
 		// Steps from Gauge spec:
 		// - Set error-log-snippet to false

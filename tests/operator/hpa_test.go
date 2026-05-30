@@ -16,7 +16,7 @@ import (
 // may be incomplete or not fully validated. The test is implemented as described
 // in the spec regardless.
 
-var _ = Describe("PIPELINES-13: Verify HPA", Serial,
+var _ = Describe("Verify HPA", Serial,
 	Label("operator", "admin", "hpa"), func() {
 
 		BeforeEach(func() {
@@ -24,7 +24,7 @@ var _ = Describe("PIPELINES-13: Verify HPA", Serial,
 			operator.ValidateOperatorInstallStatus(sharedClients, store.GetCRNames())
 		})
 
-		It("PIPELINES-13-TC01: Test HPA for tekton-pipelines-webhook deployment", func() {
+		It("Test HPA for tekton-pipelines-webhook deployment", func() {
 			// Scale the tekton-pipelines-webhook deployment to 3 replicas
 			cmd.MustSucceed("oc", "-n", "openshift-pipelines", "scale", "--replicas=3",
 				"deployment/tekton-pipelines-webhook")

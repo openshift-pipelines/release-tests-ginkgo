@@ -15,10 +15,6 @@
 
 <!-- e.g. operator, triggers, ecosystem -->
 
-## Polarion ID(s)
-
-<!-- Comma-separated Polarion case IDs, or N/A -->
-
 ## How to Test
 
 <!-- How should a reviewer validate this change? -->

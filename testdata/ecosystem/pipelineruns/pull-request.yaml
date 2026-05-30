@@ -10,4 +10,4 @@ spec:
     persistentVolumeClaim:
       claimName: shared-pvc
   timeouts: 
-    pipeline: 10m
+    pipeline: 8m

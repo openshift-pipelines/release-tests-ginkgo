@@ -11,7 +11,7 @@ spec:
   - name: SUBDIR
     value: buildah-disconnected
   timeouts: 
-    pipeline: 10m
+    pipeline: 8m
   workspaces:
   - name: source
     persistentVolumeClaim:

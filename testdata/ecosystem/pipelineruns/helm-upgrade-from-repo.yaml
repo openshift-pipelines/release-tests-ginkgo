@@ -15,7 +15,7 @@ spec:
     - name: overwrite_values
       value: image.repository=nginx,image.tag=latest,serviceAccount.create=false,serviceAccount.name=pipeline
   timeouts:
-    pipeline: 10m
+    pipeline: 8m
   workspaces:
     - name: source
       persistentVolumeClaim:

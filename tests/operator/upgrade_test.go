@@ -19,7 +19,7 @@ import (
 // Pre-upgrade tests
 // ---------------------------------------------------------------------------
 
-var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, Ordered,
+var _ = Describe("Openshift Pipelines pre upgrade specs", Serial, Ordered,
 	Label("operator", "admin", "pre-upgrade"), func() {
 
 		BeforeAll(func() {
@@ -27,7 +27,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 			// They must persist for post-upgrade tests to verify.
 		})
 
-		It("PIPELINES-18-TC01: Setup environment for upgrade test", func() {
+		It("Setup environment for upgrade test", func() {
 			ns := "releasetest-upgrade-triggers"
 			lastNamespace = ns
 			oc.CreateNewProject(ns)
@@ -90,7 +90,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 			oc.DeleteResourceInNamespace("taskrun", "bitbucket-run", ns)
 		})
 
-		It("PIPELINES-18-TC03: Setup Eventlistener with TLS enabled pre upgrade", Label("sanity", "tls", "triggers"), func() {
+		It("Setup Eventlistener with TLS enabled pre upgrade", Label("sanity", "tls", "triggers"), func() {
 			ns := "releasetest-upgrade-tls"
 			lastNamespace = ns
 			oc.CreateNewProject(ns)
@@ -112,7 +112,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 			oc.DeleteResourceInNamespace("pipelinerun", "simple-pipeline-run", ns)
 		})
 
-		It("PIPELINES-18-TC04: Setup link secret to pipeline SA", Label("sanity", "git-clone"), func() {
+		It("Setup link secret to pipeline SA", Label("sanity", "git-clone"), func() {
 			ns := "releasetest-upgrade-pipelines"
 			lastNamespace = ns
 			oc.CreateNewProject(ns)
@@ -129,7 +129,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 			oc.DeleteResourceInNamespace("pipelinerun", "git-clone-read-private-pipeline-run", ns)
 		})
 
-		It("PIPELINES-18-TC05: Setup S2I golang pipeline pre upgrade", Label("s2i"), func() {
+		It("Setup S2I golang pipeline pre upgrade", Label("s2i"), func() {
 			ns := "releasetest-upgrade-s2i"
 			lastNamespace = ns
 			oc.CreateNewProject(ns)
@@ -145,7 +145,7 @@ var _ = Describe("PIPELINES-18: Openshift Pipelines pre upgrade specs", Serial, 
 // Post-upgrade tests
 // ---------------------------------------------------------------------------
 
-var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade tests", Serial, Ordered,
+var _ = Describe("Olm Openshift Pipelines operator post upgrade tests", Serial, Ordered,
 	Label("operator", "admin", "post-upgrade"), func() {
 
 		BeforeAll(func() {
@@ -161,7 +161,7 @@ var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade te
 			})
 		})
 
-		It("PIPELINES-19-TC01: Verify environment after upgrade", func() {
+		It("Verify environment after upgrade", func() {
 			ns := "releasetest-upgrade-triggers"
 			lastNamespace = ns
 			cmd.MustSucceed("oc", "project", ns)
@@ -191,7 +191,7 @@ var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade te
 			pipelines.ValidateTaskRun(sharedClients, "bitbucket-run", "Failure", ns)
 		})
 
-		It("PIPELINES-19-TC03: Verify Event listener with TLS after upgrade", Label("sanity", "tls", "triggers"), func() {
+		It("Verify Event listener with TLS after upgrade", Label("sanity", "tls", "triggers"), func() {
 			ns := "releasetest-upgrade-tls"
 			lastNamespace = ns
 			cmd.MustSucceed("oc", "project", ns)
@@ -204,7 +204,7 @@ var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade te
 			pipelines.ValidatePipelineRun(sharedClients, "simple-pipeline-run", "successful", ns)
 		})
 
-		It("PIPELINES-19-TC04: Verify secret is linked to SA even after upgrade", Label("sanity", "git-clone"), func() {
+		It("Verify secret is linked to SA even after upgrade", Label("sanity", "git-clone"), func() {
 			ns := "releasetest-upgrade-pipelines"
 			lastNamespace = ns
 			cmd.MustSucceed("oc", "project", ns)
@@ -215,7 +215,7 @@ var _ = Describe("PIPELINES-19: Olm Openshift Pipelines operator post upgrade te
 			pipelines.ValidatePipelineRun(sharedClients, "git-clone-read-private-pipeline-run", "successful", ns)
 		})
 
-		It("PIPELINES-19-TC05: Verify S2I golang pipeline after upgrade", Label("s2i"), func() {
+		It("Verify S2I golang pipeline after upgrade", Label("s2i"), func() {
 			ns := "releasetest-upgrade-s2i"
 			lastNamespace = ns
 			cmd.MustSucceed("oc", "project", ns)

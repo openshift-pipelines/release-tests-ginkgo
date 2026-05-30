@@ -171,9 +171,9 @@ func ValidateS2IPipelineForAllTags(
 			ValidatePipelineRun(cs, prName, "successful", namespace)
 		}(tag, params)
 
-		// Stagger pipeline starts by 3 seconds to avoid overwhelming the cluster
-		// (matches Gauge behavior in steps/cli/opc.go)
-		time.Sleep(3 * time.Second)
+		// Brief stagger between pipeline starts to avoid API server thundering-herd.
+		// 500ms is sufficient — the 3s inherited from Gauge was unnecessarily conservative.
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	// Wait for all pipelines to complete

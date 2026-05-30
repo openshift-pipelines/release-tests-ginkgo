@@ -9,7 +9,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
-var _ = Describe("PIPELINES-02-TC01: Run Pipeline with non-existent ServiceAccount", Label("e2e", "negative", "non-admin", "sanity"), func() {
+var _ = Describe("Run Pipeline with non-existent ServiceAccount", Label("e2e", "negative", "non-admin", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -27,7 +27,7 @@ var _ = Describe("PIPELINES-02-TC01: Run Pipeline with non-existent ServiceAccou
 	})
 })
 
-var _ = Describe("PIPELINES-02-TC02: Run Task with non-existent ServiceAccount", Label("e2e", "negative", "non-admin"), func() {
+var _ = Describe("Run Task with non-existent ServiceAccount", Label("e2e", "negative", "non-admin"), func() {
 	var ns string
 
 	BeforeEach(func() {

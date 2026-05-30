@@ -5,3 +5,9 @@ reference-repo/
 *.xml
 test-reports/
 artifacts/
+
+# Compiled test binaries produced by 'go test -c' or 'ginkgo build'
+*.test
+
+# Test artifact files produced during test runs
+tests/chains/sign

@@ -10,7 +10,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
-var _ = Describe("PIPELINES-24-TC01: Test git resolver functionality", Label("e2e", "sanity"), func() {
+var _ = Describe("Test git resolver functionality", Label("e2e", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -24,7 +24,7 @@ var _ = Describe("PIPELINES-24-TC01: Test git resolver functionality", Label("e2
 	})
 })
 
-var _ = Describe("PIPELINES-24-TC02: Test git resolver with authentication and token", Label("e2e"), func() {
+var _ = Describe("Test git resolver with authentication and token", Label("e2e"), func() {
 	var ns string
 
 	BeforeEach(func() {

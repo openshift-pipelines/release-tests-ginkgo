@@ -6,7 +6,7 @@ spec:
   pipelineRef:
     name: buildah-ns-pipeline
   timeouts: 
-    pipeline: 10m
+    pipeline: 8m
   workspaces:
   - name: source
     persistentVolumeClaim:

@@ -20,7 +20,7 @@ func patchTektonConfigParam(paramName, value string) {
 	operator.EnsureTektonConfigStatusInstalled(sharedClients.TektonConfig(), store.GetCRNames())
 }
 
-var _ = Describe("PIPELINES-11: Verify RBAC Resources and CA Bundle Configuration", Serial, Ordered,
+var _ = Describe("Verify RBAC Resources and CA Bundle Configuration", Serial, Ordered,
 	Label("e2e", "operator", "admin"), func() {
 
 		BeforeAll(func() {
@@ -37,7 +37,7 @@ var _ = Describe("PIPELINES-11: Verify RBAC Resources and CA Bundle Configuratio
 			})
 		})
 
-		It("PIPELINES-11-TC01: Disable RBAC resource creation", Label("sanity", "rbac-disable"), func() {
+		It("Disable RBAC resource creation", Label("sanity", "rbac-disable"), func() {
 			// Enable RBAC and verify
 			patchTektonConfigParam("createRbacResource", "true")
 			operator.ValidateRBAC(sharedClients, store.GetCRNames())
@@ -51,7 +51,7 @@ var _ = Describe("PIPELINES-11: Verify RBAC Resources and CA Bundle Configuratio
 			operator.ValidateRBAC(sharedClients, store.GetCRNames())
 		})
 
-		It("PIPELINES-11-TC02: Independent CA Bundle ConfigMap creation control", Label("sanity", "cabundle-control"), func() {
+		It("Independent CA Bundle ConfigMap creation control", Label("sanity", "cabundle-control"), func() {
 			// Enable CA bundle and verify
 			patchTektonConfigParam("createCABundleConfigMaps", "true")
 			operator.ValidateCABundleConfigMaps(sharedClients, store.GetCRNames())

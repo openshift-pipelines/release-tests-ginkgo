@@ -6,7 +6,7 @@ spec:
   pipelineRef:
     name: maven-pipeline
   timeouts: 
-    pipeline: 15m
+    pipeline: 8m
   workspaces:
   - name: source
     persistentVolumeClaim:

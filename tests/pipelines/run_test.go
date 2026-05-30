@@ -14,7 +14,7 @@ import (
 var _ = Expect
 var _ = time.Minute
 
-var _ = Describe("PIPELINES-03-TC01: Run sample pipeline", Label("e2e", "pipelines", "non-admin"), func() {
+var _ = Describe("Run sample pipeline", Label("e2e", "pipelines", "non-admin"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -29,7 +29,7 @@ var _ = Describe("PIPELINES-03-TC01: Run sample pipeline", Label("e2e", "pipelin
 	})
 })
 
-var _ = Describe("PIPELINES-03-TC04: Pipelinerun Timeout failure", Label("e2e", "pipelines", "non-admin", "sanity"), func() {
+var _ = Describe("Pipelinerun Timeout failure", Label("e2e", "pipelines", "non-admin", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -43,7 +43,7 @@ var _ = Describe("PIPELINES-03-TC04: Pipelinerun Timeout failure", Label("e2e", 
 	})
 })
 
-var _ = Describe("PIPELINES-03-TC05: Configure execution results at Task level", Label("integration", "non-admin", "sanity"), func() {
+var _ = Describe("Configure execution results at Task level", Label("integration", "non-admin", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -57,7 +57,7 @@ var _ = Describe("PIPELINES-03-TC05: Configure execution results at Task level",
 	})
 })
 
-var _ = Describe("PIPELINES-03-TC06: Cancel pipelinerun", Label("integration", "non-admin", "sanity"), func() {
+var _ = Describe("Cancel pipelinerun", Label("integration", "non-admin", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -72,7 +72,7 @@ var _ = Describe("PIPELINES-03-TC06: Cancel pipelinerun", Label("integration", "
 	})
 })
 
-var _ = Describe("PIPELINES-03-TC07: Pipelinerun with pipelinespec and taskspec", Label("integration", "non-admin"), func() {
+var _ = Describe("Pipelinerun with pipelinespec and taskspec", Label("integration", "non-admin"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -86,7 +86,7 @@ var _ = Describe("PIPELINES-03-TC07: Pipelinerun with pipelinespec and taskspec"
 	})
 })
 
-var _ = Describe("PIPELINES-03-TC08: Pipelinerun with large result", Label("integration", "non-admin", "results", "sanity"), func() {
+var _ = Describe("Pipelinerun with large result", Label("integration", "non-admin", "results", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {

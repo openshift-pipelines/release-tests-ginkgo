@@ -9,13 +9,11 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
 var oc = occmd.OC{}
 
 // ========================================================================
-// PIPELINES-29: Ecosystem Task Pipelines (ecosystem.spec)
 // ========================================================================
 
 // ecoNsCounter provides unique namespace names per test. Incremented each time
@@ -48,7 +46,7 @@ func createTestNamespace(prefix string) string {
 //
 // -----------------------------------------------------------------------
 var _ = DescribeTable("Ecosystem Task Pipelines",
-	func(_, pipelineRunName string, resources []string, expectedStatus string) {
+	func(pipelineRunName string, resources []string, expectedStatus string) {
 		ns := createTestNamespace("eco-simple")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -56,9 +54,13 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 		// Initialize typed clients scoped to the new namespace
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/buildah.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
-		oc.Create("testdata/ecosystem/pipelineruns/buildah.yaml")
+		// Wait for the pipeline SA to be created by the operator RBAC reconciler
+		// before applying any PipelineRun that references it.
+		k8s.WaitForServiceAccount(sharedClients, ns, "pipeline")
+
+		for _, resource := range resources {
+			oc.Create(resource, ns)
+		}
 
 		// Verify the pipelinerun reaches the expected status
 		pipelines.ValidatePipelineRun(sharedClients, pipelineRunName, expectedStatus, ns)
@@ -67,8 +69,8 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 	// Labels applied to every Entry in this table
 	Label("ecosystem", "e2e"),
 
-	Entry("buildah pipelinerun: PIPELINES-29-TC01", Label("sanity", "buildah"),
-		"PIPELINES-29-TC01", "buildah-run",
+	Entry("buildah pipelinerun", Label("sanity", "buildah"),
+		"buildah-run",
 		[]string{
 			"testdata/ecosystem/pipelines/buildah.yaml",
 			"testdata/pvc/pvc.yaml",
@@ -76,17 +78,8 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 		},
 		"successful"),
 
-	Entry("buildah-ns pipelinerun: PIPELINES-29-TC20", Label("sanity", "buildah-ns"),
-		"PIPELINES-29-TC20", "buildah-ns-run",
-		[]string{
-			"testdata/ecosystem/pipelines/buildah-ns.yaml",
-			"testdata/pvc/pvc.yaml",
-			"testdata/ecosystem/pipelineruns/buildah-ns.yaml",
-		},
-		"successful"),
-
-	Entry("git-cli pipelinerun: PIPELINES-29-TC03", Label("git-cli"),
-		"PIPELINES-29-TC03", "git-cli-run",
+	Entry("git-cli pipelinerun", Label("git-cli"),
+		"git-cli-run",
 		[]string{
 			"testdata/ecosystem/pipelines/git-cli.yaml",
 			"testdata/pvc/pvc.yaml",
@@ -94,29 +87,29 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 		},
 		"successful"),
 
-	Entry("openshift-client pipelinerun: PIPELINES-29-TC08", Label("openshift-client"),
-		"PIPELINES-29-TC08", "openshift-client-run",
+	Entry("openshift-client pipelinerun", Label("openshift-client"),
+		"openshift-client-run",
 		[]string{
 			"testdata/ecosystem/pipelineruns/openshift-client.yaml",
 		},
 		"successful"),
 
-	Entry("skopeo-copy pipelinerun: PIPELINES-29-TC09", Label("skopeo-copy"),
-		"PIPELINES-29-TC09", "skopeo-copy-run",
+	Entry("skopeo-copy pipelinerun", Label("skopeo-copy"),
+		"skopeo-copy-run",
 		[]string{
 			"testdata/ecosystem/pipelineruns/skopeo-copy.yaml",
 		},
 		"successful"),
 
-	Entry("tkn pipelinerun: PIPELINES-29-TC10", Label("tkn"),
-		"PIPELINES-29-TC10", "tkn-run",
+	Entry("tkn pipelinerun", Label("tkn"),
+		"tkn-run",
 		[]string{
 			"testdata/ecosystem/pipelineruns/tkn.yaml",
 		},
 		"successful"),
 
-	Entry("maven pipelinerun: PIPELINES-29-TC13", Label("maven"),
-		"PIPELINES-29-TC13", "maven-run",
+	Entry("maven pipelinerun", Label("maven"),
+		"maven-run",
 		[]string{
 			"testdata/ecosystem/pipelines/maven.yaml",
 			"testdata/pvc/pvc.yaml",
@@ -125,8 +118,8 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 		},
 		"successful"),
 
-	Entry("step action resolvers: PIPELINES-29-TC14", Label("sanity"),
-		"PIPELINES-29-TC14", "git-clone-stepaction-run",
+	Entry("step action resolvers", Label("sanity"),
+		"git-clone-stepaction-run",
 		[]string{
 			"testdata/ecosystem/tasks/git-clone-stepaction.yaml",
 			"testdata/pvc/pvc.yaml",
@@ -134,8 +127,8 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 		},
 		"successful"),
 
-	Entry("opc task pipelinerun: PIPELINES-29-TC21", Label("sanity", "opc"),
-		"PIPELINES-29-TC21", "opc-task-run",
+	Entry("opc task pipelinerun", Label("sanity", "opc"),
+		"opc-task-run",
 		[]string{
 			"testdata/ecosystem/pipelines/opc-task.yaml",
 			"testdata/ecosystem/pipelineruns/opc-task.yaml",
@@ -155,11 +148,14 @@ var _ = DescribeTable("Ecosystem Task Pipelines",
 // variables initialized at runtime -- they are compile-time constants.
 // -----------------------------------------------------------------------
 var _ = DescribeTable("Ecosystem Task Pipelines with Extra Verification",
-	func(_, pipelineRunName string, resources []string, expectedStatus string, postVerify func(ns string)) {
+	func(pipelineRunName string, resources []string, expectedStatus string, postVerify func(ns string)) {
 		ns := createTestNamespace("eco-extra")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
+
+		// Wait for the pipeline SA to be created by the operator RBAC reconciler
+		k8s.WaitForServiceAccount(sharedClients, ns, "pipeline")
 
 		for _, resource := range resources {
 			oc.Create(resource, ns)
@@ -175,24 +171,24 @@ var _ = DescribeTable("Ecosystem Task Pipelines with Extra Verification",
 
 	Label("ecosystem", "e2e"),
 
-	Entry("tkn pac pipelinerun: PIPELINES-29-TC11", Label("tkn"),
-		"PIPELINES-29-TC11", "tkn-pac-run",
+	Entry("tkn pac pipelinerun", Label("tkn"),
+		"tkn-pac-run",
 		[]string{
 			"testdata/ecosystem/pipelineruns/tkn-pac.yaml",
 		},
 		"successful",
 		func(ns string) { pipelines.CheckLogVersion(sharedClients, "tkn-pac", ns) }),
 
-	Entry("tkn version pipelinerun: PIPELINES-29-TC12", Label("tkn"),
-		"PIPELINES-29-TC12", "tkn-version-run",
+	Entry("tkn version pipelinerun", Label("tkn"),
+		"tkn-version-run",
 		[]string{
 			"testdata/ecosystem/pipelineruns/tkn-version.yaml",
 		},
 		"successful",
 		func(ns string) { pipelines.CheckLogVersion(sharedClients, "tkn", ns) }),
 
-	Entry("helm-upgrade-from-repo pipelinerun: PIPELINES-29-TC17", Label("helm"),
-		"PIPELINES-29-TC17", "helm-upgrade-from-repo-run",
+	Entry("helm-upgrade-from-repo pipelinerun", Label("helm"),
+		"helm-upgrade-from-repo-run",
 		[]string{
 			"testdata/ecosystem/pipelines/helm-upgrade-from-repo.yaml",
 			"testdata/pvc/pvc.yaml",
@@ -201,8 +197,8 @@ var _ = DescribeTable("Ecosystem Task Pipelines with Extra Verification",
 		"successful",
 		func(ns string) { k8s.ValidateDeployments(sharedClients, ns, "test-hello-world") }),
 
-	Entry("helm-upgrade-from-source pipelinerun: PIPELINES-29-TC18", Label("helm"),
-		"PIPELINES-29-TC18", "helm-upgrade-from-source-run",
+	Entry("helm-upgrade-from-source pipelinerun", Label("helm"),
+		"helm-upgrade-from-source-run",
 		[]string{
 			"testdata/ecosystem/pipelines/helm-upgrade-from-source.yaml",
 			"testdata/pvc/pvc.yaml",
@@ -212,18 +208,36 @@ var _ = DescribeTable("Ecosystem Task Pipelines with Extra Verification",
 		func(ns string) { k8s.ValidateDeployments(sharedClients, ns, "test-hello-world") }),
 )
 
-// -----------------------------------------------------------------------
-// Standalone It blocks for special patterns
-//
-// These tests have unique setup requirements that do not fit cleanly into a
-// DescribeTable. Each test is a standalone It block within a Describe container.
-// -----------------------------------------------------------------------
-
+// buildah-ns uses user-namespace (rootless) mode which requires the pipeline SA
+// to have the pipelines-scc SCC bound so the container gets a valid UID map.
 var _ = Describe("Ecosystem Special Tasks", Label("ecosystem", "e2e"), func() {
 
-	// TC19: pull-request pipeline requires copying a secret from the
+	It("buildah-ns pipelinerun", Label("sanity", "buildah-ns"), func() {
+		ns := createTestNamespace("eco-buildah-ns")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
+		sharedClients.NewClientSet(ns)
+
+		// The Tekton operator creates the 'pipeline' SA and pipelines-scc-rolebinding
+		// asynchronously. Wait for the SA to exist before granting the SCC so the
+		// oc adm policy command doesn't silently fail or error on a missing subject.
+		k8s.WaitForServiceAccount(sharedClients, ns, "pipeline")
+
+		// buildah-ns runs in user-namespace (rootless) mode.
+		// Grant pipelines-scc to the pipeline SA so OpenShift writes valid
+		// UID/GID mappings into the container's /proc/<pid>/uid_map.
+		oc.AddSCCToServiceAccount("pipelines-scc", "pipeline", ns)
+
+		oc.Create("testdata/ecosystem/pipelines/buildah-ns.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
+		oc.Create("testdata/ecosystem/pipelineruns/buildah-ns.yaml", ns)
+
+		pipelines.ValidatePipelineRun(sharedClients, "buildah-ns-run", "successful", ns)
+	})
+
+	// pull-request pipeline requires copying a secret from the
 	// openshift-pipelines namespace before creating the pipelinerun.
-	It("pull-request pipelinerun: PIPELINES-29-TC19", Label("pull-request"), func() {
+	It("pull-request pipelinerun", Label("pull-request"), func() {
 		ns := createTestNamespace("eco-pull-request")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
@@ -243,19 +257,21 @@ var _ = Describe("Ecosystem Special Tasks", Label("ecosystem", "e2e"), func() {
 	})
 })
 
-// TC02: buildah disconnected pipelinerun
-var _ = Describe("buildah disconnected pipelinerun: PIPELINES-29-TC02", Label("ecosystem", "e2e", "disconnected", "buildah"), func() {
+// buildah disconnected pipelinerun
+var _ = Describe("buildah disconnected pipelinerun", Label("ecosystem", "e2e", "disconnected", "buildah"), func() {
 	It("should create and verify buildah disconnected pipelinerun", func() {
 		if !config.Flags.IsDisconnected {
 			Skip("requires disconnected cluster (set IS_DISCONNECTED=true)")
 		}
 
-		ns := store.Namespace()
+		ns := createTestNamespace("eco-buildah-disconnected")
+		lastNamespace = ns
+		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
 		sharedClients.NewClientSet(ns)
 
-		oc.Create("testdata/ecosystem/pipelines/buildah.yaml")
-		oc.Create("testdata/pvc/pvc.yaml")
-		oc.Create("testdata/ecosystem/pipelineruns/buildah-disconnected.yaml")
+		oc.Create("testdata/ecosystem/pipelines/buildah.yaml", ns)
+		oc.Create("testdata/pvc/pvc.yaml", ns)
+		oc.Create("testdata/ecosystem/pipelineruns/buildah-disconnected.yaml", ns)
 
 		pipelines.ValidatePipelineRun(sharedClients, "buildah-disconnected-run", "successful", ns)
 	})
