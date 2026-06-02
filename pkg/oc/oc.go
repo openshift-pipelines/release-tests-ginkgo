@@ -219,8 +219,10 @@ func (oc *OC) CheckProjectExists(projectName string) bool {
 }
 
 // SecretExists returns true if the named secret exists in the given namespace.
+// Uses runIgnoreErrors so that a missing secret returns false instead of failing the test.
 func (oc *OC) SecretExists(secretName, namespace string) bool {
-	return !strings.Contains(oc.run("get", "secret", secretName, "-n", namespace).String(), "Error")
+	result := oc.runIgnoreErrors("get", "secret", secretName, "-n", namespace)
+	return result.ExitCode == 0
 }
 
 // CreateSecretForGitResolver creates the github-auth-secret used by the git resolver.

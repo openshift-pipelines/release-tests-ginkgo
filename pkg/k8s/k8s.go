@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,9 +22,80 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
+
+// SkipBug skips the current test with a clear message referencing a known bug.
+// Use this when a test is intentionally skipped due to a tracked product bug.
+//
+// Example:
+//
+//	k8s.SkipBug("OCPBUGS-12345", "buildah-ns fails on OCP 4.20+ due to /proc/0/uid_map")
+func SkipBug(bugID, reason string) {
+	Skip(fmt.Sprintf("[KNOWN BUG: %s] %s", bugID, reason))
+}
+
+// GetOCPMinorVersion returns the OCP cluster minor version as an integer (e.g. 20 for 4.20).
+// Returns -1 if the version cannot be determined — callers must handle this case.
+// Uses Status.Desired.Version as the primary source (always present, reflects the target
+// version even during an upgrade), falling back to the first Completed history entry.
+func GetOCPMinorVersion(cs *clients.Clients) int {
+	cv, err := cs.ClusterVersion.Get(context.Background(), "version", metav1.GetOptions{})
+	if err != nil {
+		log.Printf("GetOCPMinorVersion: failed to get ClusterVersion: %v", err)
+		return -1
+	}
+
+	parseMinor := func(version string) int {
+		parts := strings.SplitN(version, ".", 3)
+		if len(parts) >= 2 {
+			if minor, err := strconv.Atoi(parts[1]); err == nil {
+				return minor
+			}
+		}
+		return -1
+	}
+
+	// Primary: Desired.Version is always set and reflects what the cluster is running/targeting.
+	if v := cv.Status.Desired.Version; v != "" {
+		if minor := parseMinor(v); minor != -1 {
+			return minor
+		}
+	}
+
+	// Fallback: first Completed history entry.
+	for _, h := range cv.Status.History {
+		if h.State == "Completed" {
+			if minor := parseMinor(h.Version); minor != -1 {
+				return minor
+			}
+		}
+	}
+
+	log.Printf("GetOCPMinorVersion: could not parse version from ClusterVersion (desired=%q)", cv.Status.Desired.Version)
+	return -1
+}
+
+// SkipIfOCPVersionGTE skips the current test if the cluster OCP minor version
+// is greater than or equal to minMinor, referencing a known bug.
+//
+// Example:
+//
+//	k8s.SkipIfOCPVersionGTE(cs, 20, "SRVKP-11139", "buildah-ns fails on OCP 4.20+")
+func SkipIfOCPVersionGTE(cs *clients.Clients, minMinor int, bugID, reason string) {
+	minor := GetOCPMinorVersion(cs)
+	if minor == -1 {
+		// Could not determine OCP version — skip conservatively to avoid hitting
+		// the known bug on an unknown cluster version.
+		Skip(fmt.Sprintf("[KNOWN BUG: %s] skipped: OCP version could not be determined (assuming >= 4.%d): %s", bugID, minMinor, reason))
+	}
+	if minor >= minMinor {
+		Skip(fmt.Sprintf("[KNOWN BUG: %s] skipped on OCP 4.%d+ (cluster is 4.%d): %s", bugID, minMinor, minor, reason))
+	}
+}
 
 // ListOptionsDefault returns an empty ListOptions (convenience helper to avoid
 // importing metav1 in callers that only need default list options).
