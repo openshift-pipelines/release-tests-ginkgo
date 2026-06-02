@@ -213,6 +213,10 @@ var _ = DescribeTable("Ecosystem Task Pipelines with Extra Verification",
 var _ = Describe("Ecosystem Special Tasks", Label("ecosystem", "e2e"), func() {
 
 	It("buildah-ns pipelinerun", Label("sanity", "buildah-ns"), func() {
+		// buildah-ns fails on OCP 4.20+ due to a product bug — skip until fixed.
+		// https://issues.redhat.com/browse/SRVKP-11139
+		k8s.SkipIfOCPVersionGTE(sharedClients, 20, "SRVKP-11139", "buildah-ns task fails reading /proc/0/uid_map")
+
 		ns := createTestNamespace("eco-buildah-ns")
 		lastNamespace = ns
 		DeferCleanup(oc.DeleteProjectIgnoreErrors, ns)
