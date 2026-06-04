@@ -14,7 +14,7 @@ var _ = Describe("Bundles Resolver", Label("e2e"), func() {
 
 	BeforeEach(func() {
 		ns = uniqueNS("resolver-bun")
-		oc.CreateNewProject(ns)
+		oc.CreateNewNamespace(ns)
 		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
@@ -38,10 +38,10 @@ var _ = Describe("Cluster Resolvers", Ordered, Label("e2e"), func() {
 
 	BeforeAll(func() {
 		// Create separate projects for tasks and pipelines (cross-namespace resolution precondition)
-		oc.CreateNewProject("releasetest-tasks")
+		oc.CreateNewNamespace("releasetest-tasks")
 		oc.Apply("testdata/resolvers/tasks/resolver-task.yaml", "releasetest-tasks")
 		oc.Apply("testdata/resolvers/tasks/resolver-task2.yaml", "releasetest-tasks")
-		oc.CreateNewProject("releasetest-pipelines")
+		oc.CreateNewNamespace("releasetest-pipelines")
 		oc.Apply("testdata/resolvers/pipelines/resolver-pipeline.yaml", "releasetest-pipelines")
 	})
 
@@ -52,7 +52,7 @@ var _ = Describe("Cluster Resolvers", Ordered, Label("e2e"), func() {
 
 	It("Cluster resolver cross-namespace resolution", Label("sanity"), func() {
 		ns = uniqueNS("resolver-cluster")
-		oc.CreateNewProject(ns)
+		oc.CreateNewNamespace(ns)
 		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
@@ -65,7 +65,7 @@ var _ = Describe("Cluster Resolvers", Ordered, Label("e2e"), func() {
 
 	It("Cluster resolver same-namespace resolution", func() {
 		ns = uniqueNS("resolver-cluster-sns")
-		oc.CreateNewProject(ns)
+		oc.CreateNewNamespace(ns)
 		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
@@ -83,7 +83,7 @@ var _ = Describe("Git Resolvers", Label("e2e"), func() {
 
 	BeforeEach(func() {
 		ns = uniqueNS("resolver-git")
-		oc.CreateNewProject(ns)
+		oc.CreateNewNamespace(ns)
 		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
@@ -122,7 +122,7 @@ var _ = Describe("Git Resolvers", Label("e2e"), func() {
 var _ = Describe("HTTP Resolvers", Label("e2e"), func() {
 	It("Test HTTP resolver functionality", Label("sanity"), func() {
 		ns := uniqueNS("resolver-http")
-		oc.CreateNewProject(ns)
+		oc.CreateNewNamespace(ns)
 		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {
@@ -138,7 +138,7 @@ var _ = Describe("HTTP Resolvers", Label("e2e"), func() {
 var _ = Describe("Hub Resolvers", Label("e2e"), func() {
 	It("Test hub resolver functionality", Label("sanity"), func() {
 		ns := uniqueNS("resolver-hub")
-		oc.CreateNewProject(ns)
+		oc.CreateNewNamespace(ns)
 		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {

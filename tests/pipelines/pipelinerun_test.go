@@ -21,7 +21,7 @@ var _ = Describe("Pipeline E2E", Label("e2e", "pipelines"), func() {
 
 	BeforeEach(func() {
 		ns = uniqueNS("pr-e2e")
-		oc.CreateNewProject(ns)
+		oc.CreateNewNamespace(ns)
 		lastNamespace = ns
 		sharedClients.NewClientSet(ns)
 		DeferCleanup(func() {

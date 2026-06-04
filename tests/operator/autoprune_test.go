@@ -511,8 +511,8 @@ var _ = Describe("Verify auto-prune E2E", Serial,
 			It("should have a single container in pruner cronjob", func() {
 				updatePrunerConfig("2", "20 * * * *", "taskrun", "", true, false)
 
-				oc.CreateNewProject("test-project-1")
-				oc.CreateNewProject("test-project-2")
+				oc.CreateNewNamespace("test-project-1")
+				oc.CreateNewNamespace("test-project-2")
 
 				DeferCleanup(func() {
 					oc.DeleteProjectIgnoreErrors("test-project-1")
