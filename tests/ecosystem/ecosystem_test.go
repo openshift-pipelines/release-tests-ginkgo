@@ -26,7 +26,7 @@ var ecoNsCounter int
 func createTestNamespace(prefix string) string {
 	ecoNsCounter++
 	ns := fmt.Sprintf("%s-%d-%d", prefix, GinkgoParallelProcess(), ecoNsCounter)
-	oc.CreateNewProject(ns)
+	oc.CreateNewNamespace(ns)
 	return ns
 }
 
