@@ -22,8 +22,8 @@ replace (
 
 require (
 	github.com/google/go-cmp v0.7.0
-	github.com/onsi/ginkgo/v2 v2.29.0
-	github.com/onsi/gomega v1.41.0
+	github.com/onsi/ginkgo/v2 v2.31.0
+	github.com/onsi/gomega v1.42.0
 	github.com/openshift-pipelines/manual-approval-gate v0.8.0
 	// TODO(knative-migration): Downgraded from v0.46.0. tektoncd/operator v0.79.1 pins
 	// pipelines-as-code to v0.41.1 (via its own replace directive). Using v0.42.1+ causes
