@@ -1,6 +1,6 @@
 module github.com/openshift-pipelines/release-tests-ginkgo
 
-go 1.25.10
+go 1.25.11
 
 replace (
 	// tektoncd/operator v0.79.1 declares k8s.io/client-go v1.5.2 (legacy semver) which

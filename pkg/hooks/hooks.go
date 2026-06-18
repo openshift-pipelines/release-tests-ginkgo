@@ -129,7 +129,7 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 			manager.containerFailed[containerPath] = false // initialize failure tracking
 
 			log.Printf("Creating test namespace: %s for container: %s", ns, containerPath)
-			oc.CreateNewProject(ns)
+			oc.CreateNewNamespace(ns)
 
 			// Only wait for the pipeline SA if the operator is already installed.
 			// On a fresh cluster, the OLM install test creates the operator — the
