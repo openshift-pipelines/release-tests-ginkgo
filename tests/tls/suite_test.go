@@ -1,28 +1,25 @@
-package operator_test
+package tls_test
 
 import (
 	"encoding/json"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
-	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
-	"github.com/tektoncd/operator/test/utils"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/diagnostics"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
 var sharedClients *clients.Clients
 
 // lastNamespace tracks the current test namespace for diagnostic collection.
-// Set in BeforeEach by test specs; read in ReportAfterEach by diagnostics collector.
 var lastNamespace string
 
-func TestOperator(t *testing.T) {
+func TestTLS(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Operator Suite", Label("operator"))
+	RunSpecs(t, "TLS Suite", Label("tls"))
 }
 
 // clientConfig holds the serialized configuration passed between parallel nodes.
@@ -33,16 +30,14 @@ type clientConfig struct {
 }
 
 var _ = SynchronizedBeforeSuite(
-	// Node 1 only: validate cluster connectivity and serialize config
 	func() []byte {
-		// Verify cluster is reachable by creating clients
 		cs, err := clients.NewClients(
 			config.Flags.Kubeconfig,
 			config.Flags.Cluster,
 			config.TargetNamespace,
 		)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients on node 1")
-		_ = cs // validation only on node 1
+		_ = cs
 
 		cfg := clientConfig{
 			Kubeconfig:      config.Flags.Kubeconfig,
@@ -53,7 +48,6 @@ var _ = SynchronizedBeforeSuite(
 		Expect(err).NotTo(HaveOccurred(), "Failed to serialize client config")
 		return data
 	},
-	// All nodes: deserialize config, create node-local clients, and seed the store.
 	func(data []byte) {
 		var cfg clientConfig
 		Expect(json.Unmarshal(data, &cfg)).To(Succeed(), "Failed to deserialize client config")
@@ -61,10 +55,6 @@ var _ = SynchronizedBeforeSuite(
 		var err error
 		sharedClients, err = clients.NewClients(cfg.Kubeconfig, cfg.Cluster, cfg.TargetNamespace)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients")
-
-		// Seed store so that store.GetCRNames() returns the right names for all
-		// operator tests. The TektonConfig CR is always named "config".
-		store.SetCRNames(utils.ResourceNames{TektonConfig: "config"})
 	},
 )
 
@@ -72,5 +62,4 @@ var _ = AfterSuite(func() {
 	_ = config.RemoveTempDir()
 })
 
-// Collect diagnostics (pod logs, events, resource state) on test failure.
 var _ = ReportAfterEach(diagnostics.CollectOnFailure(&lastNamespace))
