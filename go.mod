@@ -38,7 +38,7 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.43.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.67.5
+	github.com/prometheus/common v0.69.0
 	github.com/tektoncd/operator v0.79.1
 	// TODO(knative-migration): Downgraded from v1.11.1. v1.10+ requires the newer
 	// knative.dev/pkg (without metrics package) which is incompatible with the current
