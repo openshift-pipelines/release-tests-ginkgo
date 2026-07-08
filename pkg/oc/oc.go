@@ -336,6 +336,44 @@ func (oc *OC) CopySecret(secretName, sourceNamespace, destNamespace string) {
 	log.Printf("Successfully copied secret %s from %s to %s", secretName, sourceNamespace, destNamespace)
 }
 
+// ── package-level helpers (for use outside an OC struct context) ─────────────
+
+// CreateNewProject creates a new OpenShift project using oc new-project.
+// Panics via cmd.MustSucceed if the command fails.
+func CreateNewProject(ns string) {
+	cmd.MustSucceed("oc", "new-project", ns)
+	log.Printf("Created project %q", ns)
+}
+
+// DeleteProject deletes an OpenShift project, ignoring not-found errors.
+func DeleteProject(ns string) {
+	_ = cmd.Run("oc", "delete", "project", ns, "--ignore-not-found=true")
+}
+
+// AddClusterRoleToUser grants the given ClusterRole to a user or service-account ref
+// (e.g. "system:serviceaccount:my-ns:default"). Panics via cmd.MustSucceed on failure.
+func AddClusterRoleToUser(role, userRef string) {
+	cmd.MustSucceed("oc", "adm", "policy", "add-cluster-role-to-user", role, userRef)
+}
+
+// RemoveClusterRoleFromUser removes the given ClusterRole from a user or service-account ref.
+// Errors are silently ignored so that teardown always runs to completion.
+func RemoveClusterRoleFromUser(role, userRef string) {
+	_ = cmd.Run("oc", "adm", "policy", "remove-cluster-role-from-user", role, userRef)
+}
+
+// AddSCCToUser grants the given SCC to a fully-qualified service-account ref
+// (e.g. "system:serviceaccount:my-ns:default"). Panics via cmd.MustSucceed on failure.
+func AddSCCToUser(scc, userRef string) {
+	cmd.MustSucceed("oc", "adm", "policy", "add-scc-to-user", scc, userRef)
+}
+
+// RemoveSCCFromUser removes the given SCC from a fully-qualified service-account ref.
+// Errors are silently ignored so that teardown always runs to completion.
+func RemoveSCCFromUser(scc, userRef string) {
+	_ = cmd.Run("oc", "adm", "policy", "remove-scc-from-user", scc, userRef)
+}
+
 // ── internal helpers ──────────────────────────────────────────────────────────
 
 func (oc *OC) runWithLog(args ...string) {

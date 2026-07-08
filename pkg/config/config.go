@@ -84,6 +84,50 @@ const (
 	// ConsolePluginDeployment is the name of the Pipelines console plugin deployment.
 	ConsolePluginDeployment = "pipelines-console-plugin"
 
+	// ResultsAPIName is the name of the Tekton Results API deployment.
+	ResultsAPIName = "tekton-results-api"
+
+	// TriggersInterceptorsName is the name of the Triggers core interceptors deployment.
+	TriggersInterceptorsName = "tekton-triggers-core-interceptors"
+
+	// OperatorProxyWebhookName is the name of the Tekton Operator proxy webhook deployment.
+	OperatorProxyWebhookName = "tekton-operator-proxy-webhook"
+
+	// TLSMinVersionEnvVar is the env var name injected by the Tekton Operator for the minimum TLS version
+	// on non-knative components (e.g. tekton-triggers-core-interceptors, tekton-results-api).
+	TLSMinVersionEnvVar = "TLS_MIN_VERSION"
+	// TLSCipherSuitesEnvVar is the env var name injected by the Tekton Operator for TLS cipher suites
+	// on non-knative components.
+	TLSCipherSuitesEnvVar = "TLS_CIPHER_SUITES"
+	// WebhookTLSMinVersionEnvVar is the env var name for the minimum TLS version on knative
+	// webhook-based components (e.g. tekton-pipelines-webhook, tekton-triggers-webhook,
+	// pipelines-as-code-webhook). Set by the knative webhook library via the WEBHOOK_ prefix.
+	WebhookTLSMinVersionEnvVar = "WEBHOOK_TLS_MIN_VERSION"
+	// WebhookTLSCipherSuitesEnvVar is the env var name for TLS cipher suites on knative
+	// webhook-based components.
+	WebhookTLSCipherSuitesEnvVar = "WEBHOOK_TLS_CIPHER_SUITES"
+
+	// TLSVersionTLS10 is the TLS version string "1.0" as injected by the Tekton Operator
+	// into component env vars (short numeric format, not Go's "VersionTLS10").
+	TLSVersionTLS10 = "1.0"
+	// TLSVersionTLS12 is the TLS version string "1.2" as injected by the Tekton Operator.
+	TLSVersionTLS12 = "1.2"
+	// TLSVersionTLS13 is the TLS version string "1.3" as injected by the Tekton Operator.
+	TLSVersionTLS13 = "1.3"
+
+	// TLSProfileDefault is the "Default" TLS profile string used by the APIServer/cluster.
+	TLSProfileDefault = "Default"
+	// TLSProfileModern is the "Modern" TLS profile string, introduced in OCP 4.17+.
+	TLSProfileModern = "Modern"
+	// TLSProfileIntermediate is the "Intermediate" TLS profile string used by the APIServer/cluster.
+	TLSProfileIntermediate = "Intermediate"
+	// TLSProfileOld is the "Old" TLS profile string (TLS 1.0); use only on older clusters.
+	TLSProfileOld = "Old"
+
+	// NginxConsolePluginConfigMap is the ConfigMap holding the nginx configuration
+	// for pipelines-console-plugin. Contains nginx.conf with ssl_protocols directives.
+	NginxConsolePluginConfigMap = "pipelines-console-plugin"
+
 	// TriggersSecretToken is a token used in triggers tests.
 	TriggersSecretToken = "1234567"
 )

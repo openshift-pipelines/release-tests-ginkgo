@@ -46,6 +46,15 @@ func GetCRNames() utils.ResourceNames {
 	return utils.ResourceNames{}
 }
 
+// SetCRNames stores the ResourceNames for the current scenario so that
+// GetCRNames returns a non-empty value for test suites that do not use the
+// Gherkin step framework to seed the store.
+func SetCRNames(names utils.ResourceNames) {
+	mu.Lock()
+	defer mu.Unlock()
+	scenarioStore["crnames"] = names
+}
+
 // HTTPResponse returns the stored HTTP response for the scenario.
 func HTTPResponse() *http.Response {
 	mu.RLock()
