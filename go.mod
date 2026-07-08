@@ -27,7 +27,7 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.43.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.67.5
+	github.com/prometheus/common v0.69.0
 	github.com/tektoncd/operator v0.80.0
 	github.com/tektoncd/pipeline v1.13.1
 	github.com/tektoncd/triggers v0.36.0
