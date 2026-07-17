@@ -30,7 +30,7 @@ var _ = Describe("Openshift Pipelines pre upgrade specs", Serial, Ordered,
 		It("Setup environment for upgrade test", func() {
 			ns := "releasetest-upgrade-triggers"
 			lastNamespace = ns
-			oc.CreateNewProject(ns)
+			oc.CreateNewNamespace(ns)
 
 			// Verify pipeline SA exists
 			operator.AssertServiceAccountPresent(sharedClients, ns, "pipeline")
@@ -93,7 +93,7 @@ var _ = Describe("Openshift Pipelines pre upgrade specs", Serial, Ordered,
 		It("Setup Eventlistener with TLS enabled pre upgrade", Label("sanity", "tls", "triggers"), func() {
 			ns := "releasetest-upgrade-tls"
 			lastNamespace = ns
-			oc.CreateNewProject(ns)
+			oc.CreateNewNamespace(ns)
 
 			oc.EnableTLSConfigForEventlisteners(ns)
 
@@ -115,7 +115,7 @@ var _ = Describe("Openshift Pipelines pre upgrade specs", Serial, Ordered,
 		It("Setup link secret to pipeline SA", Label("sanity", "git-clone"), func() {
 			ns := "releasetest-upgrade-pipelines"
 			lastNamespace = ns
-			oc.CreateNewProject(ns)
+			oc.CreateNewNamespace(ns)
 
 			operator.AssertServiceAccountPresent(sharedClients, ns, "pipeline")
 
@@ -132,7 +132,7 @@ var _ = Describe("Openshift Pipelines pre upgrade specs", Serial, Ordered,
 		It("Setup S2I golang pipeline pre upgrade", Label("s2i"), func() {
 			ns := "releasetest-upgrade-s2i"
 			lastNamespace = ns
-			oc.CreateNewProject(ns)
+			oc.CreateNewNamespace(ns)
 
 			operator.AssertServiceAccountPresent(sharedClients, ns, "pipeline")
 
