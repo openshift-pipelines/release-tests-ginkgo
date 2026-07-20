@@ -1,6 +1,6 @@
 module github.com/openshift-pipelines/release-tests-ginkgo
 
-go 1.26
+go 1.26.0
 
 replace (
 	// tektoncd/operator v0.80.0 declares k8s.io/client-go v1.5.2 (legacy semver) which
@@ -35,7 +35,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.5.2
 	k8s.io/api v0.35.5
-	k8s.io/apimachinery v0.35.5
+	k8s.io/apimachinery v0.36.2
 	k8s.io/client-go v1.5.2
 	knative.dev/pkg v0.0.0-20260422015212-ec452872dcc1
 )
@@ -144,7 +144,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260406210006-6f92a3bedf2d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260406210006-6f92a3bedf2d // indirect
 	google.golang.org/grpc v1.81.1 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/apiextensions-apiserver v0.35.5 // indirect
