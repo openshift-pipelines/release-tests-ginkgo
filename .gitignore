@@ -1,3 +1,6 @@
+# Dependency directories (remove the comment below to include it)
+vendor/
+
 # Reference repos (cloned for migration comparison)
 reference-repo/
 
