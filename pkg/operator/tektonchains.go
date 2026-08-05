@@ -63,16 +63,39 @@ func EnsureTektonChainsExists(clients chainv1alpha.TektonChainInterface, names u
 
 // UpdateTektonConfigForChains patches the TektonConfig CR to configure Tekton Chains
 // with the given format, taskrun storage, OCI storage, and transparency settings.
-func UpdateTektonConfigForChains(format, taskrunStorage, ociStorage, transparency string) {
-	patchData := fmt.Sprintf(`{"spec":{"chain":{"options":{"disabled":false},"artifacts.taskrun.format":"%s","artifacts.taskrun.storage":"%s","artifacts.oci.storage":"%s","transparency.enabled":"%s"}}}`,
-		format, taskrunStorage, ociStorage, transparency)
+// An optional encodingFormat may be supplied to set storage.oci.encoding-format
+// (e.g. "sigstore-bundle" for OCI 1.1 Referrers API mode).
+func UpdateTektonConfigForChains(format, taskrunStorage, ociStorage, transparency string, encodingFormat ...string) {
+	ef := ""
+	if len(encodingFormat) > 0 {
+		ef = encodingFormat[0]
+	}
+	patchData := fmt.Sprintf(
+		`{"spec":{"chain":{"options":{"disabled":false},`+
+			`"artifacts.taskrun.format":"%s",`+
+			`"artifacts.taskrun.storage":"%s",`+
+			`"artifacts.oci.storage":"%s",`+
+			`"transparency.enabled":"%s",`+
+			`"storage.oci.encoding-format":"%s"}}}`,
+		format, taskrunStorage, ociStorage, transparency, ef)
 	cmd.MustSucceed("oc", "patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
-	log.Printf("Updated TektonConfig for chains: format=%s, taskrunStorage=%s, ociStorage=%s, transparency=%s", format, taskrunStorage, ociStorage, transparency)
+	if ef != "" {
+		log.Printf("Updated TektonConfig for chains: format=%s, taskrunStorage=%s, ociStorage=%s, transparency=%s, encodingFormat=%s",
+			format, taskrunStorage, ociStorage, transparency, ef)
+	} else {
+		log.Printf("Updated TektonConfig for chains: format=%s, taskrunStorage=%s, ociStorage=%s, transparency=%s",
+			format, taskrunStorage, ociStorage, transparency)
+	}
 }
 
 // RestoreTektonConfigChains restores the TektonConfig chains settings to defaults.
 func RestoreTektonConfigChains() {
-	patchData := `{"spec":{"chain":{"options":{"disabled":false},"artifacts.taskrun.format":"in-toto","artifacts.taskrun.storage":"tekton","artifacts.oci.storage":"","transparency.enabled":"false"}}}`
+	patchData := `{"spec":{"chain":{"options":{"disabled":false},` +
+		`"artifacts.taskrun.format":"in-toto",` +
+		`"artifacts.taskrun.storage":"tekton",` +
+		`"artifacts.oci.storage":"",` +
+		`"transparency.enabled":"false",` +
+		`"storage.oci.encoding-format":""}}}`
 	cmd.MustSucceed("oc", "patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
 	log.Println("Restored TektonConfig chains settings to defaults")
 }
