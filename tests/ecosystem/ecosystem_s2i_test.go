@@ -13,6 +13,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/triggers"
 )
 
+// PIPELINES-33
 // -----------------------------------------------------------------------
 // S2I Ecosystem Tests
 //
@@ -26,11 +27,7 @@ import (
 // helper function (see helpers.go).
 // -----------------------------------------------------------------------
 
-// -----------------------------------------------------------------------
-// TC01: S2I nodejs full flow with route validation
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I nodejs pipelinerun with route validation", Label("ecosystem", "e2e", "s2i", "sanity"), func() {
+var _ = Describe("S2I nodejs pipelinerun with route validation: PIPELINES-33-TC01", Label("ecosystem", "e2e", "s2i", "sanity"), func() {
 
 	It("should create nodejs pipeline, verify pipelinerun, expose route and validate response", func() {
 		ns := createTestNamespace("eco-s2i-nodejs-route")
@@ -60,11 +57,7 @@ var _ = Describe("S2I nodejs pipelinerun with route validation", Label("ecosyste
 	})
 })
 
-// -----------------------------------------------------------------------
-// TC02: S2I dotnet pipelinerun
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I dotnet pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I dotnet pipelinerun: PIPELINES-33-TC02", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create dotnet pipeline and verify pipelinerun for each imagestream tag", func() {
 		// Skip on ppc64le architecture
@@ -86,11 +79,7 @@ var _ = Describe("S2I dotnet pipelinerun", Label("ecosystem", "e2e", "s2i"), fun
 	})
 })
 
-// -----------------------------------------------------------------------
-// TC03: S2I golang pipelinerun
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I golang pipelinerun", Label("ecosystem", "e2e", "sanity", "s2i"), func() {
+var _ = Describe("S2I golang pipelinerun: PIPELINES-33-TC03", Label("ecosystem", "e2e", "sanity", "s2i"), func() {
 
 	It("should create golang pipeline and verify pipelinerun for each imagestream tag", func() {
 		ns := createTestNamespace("eco-s2i-golang")
@@ -105,11 +94,7 @@ var _ = Describe("S2I golang pipelinerun", Label("ecosystem", "e2e", "sanity", "
 	})
 })
 
-// -----------------------------------------------------------------------
-// TC04: S2I java pipelinerun
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I java pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I java pipelinerun: PIPELINES-33-TC04", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create java pipeline and verify pipelinerun for each imagestream tag", func() {
 		ns := createTestNamespace("eco-s2i-java")
@@ -124,11 +109,7 @@ var _ = Describe("S2I java pipelinerun", Label("ecosystem", "e2e", "s2i"), func(
 	})
 })
 
-// -----------------------------------------------------------------------
-// TC05: S2I nodejs pipelinerun
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I nodejs pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I nodejs pipelinerun: PIPELINES-33-TC05", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create nodejs pipeline and verify pipelinerun for each imagestream tag", func() {
 		ns := createTestNamespace("eco-s2i-nodejs")
@@ -143,11 +124,7 @@ var _ = Describe("S2I nodejs pipelinerun", Label("ecosystem", "e2e", "s2i"), fun
 	})
 })
 
-// -----------------------------------------------------------------------
-// TC06: S2I perl pipelinerun
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I perl pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I perl pipelinerun: PIPELINES-33-TC06", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create perl pipeline and verify pipelinerun for each imagestream tag", func() {
 		ns := createTestNamespace("eco-s2i-perl")
@@ -162,11 +139,7 @@ var _ = Describe("S2I perl pipelinerun", Label("ecosystem", "e2e", "s2i"), func(
 	})
 })
 
-// -----------------------------------------------------------------------
-// TC07: S2I php pipelinerun
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I php pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I php pipelinerun: PIPELINES-33-TC07", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create php pipeline and verify pipelinerun for each imagestream tag", func() {
 		ns := createTestNamespace("eco-s2i-php")
@@ -181,11 +154,7 @@ var _ = Describe("S2I php pipelinerun", Label("ecosystem", "e2e", "s2i"), func()
 	})
 })
 
-// -----------------------------------------------------------------------
-// TC08: S2I python pipelinerun
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I python pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I python pipelinerun: PIPELINES-33-TC08", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create python pipeline and verify pipelinerun for each imagestream tag", func() {
 		ns := createTestNamespace("eco-s2i-python")
@@ -200,11 +169,7 @@ var _ = Describe("S2I python pipelinerun", Label("ecosystem", "e2e", "s2i"), fun
 	})
 })
 
-// -----------------------------------------------------------------------
-// TC09: S2I ruby pipelinerun
-// -----------------------------------------------------------------------
-
-var _ = Describe("S2I ruby pipelinerun", Label("ecosystem", "e2e", "s2i"), func() {
+var _ = Describe("S2I ruby pipelinerun: PIPELINES-33-TC09", Label("ecosystem", "e2e", "s2i"), func() {
 
 	It("should create ruby pipeline and verify pipelinerun for each imagestream tag", func() {
 		ns := createTestNamespace("eco-s2i-ruby")
