@@ -75,4 +75,48 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to verify attestation")
 		})
 	})
+
+	Describe("Using Tekton Chains with OCI 1.1 Referrers API (sigstore-bundle mode)", Label("sigstore-bundle"), Ordered, func() {
+		BeforeAll(func() {
+			if os.Getenv("CHAINS_REPOSITORY") == "" {
+				Skip("CHAINS_REPOSITORY not set -- skipping sigstore-bundle test")
+			}
+
+			if os.Getenv("CHAINS_DOCKER_CONFIG_JSON") == "" {
+				Skip("CHAINS_DOCKER_CONFIG_JSON not set -- skipping sigstore-bundle test")
+			}
+
+			// Update TektonConfig for OCI storage with sigstore-bundle encoding format
+			operator.UpdateTektonConfigForChains("in-toto", "oci", "oci", "true", "sigstore-bundle")
+			DeferCleanup(operator.RestoreTektonConfigChains)
+
+			// Store cosign public key
+			err := operator.CreateFileWithCosignPubKey()
+			Expect(err).NotTo(HaveOccurred(), "Failed to store cosign public key")
+
+			// Create image registry credentials secret
+			oc.CreateChainsImageRegistrySecret(os.Getenv("CHAINS_DOCKER_CONFIG_JSON"))
+		})
+
+		It("starts kaniko task and applies chain resources", func() {
+			oc.Apply("testdata/pvc/chains-pvc.yaml")
+			oc.Apply("testdata/chains/kaniko.yaml")
+			operator.StartKanikoTask()
+		})
+
+		It("verifies image signature via OCI referrers", func() {
+			err := operator.VerifyImageSignature()
+			Expect(err).NotTo(HaveOccurred(), "Failed to verify image signature in sigstore-bundle mode")
+		})
+
+		It("checks attestation exists in transparency log", func() {
+			err := operator.CheckAttestationExists()
+			Expect(err).NotTo(HaveOccurred(), "Failed to find attestation in transparency log")
+		})
+
+		It("verifies attestation via OCI referrers", func() {
+			err := operator.VerifyAttestation()
+			Expect(err).NotTo(HaveOccurred(), "Failed to verify attestation in sigstore-bundle mode")
+		})
+	})
 })
