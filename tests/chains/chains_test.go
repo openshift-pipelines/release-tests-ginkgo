@@ -16,7 +16,7 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 	Describe("Using Tekton Chains to create and verify task run signatures", Label("sanity"), Ordered, func() {
 		BeforeAll(func() {
 			// Update TektonConfig for taskrun signing
-			operator.UpdateTektonConfigForChains("in-toto", "tekton", "", "false")
+			operator.UpdateTektonConfigForChains("in-toto", "tekton", "", "false", "")
 			DeferCleanup(operator.RestoreTektonConfigChains)
 
 			// Store cosign public key
@@ -32,6 +32,25 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 		})
 	})
 
+	Describe("Using Tekton Chains to create and verify pipeline run signatures", Label("sanity"), Ordered, func() {
+		BeforeAll(func() {
+			// Update TektonConfig for pipelinerun signing
+			operator.UpdateTektonConfigForChains("in-toto", "tekton", "", "false", "")
+			DeferCleanup(operator.RestoreTektonConfigChains)
+
+			// Store cosign public key
+			err := operator.CreateFileWithCosignPubKey()
+			Expect(err).NotTo(HaveOccurred(), "Failed to store cosign public key")
+		})
+
+		It("applies the pipeline-output-image pipeline and verifies pipelinerun signature", func() {
+			oc.Apply("testdata/chains/pipeline-output-image.yaml")
+
+			err := operator.VerifySignature("pipelinerun")
+			Expect(err).NotTo(HaveOccurred(), "Failed to verify pipelinerun signature")
+		})
+	})
+
 	Describe("Using Tekton Chains to sign and verify image and provenance", Ordered, func() {
 		BeforeAll(func() {
 			if os.Getenv("CHAINS_REPOSITORY") == "" {
@@ -43,7 +62,7 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 			}
 
 			// Update TektonConfig for image signing with OCI storage
-			operator.UpdateTektonConfigForChains("in-toto", "oci", "oci", "true")
+			operator.UpdateTektonConfigForChains("in-toto", "oci", "oci", "true", os.Getenv("CHAINS_REPOSITORY"))
 			DeferCleanup(operator.RestoreTektonConfigChains)
 
 			// Store cosign public key
@@ -87,7 +106,7 @@ var _ = Describe("Tekton Chains", Label("chains", "e2e"), func() {
 			}
 
 			// Update TektonConfig for OCI storage with sigstore-bundle encoding format
-			operator.UpdateTektonConfigForChains("in-toto", "oci", "oci", "true", "sigstore-bundle")
+			operator.UpdateTektonConfigForChains("in-toto", "oci", "oci", "true", os.Getenv("CHAINS_REPOSITORY"), "sigstore-bundle")
 			DeferCleanup(operator.RestoreTektonConfigChains)
 
 			// Store cosign public key
