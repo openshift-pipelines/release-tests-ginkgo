@@ -72,9 +72,11 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 
 		var originalMTLSValue *bool
 
-		BeforeAll(func() {
+		BeforeEach(func() {
 			lastNamespace = config.TargetNamespace
+		})
 
+		BeforeAll(func() {
 			// Save the original enableMetricsMTLS value
 			originalMTLSValue = monitoring.GetEnableMetricsMTLS()
 			log.Printf("Original enableMetricsMTLS value: %v", originalMTLSValue)
@@ -83,10 +85,10 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 		AfterAll(func() {
 			// Restore the original enableMetricsMTLS value
 			if originalMTLSValue != nil {
-				monitoring.SetEnableMetricsMTLS(*originalMTLSValue)
+				Expect(monitoring.SetEnableMetricsMTLS(*originalMTLSValue)).To(Succeed())
 			} else {
 				// If it was unset, disable it to restore the default state
-				monitoring.SetEnableMetricsMTLS(false)
+				Expect(monitoring.SetEnableMetricsMTLS(false)).To(Succeed())
 			}
 			log.Printf("Restored enableMetricsMTLS to original value")
 
@@ -98,7 +100,7 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 
 		Describe("mTLS enabled", func() {
 			BeforeAll(func() {
-				monitoring.SetEnableMetricsMTLS(true)
+				Expect(monitoring.SetEnableMetricsMTLS(true)).To(Succeed())
 				err := monitoring.WaitForTektonConfigReady(sharedClients)
 				Expect(err).NotTo(HaveOccurred(), "TektonConfig did not reach Ready after enabling mTLS")
 			})
@@ -143,6 +145,19 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 				})
 			}
 
+			// TLS handshake validation: with-cert succeeds, without-cert is rejected
+			It("TLS handshake succeeds with client cert and fails without", func() {
+				cfg := monitoring.MTLSComponentConfig{
+					ComponentName: "TektonPipeline",
+					ServiceName:   "tekton-pipelines-controller",
+					Namespace:     config.TargetNamespace,
+					HTTPPortName:  "http-metrics",
+					HTTPSPortName: "https-metrics",
+				}
+				err := monitoring.AssertTLSHandshake(sharedClients, cfg)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
 			// PAC has an extra ServiceMonitor
 			It("ServiceMonitor "+pacExtraServiceMonitor+" has HTTPS scheme and tlsConfig", func() {
 				cfg := monitoring.MTLSComponentConfig{
@@ -160,7 +175,7 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 
 		Describe("mTLS disabled", func() {
 			BeforeAll(func() {
-				monitoring.SetEnableMetricsMTLS(false)
+				Expect(monitoring.SetEnableMetricsMTLS(false)).To(Succeed())
 				err := monitoring.WaitForTektonConfigReady(sharedClients)
 				Expect(err).NotTo(HaveOccurred(), "TektonConfig did not reach Ready after disabling mTLS")
 			})
@@ -213,6 +228,19 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 				err := monitoring.AssertServiceMonitorMTLSDisabled(cfg)
 				Expect(err).NotTo(HaveOccurred())
 			})
+
+			// Plain HTTP handshake validation: metrics endpoint is accessible without TLS
+			It("plain HTTP handshake succeeds without client cert", func() {
+				cfg := monitoring.MTLSComponentConfig{
+					ComponentName: "TektonPipeline",
+					ServiceName:   "tekton-pipelines-controller",
+					Namespace:     config.TargetNamespace,
+					HTTPPortName:  "http-metrics",
+					HTTPSPortName: "https-metrics",
+				}
+				err := monitoring.AssertPlainHTTPHandshake(sharedClients, cfg)
+				Expect(err).NotTo(HaveOccurred())
+			})
 		})
 
 		// ── Negative test: tekton-results-api stays plain HTTP always ────────
@@ -229,7 +257,7 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 			}
 
 			It("stays plain HTTP when mTLS is enabled", func() {
-				monitoring.SetEnableMetricsMTLS(true)
+				Expect(monitoring.SetEnableMetricsMTLS(true)).To(Succeed())
 				err := monitoring.WaitForTektonConfigReady(sharedClients)
 				Expect(err).NotTo(HaveOccurred(), "TektonConfig did not reach Ready")
 
@@ -250,7 +278,7 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 			})
 
 			It("stays plain HTTP when mTLS is disabled", func() {
-				monitoring.SetEnableMetricsMTLS(false)
+				Expect(monitoring.SetEnableMetricsMTLS(false)).To(Succeed())
 				err := monitoring.WaitForTektonConfigReady(sharedClients)
 				Expect(err).NotTo(HaveOccurred(), "TektonConfig did not reach Ready")
 
@@ -277,24 +305,24 @@ var _ = Describe("Prometheus metrics mTLS (enableMetricsMTLS)", Serial, Ordered,
 
 			It("cycles the flag without stuck InstallerSets and TektonConfig stays Ready", func() {
 				By("Enable mTLS (first time)")
-				monitoring.SetEnableMetricsMTLS(true)
+				Expect(monitoring.SetEnableMetricsMTLS(true)).To(Succeed())
 				err := monitoring.WaitForTektonConfigReady(sharedClients)
 				Expect(err).NotTo(HaveOccurred(), "TektonConfig not Ready after enable #1")
-				err = monitoring.AssertNoStuckInstallerSets(sharedClients)
+				err = monitoring.AssertNoStuckInstallerSets()
 				Expect(err).NotTo(HaveOccurred(), "Stuck InstallerSets after enable #1")
 
 				By("Disable mTLS")
-				monitoring.SetEnableMetricsMTLS(false)
+				Expect(monitoring.SetEnableMetricsMTLS(false)).To(Succeed())
 				err = monitoring.WaitForTektonConfigReady(sharedClients)
 				Expect(err).NotTo(HaveOccurred(), "TektonConfig not Ready after disable")
-				err = monitoring.AssertNoStuckInstallerSets(sharedClients)
+				err = monitoring.AssertNoStuckInstallerSets()
 				Expect(err).NotTo(HaveOccurred(), "Stuck InstallerSets after disable")
 
 				By("Re-enable mTLS (second time)")
-				monitoring.SetEnableMetricsMTLS(true)
+				Expect(monitoring.SetEnableMetricsMTLS(true)).To(Succeed())
 				err = monitoring.WaitForTektonConfigReady(sharedClients)
 				Expect(err).NotTo(HaveOccurred(), "TektonConfig not Ready after enable #2")
-				err = monitoring.AssertNoStuckInstallerSets(sharedClients)
+				err = monitoring.AssertNoStuckInstallerSets()
 				Expect(err).NotTo(HaveOccurred(), "Stuck InstallerSets after enable #2")
 
 				By("Verify mTLS is correctly configured after re-enable")

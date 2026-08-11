@@ -120,32 +120,9 @@ func AssertServiceMTLSDisabled(cs *clients.Clients, cfg MTLSComponentConfig) err
 // AssertServiceMonitorMTLSEnabled verifies that the ServiceMonitor has HTTPS scheme and tlsConfig.
 // Uses oc CLI since ServiceMonitor CRDs are not in the vendored Go types.
 func AssertServiceMonitorMTLSEnabled(cfg MTLSComponentConfig) error {
-	result := cmd.Run("oc", "get", "servicemonitor", cfg.ServiceMonitorName,
-		"-n", cfg.Namespace, "-o", "json")
-	if result.ExitCode != 0 {
-		return fmt.Errorf("failed to get ServiceMonitor %s/%s: %s",
-			cfg.Namespace, cfg.ServiceMonitorName, result.Stderr())
-	}
-
-	var sm map[string]any
-	if err := json.Unmarshal([]byte(result.Stdout()), &sm); err != nil {
-		return fmt.Errorf("failed to parse ServiceMonitor JSON: %w", err)
-	}
-
-	endpoints, err := jsonPath(sm, "spec", "endpoints")
+	ep, err := getServiceMonitorFirstEndpoint(cfg)
 	if err != nil {
-		return fmt.Errorf("servicemonitor %s/%s: %w", cfg.Namespace, cfg.ServiceMonitorName, err)
-	}
-	endpointList, ok := endpoints.([]any)
-	if !ok || len(endpointList) == 0 {
-		return fmt.Errorf("servicemonitor %s/%s: no endpoints found",
-			cfg.Namespace, cfg.ServiceMonitorName)
-	}
-
-	ep, ok := endpointList[0].(map[string]any)
-	if !ok {
-		return fmt.Errorf("servicemonitor %s/%s: first endpoint is not an object",
-			cfg.Namespace, cfg.ServiceMonitorName)
+		return err
 	}
 
 	scheme, _ := ep["scheme"].(string)
@@ -171,34 +148,12 @@ func AssertServiceMonitorMTLSEnabled(cfg MTLSComponentConfig) error {
 	return nil
 }
 
-// AssertServiceMonitorMTLSDisabled verifies that the ServiceMonitor uses plain HTTP.
+// AssertServiceMonitorMTLSDisabled verifies that the ServiceMonitor uses plain HTTP
+// and that no stale tlsConfig block is present.
 func AssertServiceMonitorMTLSDisabled(cfg MTLSComponentConfig) error {
-	result := cmd.Run("oc", "get", "servicemonitor", cfg.ServiceMonitorName,
-		"-n", cfg.Namespace, "-o", "json")
-	if result.ExitCode != 0 {
-		return fmt.Errorf("failed to get ServiceMonitor %s/%s: %s",
-			cfg.Namespace, cfg.ServiceMonitorName, result.Stderr())
-	}
-
-	var sm map[string]any
-	if err := json.Unmarshal([]byte(result.Stdout()), &sm); err != nil {
-		return fmt.Errorf("failed to parse ServiceMonitor JSON: %w", err)
-	}
-
-	endpoints, err := jsonPath(sm, "spec", "endpoints")
+	ep, err := getServiceMonitorFirstEndpoint(cfg)
 	if err != nil {
-		return fmt.Errorf("servicemonitor %s/%s: %w", cfg.Namespace, cfg.ServiceMonitorName, err)
-	}
-	endpointList, ok := endpoints.([]any)
-	if !ok || len(endpointList) == 0 {
-		return fmt.Errorf("servicemonitor %s/%s: no endpoints found",
-			cfg.Namespace, cfg.ServiceMonitorName)
-	}
-
-	ep, ok := endpointList[0].(map[string]any)
-	if !ok {
-		return fmt.Errorf("servicemonitor %s/%s: first endpoint is not an object",
-			cfg.Namespace, cfg.ServiceMonitorName)
+		return err
 	}
 
 	scheme, _ := ep["scheme"].(string)
@@ -208,7 +163,13 @@ func AssertServiceMonitorMTLSDisabled(cfg MTLSComponentConfig) error {
 			cfg.Namespace, cfg.ServiceMonitorName, scheme)
 	}
 
-	log.Printf("ServiceMonitor %s/%s: mTLS disabled — scheme=%q",
+	// A stale tlsConfig left over from a prior mTLS-enabled state must not be present.
+	if _, hasTLS := ep["tlsConfig"]; hasTLS {
+		return fmt.Errorf("servicemonitor %s/%s: tlsConfig should be absent when mTLS is disabled",
+			cfg.Namespace, cfg.ServiceMonitorName)
+	}
+
+	log.Printf("ServiceMonitor %s/%s: mTLS disabled — scheme=%q, no tlsConfig",
 		cfg.Namespace, cfg.ServiceMonitorName, scheme)
 	return nil
 }
@@ -229,12 +190,11 @@ func AssertPodMTLSEnabled(cs *clients.Clients, cfg MTLSComponentConfig) error {
 			continue
 		}
 		container := pod.Spec.Containers[0]
-		envMap := envToMap(container.Env)
 
 		// Check for METRICS_PROMETHEUS_TLS_* env vars
 		foundTLSEnv := false
-		for key := range envMap {
-			if strings.HasPrefix(key, "METRICS_PROMETHEUS_TLS_") {
+		for _, env := range container.Env {
+			if strings.HasPrefix(env.Name, "METRICS_PROMETHEUS_TLS_") {
 				foundTLSEnv = true
 				break
 			}
@@ -338,7 +298,7 @@ func AssertTLSHandshake(cs *clients.Clients, cfg MTLSComponentConfig) error {
 	}
 	if meta, ok := secretObj["metadata"].(map[string]any); ok {
 		meta["namespace"] = cfg.Namespace
-		for _, key := range []string{"creationTimestamp", "resourceVersion", "selfLink", "uid", "annotations", "ownerReferences"} {
+		for _, key := range []string{"creationTimestamp", "resourceVersion", "selfLink", "uid", "annotations", "ownerReferences", "managedFields"} {
 			delete(meta, key)
 		}
 	}
@@ -378,7 +338,7 @@ func AssertTLSHandshake(cs *clients.Clients, cfg MTLSComponentConfig) error {
 				"containers": [{
 					"name": "curl",
 					"image": "registry.access.redhat.com/ubi9/ubi-minimal:latest",
-					"command": ["curl", "-sf", "--cert", "/certs/tls.crt", "--key", "/certs/tls.key", "--cacert", "/certs/tls.crt", "-o", "/dev/null", "-w", "%%{http_code}", "%s"],
+					"command": ["curl", "-sf", "--cert", "/certs/tls.crt", "--key", "/certs/tls.key", "-k", "-o", "/dev/null", "-w", "%%{http_code}", "%s"],
 					"volumeMounts": [{"name": "certs", "mountPath": "/certs", "readOnly": true}]
 				}],
 				"volumes": [{
@@ -387,19 +347,18 @@ func AssertTLSHandshake(cs *clients.Clients, cfg MTLSComponentConfig) error {
 				}],
 				"restartPolicy": "Never"
 			}
-		}`, url),
-		"--", "sh", "-c", "true")
+		}`, url))
 	if withCertResult.ExitCode != 0 {
 		log.Printf("TLS handshake with client cert output: %s", withCertResult.Combined())
 		return fmt.Errorf("tls handshake with client cert failed for %s: %s", url, withCertResult.Stderr())
 	}
 
-	// Test WITHOUT client cert — should fail
+	// Test WITHOUT client cert — should fail (server rejects missing client cert)
 	withoutCertResult := cmd.Run("oc", "run", "mtls-curl-test-no-cert",
 		"-n", cfg.Namespace,
 		"--image=registry.access.redhat.com/ubi9/ubi-minimal:latest",
 		"--restart=Never", "--rm", "-i",
-		"--command", "--", "curl", "-sf", "--cacert", "/dev/null",
+		"--command", "--", "curl", "-sf", "-k",
 		"-o", "/dev/null", "-w", "%{http_code}", url)
 	if withoutCertResult.ExitCode == 0 {
 		return fmt.Errorf("tls handshake without client cert should have failed for %s but succeeded",
@@ -471,11 +430,16 @@ func WaitForTektonConfigReady(cs *clients.Clients) error {
 }
 
 // SetEnableMetricsMTLS patches TektonConfig to set spec.platforms.openshift.enableMetricsMTLS.
-func SetEnableMetricsMTLS(enabled bool) {
+func SetEnableMetricsMTLS(enabled bool) error {
 	patchData := fmt.Sprintf(
 		`{"spec":{"platforms":{"openshift":{"enableMetricsMTLS":%t}}}}`, enabled)
-	cmd.MustSucceed("oc", "patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
+	result := cmd.Run("oc", "patch", "tektonconfig", "config", "-p", patchData, "--type=merge")
+	if result.ExitCode != 0 {
+		return fmt.Errorf("failed to patch TektonConfig enableMetricsMTLS=%t: %s",
+			enabled, result.Stderr())
+	}
 	log.Printf("Patched TektonConfig enableMetricsMTLS=%t", enabled)
+	return nil
 }
 
 // GetEnableMetricsMTLS reads the current value of spec.platforms.openshift.enableMetricsMTLS.
@@ -496,7 +460,7 @@ func GetEnableMetricsMTLS() *bool {
 }
 
 // AssertNoStuckInstallerSets verifies that no TektonInstallerSets are in a non-ready state.
-func AssertNoStuckInstallerSets(_ *clients.Clients) error {
+func AssertNoStuckInstallerSets() error {
 	result := cmd.Run("oc", "get", "tektoninstallersets", "-o",
 		"jsonpath={range .items[*]}{.metadata.name}={.status.conditions[?(@.type==\"Ready\")].status}{\"\\n\"}{end}")
 	if result.ExitCode != 0 {
@@ -528,6 +492,39 @@ func AssertNoStuckInstallerSets(_ *clients.Clients) error {
 
 // ── internal helpers ─────────────────────────────────────────────────────────
 
+// getServiceMonitorFirstEndpoint fetches the ServiceMonitor via oc CLI,
+// parses the JSON, and returns the first endpoint object.
+func getServiceMonitorFirstEndpoint(cfg MTLSComponentConfig) (map[string]any, error) {
+	result := cmd.Run("oc", "get", "servicemonitor", cfg.ServiceMonitorName,
+		"-n", cfg.Namespace, "-o", "json")
+	if result.ExitCode != 0 {
+		return nil, fmt.Errorf("failed to get ServiceMonitor %s/%s: %s",
+			cfg.Namespace, cfg.ServiceMonitorName, result.Stderr())
+	}
+
+	var sm map[string]any
+	if err := json.Unmarshal([]byte(result.Stdout()), &sm); err != nil {
+		return nil, fmt.Errorf("failed to parse ServiceMonitor JSON: %w", err)
+	}
+
+	endpoints, err := jsonPath(sm, "spec", "endpoints")
+	if err != nil {
+		return nil, fmt.Errorf("servicemonitor %s/%s: %w", cfg.Namespace, cfg.ServiceMonitorName, err)
+	}
+	endpointList, ok := endpoints.([]any)
+	if !ok || len(endpointList) == 0 {
+		return nil, fmt.Errorf("servicemonitor %s/%s: no endpoints found",
+			cfg.Namespace, cfg.ServiceMonitorName)
+	}
+
+	ep, ok := endpointList[0].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("servicemonitor %s/%s: first endpoint is not an object",
+			cfg.Namespace, cfg.ServiceMonitorName)
+	}
+	return ep, nil
+}
+
 func findPodsForService(cs *clients.Clients, namespace, serviceName string) ([]corev1.Pod, error) {
 	svc, err := cs.KubeClient.Kube.CoreV1().Services(namespace).Get(
 		context.Background(), serviceName, metav1.GetOptions{})
@@ -557,14 +554,6 @@ func findPodsForService(cs *clients.Clients, namespace, serviceName string) ([]c
 		}
 	}
 	return running, nil
-}
-
-func envToMap(envVars []corev1.EnvVar) map[string]string {
-	m := make(map[string]string, len(envVars))
-	for _, env := range envVars {
-		m[env.Name] = env.Value
-	}
-	return m
 }
 
 func volumeNames(volumes []corev1.Volume) []string {
