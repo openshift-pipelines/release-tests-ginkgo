@@ -130,6 +130,40 @@ const (
 
 	// TriggersSecretToken is a token used in triggers tests.
 	TriggersSecretToken = "1234567"
+
+	// KueueNamespaceEnv is environment variable for Kueue operator namespace
+	KueueNamespaceEnv = "KUEUE_NAMESPACE"
+	// PipelinesNamespaceEnv is environment variable for Pipelines operator namespace
+	PipelinesNamespaceEnv = "PIPELINE_NAMESPACE"
+	// CertManagerNamespaceEnv is environment variable for CertManager operator namespace
+	CertManagerNamespaceEnv = "CERTMANAGER_NAMESPACE"
+	// OperatorChannelPipeline is environment variable for Pipelines operator channel
+	OperatorChannelPipeline = "CHANNEL_PIPELINE"
+	// OperatorChannelCertManager is environment variable for CertManager operator channel
+	OperatorChannelCertManager = "CHANNEL_CERTMANAGER"
+	// OperatorChannelKueue is environment variable for Kueue operator channel
+	OperatorChannelKueue = "CHANNEL_KUEUE"
+
+	// DefaultPipelineOperatorChannel is the Default channel for Pipelines operator
+	DefaultPipelineOperatorChannel = "latest"
+	// DefaultCertManagerOperatorChannel is default channel for CertManagerOperator
+	DefaultCertManagerOperatorChannel = "stable-v1"
+	// DefaultKueueOperatorChannel is default channel for Kueue Operator
+	DefaultKueueOperatorChannel = "stable-v1.4"
+
+	// DefaultPipelineOperatorNS is default namespace for PipelinesOperator
+	DefaultPipelineOperatorNS = "openshift-operators"
+	// DefaultCertManagerOperatorNS is default namespace for cert-manager operator
+	DefaultCertManagerOperatorNS = "cert-manager-operator"
+	// DefaultKueueOperatorNS is default namespace for kueue operator
+	DefaultKueueOperatorNS = "openshift-kueue-operator"
+
+	// PipelineOperatorPackageName is package name for Pipelines Operator Subscription
+	PipelineOperatorPackageName = "openshift-pipelines-operator-rh"
+	// CertManagerOperatorPackageName is package name for Cert-Manager Operator Subscription
+	CertManagerOperatorPackageName = "openshift-cert-manager-operator"
+	// KueueOperatorPackageName is package name for Kueue Operator subscription
+	KueueOperatorPackageName = "kueue-operator"
 )
 
 // TektonInstallersetNamePrefixes lists the name prefixes of all TektonInstallerSet resources.
@@ -202,98 +236,50 @@ func (s *StringArray) Set(value string) error {
 
 // EnvironmentFlags define the flags that are needed to run the e2e tests.
 type EnvironmentFlags struct {
-	Cluster          string      // K8s cluster (defaults to cluster in kubeconfig)
-	Kubeconfig       string      // Path to kubeconfig (defaults to ./kube/config)
-	Context          string      // K8s cluster (defaults to cluster in kubeconfig)
-	SpokeKubeconfigs StringArray // Path to Spoke kubeconfig (No Defaults)
-	SpokeContexts    StringArray // Name of the  Spoke Context (defaults to CurrentContext from SpokeKubeconfig)
-	DockerRepo       string      // Docker repo (defaults to $KO_DOCKER_REPO)
-	CSV              string      // Default csv openshift-pipelines-operator.v0.9.1
-	Channel          string      // Default channel canary
-	CatalogSource    string
-	SubscriptionName string
-	InstallPlan      string // Default Installationplan Automatic
-	OperatorVersion  string
-	TknVersion       string
-	ClusterArch      string // Architecture of the cluster
-	IsDisconnected   bool
+	Cluster                      string      // K8s cluster (defaults to cluster in kubeconfig)
+	Kubeconfig                   string      // Path to kubeconfig (defaults to ./kube/config)
+	Context                      string      // K8s cluster (defaults to cluster in kubeconfig)
+	SpokeKubeconfigs             StringArray // Path to Spoke kubeconfig (No Defaults)
+	SpokeContexts                StringArray // Name of the  Spoke Context (defaults to CurrentContext from SpokeKubeconfig)
+	DockerRepo                   string      // Docker repo (defaults to $KO_DOCKER_REPO)
+	CSV                          string      // Default csv openshift-pipelines-operator.v0.9.1
+	Channel                      string      // Default channel canary
+	CatalogSource                string
+	SubscriptionName             string
+	InstallPlan                  string // Default Installationplan Automatic
+	OperatorVersion              string
+	TknVersion                   string
+	ClusterArch                  string // Architecture of the cluster
+	IsDisconnected               bool
+	KueueOperatorNamespace       string
+	PipelinesOperatorNamespace   string
+	CertManagerOperatorNamespace string
+
+	PipelineOperatorChannel    string
+	CertManagerOperatorChannel string
+	KueueOperatorChannel       string
 }
 
 func initializeFlags() *EnvironmentFlags {
 	var f EnvironmentFlags
-	flag.StringVar(&f.Cluster, "cluster", "",
-		"Provide the cluster to test against. Defaults to the current cluster in kubeconfig.")
-
-	flag.StringVar(&f.Context, "context", "",
-		"Provide the context to test against. Defaults to the current context in kubeconfig.")
-
-	var defaultKubeconfig string
-	if os.Getenv("KUBECONFIG") != "" {
-		defaultKubeconfig = os.Getenv("KUBECONFIG")
-	} else if usr, err := user.Current(); err == nil {
-		defaultKubeconfig = path.Join(usr.HomeDir, ".kube/config")
-	}
-
-	flag.StringVar(&f.Kubeconfig, "kubeconfig", defaultKubeconfig,
-		"Provide the path to the `kubeconfig` file you'd like to use for these tests. The `current-context` will be used.")
-
-	// SpokeKubeconfig is a Kubeconfig file which points to Spoke Cluster in MultiCluster environment.
-	// When SpokeKubeconfig is not provided then there is no default.
-	flag.Var(&f.SpokeKubeconfigs, "spoke-kubeconfig",
-		"Provide the path to the `kubeconfig` file you'd like to use for these spoke tests.")
-
-	// SpokeKubeconfig is a Kubeconfig file which points to Spoke Cluster in MultiCluster environment.
-	// When SpokeKubeconfig is not provided then there is no default.
-	flag.Var(&f.SpokeContexts, "spoke-context",
-		"Provide the path to the `kubeconfig` file you'd like to use for these spoke tests.")
-
-	defaultRepo := os.Getenv("KO_DOCKER_REPO")
-	flag.StringVar(&f.DockerRepo, "dockerrepo", defaultRepo,
-		"Provide the uri of the docker repo you have uploaded the test image to using `uploadtestimage.sh`. Defaults to $KO_DOCKER_REPO")
-
-	defaultChannel := os.Getenv("CHANNEL")
-	if defaultChannel == "" {
-		defaultChannel = "latest"
-	}
-	flag.StringVar(&f.Channel, "channel", defaultChannel,
-		"Provide channel to subcribe your operator you'd like to use for these tests. By default `canary` will be used.")
-
-	defaultCatalogSource := os.Getenv("CATALOG_SOURCE")
-	if defaultCatalogSource == "" {
-		defaultCatalogSource = "redhat-operators"
-	}
-	flag.StringVar(&f.CatalogSource, "catalogsource", defaultCatalogSource,
-		"Provide defaultCatalogSource to subscribe operator from. By default `custom-operators` will be used.")
-
-	defaultSubscriptionName := os.Getenv("SUBSCRIPTION_NAME")
-	if defaultSubscriptionName == "" {
-		defaultSubscriptionName = "openshift-pipelines-operator-rh"
-	}
-	flag.StringVar(&f.SubscriptionName, "subscriptionName", defaultSubscriptionName,
-		"Provide defaultSubscriptionName to operator, By default `openshift-pipelines-operator-rh` will be used.")
-
-	defaultPlan := os.Getenv("INSTALL_PLAN")
-	flag.StringVar(&f.InstallPlan, "installplan", defaultPlan,
-		"Provide Install Approval plan for your operator you'd like to use for these tests. By default `Automatic` will be used.")
-
-	defaultOpVersion := os.Getenv("CSV_VERSION")
-	flag.StringVar(&f.OperatorVersion, "opversion", defaultOpVersion,
-		"Provide Operator version for your operator you'd like to use for these tests. By default `v0.9.1` ")
-
-	defaultCsv := os.Getenv("CSV")
-	flag.StringVar(&f.CSV, "csv", defaultCsv+defaultOpVersion,
-		"Provide csv for your operator you'd like to use for these tests. By default `openshift-pipelines-operator.v0.9.1` will be used.")
-
-	defaultTkn := os.Getenv("TKN_VERSION")
-	flag.StringVar(&f.TknVersion, "tknversion", defaultTkn,
-		"Provide tknversion to download specified cli binary you'd like to use for these tests. By default `0.6.0` will be used.")
-
-	defaultClusterArch := os.Getenv("ARCH")
-	if defaultClusterArch != "" && strings.Contains(defaultClusterArch, "/") {
-		defaultClusterArch = strings.Split(defaultClusterArch, "/")[1]
-	}
-	flag.StringVar(&f.ClusterArch, "clusterarch", defaultClusterArch,
-		"Provide the architecture of testing cluster. By default `amd64` will be used.")
+	usr, _ := user.Current()
+	setFlag(&f.Cluster, "cluster", "CLUSTER_NAME", "", "Provide the cluster to test against. Defaults to the current cluster in kubeconfig.")
+	setFlag(&f.Cluster, "context", "KUBE_CONTEXT", "", "Provide the context to test against. Defaults to the current context in kubeconfig.")
+	defaultKubeconfig := setFlag(&f.Kubeconfig, "kubeconfig", "KUBECONFIG", path.Join(usr.HomeDir, ".kube/config"), "Provide the path to the `kubeconfig` file you'd like to use for these tests. The `current-context` will be used.")
+	defaultRepo := setFlag(&f.DockerRepo, "dockerrepo", "KO_DOCKER_REPO", "", "Provide the uri of the docker repo you have uploaded the test image to using `uploadtestimage.sh`. Defaults to $KO_DOCKER_REPO")
+	defaultChannel := setFlag(&f.Channel, "channel", "CHANNEL", "latest", "Provide channel to subcribe your operator you'd like to use for these tests. By default `canary` will be used.")
+	defaultCatalogSource := setFlag(&f.CatalogSource, "catalogsource", "CATALOG_SOURCE", "redhat-operators", "Provide defaultCatalogSource to subscribe operator from. By default `custom-operators` will be used.")
+	defaultSubscriptionName := setFlag(&f.SubscriptionName, "subscriptionName", "SUBSCRIPTION_NAME", "openshift-pipelines-operator-rh", "Provide defaultSubscriptionName to operator, By default `openshift-pipelines-operator-rh` will be used.")
+	defaultPlan := setFlag(&f.InstallPlan, "installplan", "INSTALL_PLAN", "", "Provide Install Approval plan for your operator you'd like to use for these tests. By default `Automatic` will be used.")
+	defaultOpVersion := setFlag(&f.OperatorVersion, "opversion", "CSV_VERSION", "", "Provide Operator version for your operator you'd like to use for these tests. By default `v0.9.1` ")
+	defaultCsv := setFlag(&f.CSV, "csv", "CSV", f.OperatorVersion, "Provide csv for your operator you'd like to use for these tests. By default `openshift-pipelines-operator.v0.9.1` will be used.")
+	defaultTkn := setFlag(&f.TknVersion, "tknversion", "TKN_VERSION", "", "Provide tknversion to download specified cli binary you'd like to use for these tests. By default `0.6.0` will be used.")
+	KueueOperatorNamespace := setFlag(&f.KueueOperatorNamespace, KueueNamespaceEnv, KueueNamespaceEnv, DefaultKueueOperatorNS, "Provide the namespace to install Kueue Operator")
+	PipelinesOperatorNamespace := setFlag(&f.PipelinesOperatorNamespace, PipelinesNamespaceEnv, PipelinesNamespaceEnv, DefaultPipelineOperatorNS, "Provide the namespace to install Pipelines Operator")
+	CertManagerOperatorNamespace := setFlag(&f.CertManagerOperatorNamespace, CertManagerNamespaceEnv, CertManagerNamespaceEnv, DefaultCertManagerOperatorNS, "Provide the namespace to install CertManager Operator")
+	PipelineOperatorChannel := setFlag(&f.PipelineOperatorChannel, OperatorChannelPipeline, OperatorChannelPipeline, DefaultPipelineOperatorChannel, "Provide the channel to install Pipeline")
+	CertManagerOperatorChannel := setFlag(&f.CertManagerOperatorChannel, OperatorChannelCertManager, OperatorChannelCertManager, DefaultCertManagerOperatorChannel, "Provide the channel to install CertManager Operator")
+	KueueOperatorChannel := setFlag(&f.KueueOperatorChannel, OperatorChannelKueue, OperatorChannelKueue, DefaultKueueOperatorChannel, "Provide the channel to install Kueue Operator")
 
 	isDiconnectedEnv := os.Getenv("IS_DISCONNECTED")
 	defaultIsDiconnected, err := strconv.ParseBool(isDiconnectedEnv)
@@ -302,6 +288,22 @@ func initializeFlags() *EnvironmentFlags {
 	}
 	flag.BoolVar(&f.IsDisconnected, "isdisconnected", defaultIsDiconnected,
 		"Provide the info if the testing cluster is disconnected. By default `false` will be used.")
+
+	defaultClusterArch := os.Getenv("ARCH")
+	if defaultClusterArch != "" && strings.Contains(defaultClusterArch, "/") {
+		defaultClusterArch = strings.Split(defaultClusterArch, "/")[1]
+	}
+	flag.StringVar(&f.ClusterArch, "clusterarch", defaultClusterArch,
+		"Provide the architecture of testing cluster. By default `amd64` will be used.")
+
+	// When SpokeKubeconfig is not provided then there is no default.
+	flag.Var(&f.SpokeKubeconfigs, "spoke-kubeconfig",
+		"Provide the path to the `kubeconfig` file you'd like to use for these spoke tests.")
+
+	// SpokeKubeconfig is a Kubeconfig file which points to Spoke Cluster in MultiCluster environment.
+	// When SpokeKubeconfig is not provided then there is no default.
+	flag.Var(&f.SpokeContexts, "spoke-context",
+		"Provide the path to the `kubeconfig` file you'd like to use for these spoke tests.")
 
 	// Directly assign environment variable values to fields since flag.Parse() is not called
 	// in Ginkgo tests. This ensures config values are available immediately.
@@ -316,6 +318,12 @@ func initializeFlags() *EnvironmentFlags {
 	f.TknVersion = defaultTkn
 	f.ClusterArch = defaultClusterArch
 	f.IsDisconnected = defaultIsDiconnected
+	f.KueueOperatorChannel = KueueOperatorChannel
+	f.PipelineOperatorChannel = PipelineOperatorChannel
+	f.CertManagerOperatorChannel = CertManagerOperatorChannel
+	f.KueueOperatorNamespace = KueueOperatorNamespace
+	f.PipelinesOperatorNamespace = PipelinesOperatorNamespace
+	f.CertManagerOperatorNamespace = CertManagerOperatorNamespace
 
 	return &f
 }
@@ -377,4 +385,14 @@ func Path(elem ...string) string {
 		panic(fmt.Sprintf("test data path not found: %s", td))
 	}
 	return filepath.Join(append([]string{td}, elem...)...)
+}
+
+func setFlag(s *string, flagKey, envKey, defaultValue, usgae string) string {
+	value := os.Getenv(envKey)
+	if value == "" {
+		value = defaultValue
+	}
+	flag.StringVar(s, flagKey, value, usgae)
+	return value
+
 }

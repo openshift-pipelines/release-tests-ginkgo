@@ -5,11 +5,16 @@ import (
 	"context"
 	"fmt"
 
+	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
+	olm "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	pacclientset "github.com/openshift-pipelines/pipelines-as-code/pkg/generated/clientset/versioned/typed/pipelinesascode/v1alpha1"
 
@@ -59,7 +64,12 @@ type Clients struct {
 // TektonPipeline cluster specified by the combination of clusterName and configPath.
 func NewClients(configPath string, clusterName, namespace string) (*Clients, error) {
 	var err error
-	clients := &Clients{}
+
+	scheme := createScheme()
+
+	clients := &Clients{
+		Scheme: scheme,
+	}
 
 	clients.KubeClient, clients.KubeConfig, err = NewKubeClient(configPath, clusterName)
 	if err != nil {
@@ -106,6 +116,16 @@ func NewClients(configPath string, clusterName, namespace string) (*Clients, err
 	}
 	clients.NewClientSet(namespace)
 	return clients, nil
+}
+
+func createScheme() *runtime.Scheme {
+	// Register standard Kubernetes API types to the scheme
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(olm.AddToScheme(scheme))
+	utilruntime.Must(operatorsv1.AddToScheme(scheme))
+
+	return scheme
 }
 
 // NewKubeClient instantiates and returns several clientsets required for making request to the
@@ -200,4 +220,26 @@ func (c *Clients) NewClientSet(namespace string) {
 	c.ConsoleCLIDownload = consolev1.NewForConfigOrDie(c.KubeConfig).ConsoleCLIDownloads()
 	c.ApprovalTask = apclient.NewForConfigOrDie(c.KubeConfig).ApprovalTasks(namespace)
 	c.PacClientset = pacclientset.NewForConfigOrDie(c.KubeConfig)
+}
+
+//	NewClientFromKubeconfig function creates a controller-runtime client from the provided kubeconfig.
+//
+// Core K8s APIs are registered in the scheme.
+// If you are  going to use this client for a Custom Resource then make sure to register the scheme before using it
+func (c *Clients) NewClientFromKubeconfig(kubeconfigPath string) (client.Client, error) {
+	// 1. Build rest.Config from Kubeconfig path
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build rest config from kubeconfig: %w", err)
+	}
+
+	scheme := c.Scheme
+
+	k8sClient, err := client.New(config, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create controller-runtime client: %w", err)
+	}
+	return k8sClient, nil
 }
