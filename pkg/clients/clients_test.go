@@ -30,7 +30,7 @@ func TestBuildClientConfigExplicitPathOverridesEnvironment(t *testing.T) {
 	explicit := writeKubeconfig(t, "explicit", "https://explicit.example.test", "explicit-token")
 	t.Setenv(clientcmd.RecommendedConfigPathEnvVar, fromEnv)
 
-	cfg, err := BuildClientConfig(explicit, "")
+	cfg, err := BuildClientConfig(explicit, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
