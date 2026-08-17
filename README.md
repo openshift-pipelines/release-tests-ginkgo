@@ -22,7 +22,7 @@ Key environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `KUBECONFIG` | Path to kubeconfig *(required)* |
+| `KUBECONFIG` | Optional kubeconfig file or platform-separated list; defaults to `~/.kube/config` |
 | `PIPELINE_VERSION` | Expected Pipelines version |
 | `TRIGGERS_VERSION` | Expected Triggers version |
 | `OPERATOR_VERSION` | Expected Operator version |
@@ -145,7 +145,21 @@ ginkgo run --label-filter='e2e && !disconnected' --timeout=60m ./tests/...
 
 ## Running Tests (general options)
 
-### Run a specific area
+### Select a kubeconfig or context
+
+`KUBECONFIG` uses the standard client-go loading rules, including merged path lists. Test flags must follow `--` so Ginkgo passes them to the test binary.
+
+```bash
+# Standard environment loading, including multiple files on Linux and macOS
+export KUBECONFIG=/path/to/hub:/path/to/additional-config
+./scripts/run-tests.sh sanity
+
+# Explicit file and context with the wrapper
+./scripts/run-tests.sh sanity -- --kubeconfig=/path/to/config --context=my-context
+
+# Equivalent direct Ginkgo invocation
+ginkgo run ./tests/pipelines/ -- --kubeconfig=/path/to/config --context=my-context
+```
 
 ### Run with a label filter
 ```bash

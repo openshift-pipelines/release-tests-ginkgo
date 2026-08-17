@@ -4,7 +4,7 @@ set -euo pipefail
 # run-tests.sh -- Standardized Ginkgo test invocation wrapper
 #
 # Usage:
-#   ./scripts/run-tests.sh [MODE] [OPTIONS]
+#   ./scripts/run-tests.sh [MODE] [OPTIONS] [-- TEST_FLAGS]
 #
 # Modes:
 #   install         Install the operator via OLM (runs tests/olm/ with label=install)
@@ -23,6 +23,7 @@ set -euo pipefail
 #   --parallel, -p  Enable parallel execution (default 4 procs)
 #   --path=<path>   Override test path (default: ./tests/...)
 #   --help, -h      Show this help message
+#   -- TEST_FLAGS   Pass remaining flags to the test binary
 #
 # Environment variables:
 #   CI=true             Automatically enables CI mode
@@ -32,7 +33,7 @@ set -euo pipefail
 #   UPGRADE_CHANNEL     Target channel for the upgrade mode (e.g. pipelines-1.18)
 
 usage() {
-    sed -n '3,28p' "$0" | sed 's/^# \?//'
+    sed -n '4,33p' "$0" | sed 's/^# *//'
     exit 0
 }
 
@@ -47,6 +48,7 @@ PROCS="${GINKGO_PROCS:-4}"
 
 # Parse arguments
 POSITIONAL_ARGS=()
+TEST_FLAGS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --help|-h)
@@ -63,6 +65,11 @@ while [[ $# -gt 0 ]]; do
         --path=*)
             TEST_PATH="${1#*=}"
             shift
+            ;;
+        --)
+            shift
+            TEST_FLAGS=("$@")
+            break
             ;;
         -*)
             echo "Unknown option: $1" >&2
@@ -159,8 +166,11 @@ if [[ "$PARALLEL" == "true" ]]; then
     GINKGO_ARGS+=("--procs=${PROCS}")
 fi
 
-# Add test path as last argument
+# Add the test path and any flags passed through to the test binary
 GINKGO_ARGS+=("$TEST_PATH")
+if [[ ${#TEST_FLAGS[@]} -gt 0 ]]; then
+    GINKGO_ARGS+=("--" "${TEST_FLAGS[@]}")
+fi
 
 # Print the command for CI log transparency
 echo "==> Executing: ${GINKGO_ARGS[*]}"

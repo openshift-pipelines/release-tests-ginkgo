@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/user"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -175,8 +174,7 @@ var TektonInstallersetNamePrefixes = [34]string{
 var PrefixesOfDefaultPipelines = [9]string{"buildah", "s2i-dotnet", "s2i-go", "s2i-java", "s2i-nodejs", "s2i-perl", "s2i-php", "s2i-python", "s2i-ruby"}
 
 // Flags holds the command line flags or defaults for settings in the user's environment.
-// See EnvironmentFlags for a list of supported fields
-// Todo: change initialization of falgs when required by parsing them or from environment variable
+// See EnvironmentFlags for a list of supported fields.
 var Flags = initializeFlags()
 
 // StringArray is a flag type that allows a flag to be specified multiple times.
@@ -203,9 +201,9 @@ func (s *StringArray) Set(value string) error {
 
 // EnvironmentFlags define the flags that are needed to run the e2e tests.
 type EnvironmentFlags struct {
-	Cluster          string      // K8s cluster (defaults to cluster in kubeconfig)
-	Kubeconfig       string      // Path to kubeconfig (defaults to ./kube/config)
-	Context          string      // K8s cluster (defaults to cluster in kubeconfig)
+	Cluster          string      // K8s cluster override
+	Kubeconfig       string      // Explicit kubeconfig file; empty uses standard client-go loading rules
+	Context          string      // K8s context override
 	SpokeKubeconfigs StringArray // Path to Spoke kubeconfig (No Defaults)
 	SpokeContexts    StringArray // Name of the  Spoke Context (defaults to CurrentContext from SpokeKubeconfig)
 	DockerRepo       string      // Docker repo (defaults to $KO_DOCKER_REPO)
@@ -229,15 +227,8 @@ func initializeFlags() *EnvironmentFlags {
 	flag.StringVar(&f.Context, "context", "",
 		"Provide the context to test against. Defaults to the current context in kubeconfig.")
 
-	var defaultKubeconfig string
-	if os.Getenv("KUBECONFIG") != "" {
-		defaultKubeconfig = os.Getenv("KUBECONFIG")
-	} else if usr, err := user.Current(); err == nil {
-		defaultKubeconfig = path.Join(usr.HomeDir, ".kube/config")
-	}
-
-	flag.StringVar(&f.Kubeconfig, "kubeconfig", defaultKubeconfig,
-		"Provide the path to the `kubeconfig` file you'd like to use for these tests. The `current-context` will be used.")
+	flag.StringVar(&f.Kubeconfig, "kubeconfig", "",
+		"Provide an explicit kubeconfig file. Defaults to KUBECONFIG or ~/.kube/config.")
 
 	// SpokeKubeconfig is a Kubeconfig file which points to Spoke Cluster in MultiCluster environment.
 	// When SpokeKubeconfig is not provided then there is no default.
@@ -304,20 +295,6 @@ func initializeFlags() *EnvironmentFlags {
 	}
 	flag.BoolVar(&f.IsDisconnected, "isdisconnected", defaultIsDiconnected,
 		"Provide the info if the testing cluster is disconnected. By default `false` will be used.")
-
-	// Directly assign environment variable values to fields since flag.Parse() is not called
-	// in Ginkgo tests. This ensures config values are available immediately.
-	f.Kubeconfig = defaultKubeconfig
-	f.DockerRepo = defaultRepo
-	f.Channel = defaultChannel
-	f.CatalogSource = defaultCatalogSource
-	f.SubscriptionName = defaultSubscriptionName
-	f.InstallPlan = defaultPlan
-	f.OperatorVersion = defaultOpVersion
-	f.CSV = defaultCsv + defaultOpVersion
-	f.TknVersion = defaultTkn
-	f.ClusterArch = defaultClusterArch
-	f.IsDisconnected = defaultIsDiconnected
 
 	return &f
 }

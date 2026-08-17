@@ -4,6 +4,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"gotest.tools/v3/icmd"
@@ -14,8 +15,39 @@ import (
 )
 
 // Run executes a command with the default CLI timeout.
-func Run(cmd ...string) *icmd.Result {
-	return icmd.RunCmd(icmd.Cmd{Command: cmd, Timeout: config.CLITimeout})
+func Run(args ...string) *icmd.Result {
+	return icmd.RunCmd(icmd.Cmd{Command: Command(args...), Timeout: config.CLITimeout})
+}
+
+// Command adds configured Kubernetes connection flags to oc and kubectl commands.
+func Command(args ...string) []string {
+	if len(args) == 0 || (args[0] != "oc" && args[0] != "kubectl") {
+		return args
+	}
+
+	command := []string{args[0]}
+	for _, connectionFlag := range []struct {
+		name  string
+		value string
+	}{
+		{"--kubeconfig", config.Flags.Kubeconfig},
+		{"--context", config.Flags.Context},
+		{"--cluster", config.Flags.Cluster},
+	} {
+		if connectionFlag.value != "" && !hasFlag(args[1:], connectionFlag.name) {
+			command = append(command, connectionFlag.name, connectionFlag.value)
+		}
+	}
+	return append(command, args[1:]...)
+}
+
+func hasFlag(args []string, name string) bool {
+	for _, arg := range args {
+		if arg == name || strings.HasPrefix(arg, name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 // MustSucceed asserts that the command ran with exit code 0.
@@ -47,8 +79,8 @@ func AssertIncreasedTimeout(exp icmd.Expected, timeout time.Duration, args ...st
 }
 
 // RunIncreasedTimeout executes a command with the specified timeout.
-func RunIncreasedTimeout(timeout time.Duration, cmd ...string) *icmd.Result {
-	return icmd.RunCmd(icmd.Cmd{Command: cmd, Timeout: timeout})
+func RunIncreasedTimeout(timeout time.Duration, args ...string) *icmd.Result {
+	return icmd.RunCmd(icmd.Cmd{Command: Command(args...), Timeout: timeout})
 }
 
 // RunWithEnv executes a command with additional environment variables appended to the current env.

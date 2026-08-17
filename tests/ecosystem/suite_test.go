@@ -28,6 +28,7 @@ func TestEcosystem(t *testing.T) {
 type clientConfig struct {
 	Kubeconfig      string `json:"kubeconfig"`
 	Cluster         string `json:"cluster"`
+	Context         string `json:"context"`
 	TargetNamespace string `json:"targetNamespace"`
 }
 
@@ -38,6 +39,7 @@ var _ = SynchronizedBeforeSuite(
 		cs, err := clients.NewClients(
 			config.Flags.Kubeconfig,
 			config.Flags.Cluster,
+			config.Flags.Context,
 			config.TargetNamespace,
 		)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients on node 1")
@@ -53,6 +55,7 @@ var _ = SynchronizedBeforeSuite(
 		cfg := clientConfig{
 			Kubeconfig:      config.Flags.Kubeconfig,
 			Cluster:         config.Flags.Cluster,
+			Context:         config.Flags.Context,
 			TargetNamespace: config.TargetNamespace,
 		}
 		data, err := json.Marshal(cfg)
@@ -65,7 +68,7 @@ var _ = SynchronizedBeforeSuite(
 		Expect(json.Unmarshal(data, &cfg)).To(Succeed(), "Failed to deserialize client config")
 
 		var err error
-		sharedClients, err = clients.NewClients(cfg.Kubeconfig, cfg.Cluster, cfg.TargetNamespace)
+		sharedClients, err = clients.NewClients(cfg.Kubeconfig, cfg.Cluster, cfg.Context, cfg.TargetNamespace)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients")
 
 		// Detect cluster architecture on parallel nodes if not already set

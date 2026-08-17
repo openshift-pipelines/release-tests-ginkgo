@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	testcmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/cmd"
+
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 )
 
@@ -157,12 +159,13 @@ func runOC(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "oc", args...) //nolint:gosec // G204: subprocess args are controlled by test code
+	command := testcmd.Command(append([]string{"oc"}, args...)...)
+	process := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec // G204: subprocess args are controlled by test code
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	process.Stdout = &stdout
+	process.Stderr = &stderr
 
-	err := cmd.Run()
+	err := process.Run()
 	if err != nil {
 		return stdout.String() + stderr.String(), fmt.Errorf("oc %s: %w", strings.Join(args, " "), err)
 	}

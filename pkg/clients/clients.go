@@ -55,13 +55,12 @@ type Clients struct {
 	ApprovalTask apclient.ApprovalTaskInterface
 }
 
-// NewClients instantiates and returns several clientsets required for making request to the
-// TektonPipeline cluster specified by the combination of clusterName and configPath.
-func NewClients(configPath string, clusterName, namespace string) (*Clients, error) {
+// NewClients instantiates the clientsets required to access the selected cluster and context.
+func NewClients(configPath, clusterName, contextName, namespace string) (*Clients, error) {
 	var err error
 	clients := &Clients{}
 
-	clients.KubeClient, clients.KubeConfig, err = NewKubeClient(configPath, clusterName)
+	clients.KubeClient, clients.KubeConfig, err = NewKubeClient(configPath, clusterName, contextName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubeclient from config file at %s: %w", configPath, err)
 	}
@@ -108,10 +107,9 @@ func NewClients(configPath string, clusterName, namespace string) (*Clients, err
 	return clients, nil
 }
 
-// NewKubeClient instantiates and returns several clientsets required for making request to the
-// kube client specified by the combination of clusterName and configPath. Clients can make requests within namespace.
-func NewKubeClient(configPath string, clusterName string) (*KubeClient, *rest.Config, error) {
-	cfg, err := BuildClientConfig(configPath, clusterName)
+// NewKubeClient creates a Kubernetes client for the selected kubeconfig, cluster, and context.
+func NewKubeClient(configPath, clusterName, contextName string) (*KubeClient, *rest.Config, error) {
+	cfg, err := BuildClientConfig(configPath, clusterName, contextName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -123,16 +121,18 @@ func NewKubeClient(configPath string, clusterName string) (*KubeClient, *rest.Co
 	return &KubeClient{Kube: k}, cfg, nil
 }
 
-// BuildClientConfig builds the client config specified by the config path and the cluster name
-func BuildClientConfig(kubeConfigPath string, clusterName string) (*rest.Config, error) {
-	overrides := clientcmd.ConfigOverrides{}
-	// Override the cluster name if provided.
+// BuildClientConfig builds a REST config using client-go's standard loading rules.
+func BuildClientConfig(kubeConfigPath, clusterName, contextName string) (*rest.Config, error) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if kubeConfigPath != "" {
+		loadingRules.ExplicitPath = kubeConfigPath
+	}
+
+	overrides := clientcmd.ConfigOverrides{CurrentContext: contextName}
 	if clusterName != "" {
 		overrides.Context.Cluster = clusterName
 	}
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfigPath},
-		&overrides).ClientConfig()
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &overrides).ClientConfig()
 }
 
 func newTektonOperatorAlphaClients(cfg *rest.Config) (operatorv1alpha1.OperatorV1alpha1Interface, error) {
