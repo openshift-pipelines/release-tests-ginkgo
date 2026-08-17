@@ -296,6 +296,18 @@ func initializeFlags() *EnvironmentFlags {
 	flag.BoolVar(&f.IsDisconnected, "isdisconnected", defaultIsDiconnected,
 		"Provide the info if the testing cluster is disconnected. By default `false` will be used.")
 
+	// Preserve the existing environment-backed defaults for callers that read Flags before parsing.
+	f.DockerRepo = defaultRepo
+	f.Channel = defaultChannel
+	f.CatalogSource = defaultCatalogSource
+	f.SubscriptionName = defaultSubscriptionName
+	f.InstallPlan = defaultPlan
+	f.OperatorVersion = defaultOpVersion
+	f.CSV = defaultCsv + defaultOpVersion
+	f.TknVersion = defaultTkn
+	f.ClusterArch = defaultClusterArch
+	f.IsDisconnected = defaultIsDiconnected
+
 	return &f
 }
 

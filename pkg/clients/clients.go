@@ -65,13 +65,25 @@ func NewClientsWithContext(configPath, clusterName, contextName, namespace strin
 	return newClients(configPath, clusterName, contextName, namespace)
 }
 
+// newClients contains the shared clientset construction for both public entry points.
 func newClients(configPath, clusterName, contextName, namespace string) (*Clients, error) {
 	var err error
 	clients := &Clients{}
 
+	connection := "standard kubeconfig loading rules"
+	if configPath != "" {
+		connection = fmt.Sprintf("kubeconfig %q", configPath)
+	}
+	if contextName != "" {
+		connection += fmt.Sprintf(", context %q", contextName)
+	}
+	if clusterName != "" {
+		connection += fmt.Sprintf(", cluster %q", clusterName)
+	}
+
 	clients.KubeClient, clients.KubeConfig, err = newKubeClient(configPath, clusterName, contextName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
+		return nil, fmt.Errorf("failed to create kubeclient using %s: %w", connection, err)
 	}
 
 	// We poll, so set our limits high.
@@ -85,32 +97,32 @@ func newClients(configPath, clusterName, contextName, namespace string) (*Client
 
 	clients.Dynamic, err = dynamic.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create dynamic clients: %w", err)
+		return nil, fmt.Errorf("failed to create dynamic clients using %s: %w", connection, err)
 	}
 
 	clients.Operator, err = newTektonOperatorAlphaClients(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Operator v1alpha1 clients: %w", err)
+		return nil, fmt.Errorf("failed to create Operator v1alpha1 clients using %s: %w", connection, err)
 	}
 
 	clients.OLM, err = olmversioned.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create olm clients: %w", err)
+		return nil, fmt.Errorf("failed to create olm clients using %s: %w", connection, err)
 	}
 
 	clients.Tekton, err = pversioned.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pipeline clientset: %w", err)
+		return nil, fmt.Errorf("failed to create pipeline clientset using %s: %w", connection, err)
 	}
 
 	clients.TriggersClient, err = triggersclientset.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create triggers clientset: %w", err)
+		return nil, fmt.Errorf("failed to create triggers clientset using %s: %w", connection, err)
 	}
 
 	clients.PacClientset, err = pacclientset.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pac clientset: %w", err)
+		return nil, fmt.Errorf("failed to create pac clientset using %s: %w", connection, err)
 	}
 	clients.NewClientSet(namespace)
 	return clients, nil
@@ -121,6 +133,7 @@ func NewKubeClient(configPath, clusterName string) (*KubeClient, *rest.Config, e
 	return newKubeClient(configPath, clusterName, "")
 }
 
+// newKubeClient creates a Kubernetes client with an optional context override.
 func newKubeClient(configPath, clusterName, contextName string) (*KubeClient, *rest.Config, error) {
 	cfg, err := buildClientConfig(configPath, clusterName, contextName)
 	if err != nil {
@@ -139,6 +152,7 @@ func BuildClientConfig(kubeConfigPath, clusterName string) (*rest.Config, error)
 	return buildClientConfig(kubeConfigPath, clusterName, "")
 }
 
+// buildClientConfig applies an optional context override to the standard loading rules.
 func buildClientConfig(kubeConfigPath, clusterName, contextName string) (*rest.Config, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if kubeConfigPath != "" {

@@ -33,7 +33,7 @@ set -euo pipefail
 #   UPGRADE_CHANNEL     Target channel for the upgrade mode (e.g. pipelines-1.18)
 
 usage() {
-    sed -n '4,33p' "$0" | sed 's/^# *//'
+    sed -n '/^# run-tests.sh --/,/^$/p' "$0" | sed 's/^# *//'
     exit 0
 }
 

@@ -25,7 +25,7 @@ func Command(args ...string) []string {
 		return args
 	}
 
-	command := []string{args[0]}
+	commandArgs := []string{args[0]}
 	for _, connectionFlag := range []struct {
 		name  string
 		value string
@@ -35,14 +35,17 @@ func Command(args ...string) []string {
 		{"--cluster", config.Flags.Cluster},
 	} {
 		if connectionFlag.value != "" && !hasFlag(args[1:], connectionFlag.name) {
-			command = append(command, connectionFlag.name, connectionFlag.value)
+			commandArgs = append(commandArgs, connectionFlag.name, connectionFlag.value)
 		}
 	}
-	return append(command, args[1:]...)
+	return append(commandArgs, args[1:]...)
 }
 
 func hasFlag(args []string, name string) bool {
 	for _, arg := range args {
+		if arg == "--" {
+			return false
+		}
 		if arg == name || strings.HasPrefix(arg, name+"=") {
 			return true
 		}
@@ -85,7 +88,7 @@ func RunIncreasedTimeout(timeout time.Duration, args ...string) *icmd.Result {
 
 // RunWithEnv executes a command with additional environment variables appended to the current env.
 func RunWithEnv(env []string, args ...string) *icmd.Result {
-	return icmd.RunCmd(icmd.Cmd{Command: args, Timeout: config.CLITimeout, Env: env})
+	return icmd.RunCmd(icmd.Cmd{Command: Command(args...), Timeout: config.CLITimeout, Env: env})
 }
 
 // MustSucceedWithEnv asserts exit code 0 for a command run with extra env vars.
@@ -99,7 +102,7 @@ func MustSucceedWithEnv(env []string, args ...string) *icmd.Result {
 
 // MustSucceedWithStdin runs a command with stdin piped from the given reader and asserts exit code 0.
 func MustSucceedWithStdin(stdin io.Reader, args ...string) *icmd.Result {
-	res := icmd.RunCmd(icmd.Cmd{Command: args, Timeout: config.CLITimeout, Stdin: stdin})
+	res := icmd.RunCmd(icmd.Cmd{Command: Command(args...), Timeout: config.CLITimeout, Stdin: stdin})
 	Expect(res.ExitCode).To(Equal(0),
 		fmt.Sprintf("expected exit code 0 but got %d\nstdout:\n%s\nstderr:\n%s",
 			res.ExitCode, res.Stdout(), res.Stderr()))

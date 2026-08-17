@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +36,44 @@ func TestBuildClientConfigExplicitPathOverridesEnvironment(t *testing.T) {
 	}
 	if cfg.Host != "https://explicit.example.test" || cfg.BearerToken != "explicit-token" {
 		t.Fatalf("selected host/token = %q/%q", cfg.Host, cfg.BearerToken)
+	}
+}
+
+func TestBuildClientConfigUsesContextCredentialsWithClusterOverride(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config")
+	config := clientcmdapi.NewConfig()
+	config.Clusters["context-cluster"] = &clientcmdapi.Cluster{Server: "https://context.example.test"}
+	config.Clusters["override-cluster"] = &clientcmdapi.Cluster{Server: "https://override.example.test"}
+	config.AuthInfos["context-user"] = &clientcmdapi.AuthInfo{Token: "context-token"}
+	config.Contexts["selected-context"] = &clientcmdapi.Context{Cluster: "context-cluster", AuthInfo: "context-user"}
+	config.CurrentContext = "selected-context"
+	if err := clientcmd.WriteToFile(*config, path); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := buildClientConfig(path, "override-cluster", "selected-context")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Host != "https://override.example.test" || cfg.BearerToken != "context-token" {
+		t.Fatalf("selected host/token = %q/%q", cfg.Host, cfg.BearerToken)
+	}
+}
+
+func TestNewClientsErrorDescribesConnection(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "missing")
+	_, err := NewClientsWithContext(configPath, "test-cluster", "test-context", "default")
+	if err == nil {
+		t.Fatal("NewClientsWithContext() succeeded with a missing kubeconfig")
+	}
+	for _, detail := range []string{
+		fmt.Sprintf("kubeconfig %q", configPath),
+		`context "test-context"`,
+		`cluster "test-cluster"`,
+	} {
+		if !strings.Contains(err.Error(), detail) {
+			t.Errorf("error %q does not include %q", err, detail)
+		}
 	}
 }
 

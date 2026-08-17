@@ -509,6 +509,7 @@ func (oc *OC) runIncreasedTimeout(timeout time.Duration, args ...string) *icmd.R
 	return cmd.MustSucceedIncreasedTimeout(timeout, command...)
 }
 
+// getOcCommand adds per-command overrides; cmd.Command supplies missing global flags.
 func (oc *OC) getOcCommand(args []string) []string {
 	command := []string{"oc"}
 	if oc.Context != "" {
