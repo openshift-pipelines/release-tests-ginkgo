@@ -32,7 +32,7 @@ type clientConfig struct {
 
 var _ = SynchronizedBeforeSuite(
 	func() []byte {
-		cs, err := clients.NewClients(
+		cs, err := clients.NewClientsWithContext(
 			config.Flags.Kubeconfig,
 			config.Flags.Cluster,
 			config.Flags.Context,
@@ -56,7 +56,7 @@ var _ = SynchronizedBeforeSuite(
 		Expect(json.Unmarshal(data, &cfg)).To(Succeed(), "Failed to deserialize client config")
 
 		var err error
-		sharedClients, err = clients.NewClients(cfg.Kubeconfig, cfg.Cluster, cfg.Context, cfg.TargetNamespace)
+		sharedClients, err = clients.NewClientsWithContext(cfg.Kubeconfig, cfg.Cluster, cfg.Context, cfg.TargetNamespace)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients")
 	},
 )

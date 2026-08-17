@@ -152,20 +152,18 @@ func collectPodLogs(namespace string) string {
 	return sb.String()
 }
 
-// runOC executes an oc command with a timeout context.
-// It uses exec.CommandContext directly (not pkg/cmd) to avoid test framework
-// assertions in the reporter context.
+// runOC executes oc with shared connection flags and returns command errors to the reporter.
 func runOC(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	command := testcmd.Command(append([]string{"oc"}, args...)...)
-	process := exec.CommandContext(ctx, command[0], command[1:]...) //nolint:gosec // G204: subprocess args are controlled by test code
+	commandArgs := testcmd.Command(append([]string{"oc"}, args...)...)
+	cmd := exec.CommandContext(ctx, commandArgs[0], commandArgs[1:]...) //nolint:gosec // G204: subprocess args are controlled by test code
 	var stdout, stderr bytes.Buffer
-	process.Stdout = &stdout
-	process.Stderr = &stderr
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
-	err := process.Run()
+	err := cmd.Run()
 	if err != nil {
 		return stdout.String() + stderr.String(), fmt.Errorf("oc %s: %w", strings.Join(args, " "), err)
 	}

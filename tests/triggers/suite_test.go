@@ -33,7 +33,7 @@ var _ = SynchronizedBeforeSuite(
 	// Node 1 only: validate cluster connectivity and serialize config
 	func() []byte {
 		// Verify cluster is reachable by creating clients
-		cs, err := clients.NewClients(
+		cs, err := clients.NewClientsWithContext(
 			config.Flags.Kubeconfig,
 			config.Flags.Cluster,
 			config.Flags.Context,
@@ -58,7 +58,7 @@ var _ = SynchronizedBeforeSuite(
 		Expect(json.Unmarshal(data, &cfg)).To(Succeed(), "Failed to deserialize client config")
 
 		var err error
-		sharedClients, err = clients.NewClients(cfg.Kubeconfig, cfg.Cluster, cfg.Context, cfg.TargetNamespace)
+		sharedClients, err = clients.NewClientsWithContext(cfg.Kubeconfig, cfg.Cluster, cfg.Context, cfg.TargetNamespace)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients")
 	},
 )

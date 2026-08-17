@@ -21,11 +21,9 @@ import (
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
 )
 
-// OC holds optional Kubernetes connection overrides for oc commands.
+// OC struct holds  params which can be used to customize the oc commands.
 type OC struct {
-	Kubeconfig string
-	Context    string
-	Cluster    string
+	Context string
 }
 
 // Create creates resources from a local file using oc command.
@@ -513,14 +511,9 @@ func (oc *OC) runIncreasedTimeout(timeout time.Duration, args ...string) *icmd.R
 
 func (oc *OC) getOcCommand(args []string) []string {
 	command := []string{"oc"}
-	if oc.Kubeconfig != "" {
-		command = append(command, "--kubeconfig", oc.Kubeconfig)
-	}
 	if oc.Context != "" {
 		command = append(command, "--context", oc.Context)
 	}
-	if oc.Cluster != "" {
-		command = append(command, "--cluster", oc.Cluster)
-	}
-	return append(command, args...)
+	command = append(command, args...)
+	return command
 }

@@ -55,14 +55,23 @@ type Clients struct {
 	ApprovalTask apclient.ApprovalTaskInterface
 }
 
-// NewClients instantiates the clientsets required to access the selected cluster and context.
-func NewClients(configPath, clusterName, contextName, namespace string) (*Clients, error) {
+// NewClients instantiates the clientsets using the selected kubeconfig and cluster.
+func NewClients(configPath, clusterName, namespace string) (*Clients, error) {
+	return newClients(configPath, clusterName, "", namespace)
+}
+
+// NewClientsWithContext instantiates the clientsets using an explicit context override.
+func NewClientsWithContext(configPath, clusterName, contextName, namespace string) (*Clients, error) {
+	return newClients(configPath, clusterName, contextName, namespace)
+}
+
+func newClients(configPath, clusterName, contextName, namespace string) (*Clients, error) {
 	var err error
 	clients := &Clients{}
 
-	clients.KubeClient, clients.KubeConfig, err = NewKubeClient(configPath, clusterName, contextName)
+	clients.KubeClient, clients.KubeConfig, err = newKubeClient(configPath, clusterName, contextName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubeclient from config file at %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
 	}
 
 	// We poll, so set our limits high.
@@ -76,40 +85,44 @@ func NewClients(configPath, clusterName, contextName, namespace string) (*Client
 
 	clients.Dynamic, err = dynamic.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create dynamic clients from config file at %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to create dynamic clients: %w", err)
 	}
 
 	clients.Operator, err = newTektonOperatorAlphaClients(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Operator v1alpha1 clients from config file at %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to create Operator v1alpha1 clients: %w", err)
 	}
 
 	clients.OLM, err = olmversioned.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create olm clients from config file at %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to create olm clients: %w", err)
 	}
 
 	clients.Tekton, err = pversioned.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pipeline clientset from config file at %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to create pipeline clientset: %w", err)
 	}
 
 	clients.TriggersClient, err = triggersclientset.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create triggers clientset from config file at %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to create triggers clientset: %w", err)
 	}
 
 	clients.PacClientset, err = pacclientset.NewForConfig(clients.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pac clientset from config file at %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to create pac clientset: %w", err)
 	}
 	clients.NewClientSet(namespace)
 	return clients, nil
 }
 
-// NewKubeClient creates a Kubernetes client for the selected kubeconfig, cluster, and context.
-func NewKubeClient(configPath, clusterName, contextName string) (*KubeClient, *rest.Config, error) {
-	cfg, err := BuildClientConfig(configPath, clusterName, contextName)
+// NewKubeClient creates a Kubernetes client using the selected kubeconfig and cluster.
+func NewKubeClient(configPath, clusterName string) (*KubeClient, *rest.Config, error) {
+	return newKubeClient(configPath, clusterName, "")
+}
+
+func newKubeClient(configPath, clusterName, contextName string) (*KubeClient, *rest.Config, error) {
+	cfg, err := buildClientConfig(configPath, clusterName, contextName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,7 +135,11 @@ func NewKubeClient(configPath, clusterName, contextName string) (*KubeClient, *r
 }
 
 // BuildClientConfig builds a REST config using client-go's standard loading rules.
-func BuildClientConfig(kubeConfigPath, clusterName, contextName string) (*rest.Config, error) {
+func BuildClientConfig(kubeConfigPath, clusterName string) (*rest.Config, error) {
+	return buildClientConfig(kubeConfigPath, clusterName, "")
+}
+
+func buildClientConfig(kubeConfigPath, clusterName, contextName string) (*rest.Config, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if kubeConfigPath != "" {
 		loadingRules.ExplicitPath = kubeConfigPath
