@@ -39,6 +39,7 @@ var _ = Describe("Pipelines As Code GitHub tests: PIPELINES-35", func() {
 
 			smeeURL, err = pac.SetupSmeeDeployment(sharedClients, namespace)
 			Expect(err).NotTo(HaveOccurred(), "failed to setup Smee deployment")
+			// Register before GitHub setup; its duplicate delete after successful setup is idempotent.
 			DeferCleanup(func() {
 				if cleanupErr := k8s.DeleteDeployment(sharedClients, namespace, "gosmee-client"); cleanupErr != nil {
 					log.Printf("Smee cleanup warning: %v", cleanupErr)

@@ -82,17 +82,19 @@ func ensureWebhookSecret(c *clients.Clients, namespace, token, webhookSecret str
 			return nil, err
 		}
 		return func() error {
-			current, getErr := secretsClient.Get(ctx, githubWebhookConfigName, metav1.GetOptions{})
+			rollbackCtx, cancel := context.WithTimeout(context.Background(), config.CLITimeout)
+			defer cancel()
+			current, getErr := secretsClient.Get(rollbackCtx, githubWebhookConfigName, metav1.GetOptions{})
 			if apierrors.IsNotFound(getErr) {
 				original.ResourceVersion = ""
-				_, createErr := secretsClient.Create(ctx, original, metav1.CreateOptions{})
+				_, createErr := secretsClient.Create(rollbackCtx, original, metav1.CreateOptions{})
 				return createErr
 			}
 			if getErr != nil {
 				return getErr
 			}
 			original.ResourceVersion = current.ResourceVersion
-			_, updateErr := secretsClient.Update(ctx, original, metav1.UpdateOptions{})
+			_, updateErr := secretsClient.Update(rollbackCtx, original, metav1.UpdateOptions{})
 			return updateErr
 		}, nil
 	}
@@ -111,7 +113,9 @@ func ensureWebhookSecret(c *clients.Clients, namespace, token, webhookSecret str
 		return nil, err
 	}
 	return func() error {
-		deleteErr := secretsClient.Delete(ctx, githubWebhookConfigName, metav1.DeleteOptions{})
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), config.CLITimeout)
+		defer cancel()
+		deleteErr := secretsClient.Delete(rollbackCtx, githubWebhookConfigName, metav1.DeleteOptions{})
 		if apierrors.IsNotFound(deleteErr) {
 			return nil
 		}
@@ -551,11 +555,11 @@ func CleanupPACGitHub(c *clients.Clients, namespace, smeeDeploymentName, owner, 
 	}
 	if owner != "" && repo != "" && ghClient != nil {
 		if _, deleteErr := ghClient.Repositories.Delete(context.Background(), owner, repo); deleteErr != nil {
-			errs = append(errs, fmt.Errorf("delete github repository %s/%s: %w", owner, repo, deleteErr))
+			errs = append(errs, fmt.Errorf("failed to delete github repository %s/%s: %w", owner, repo, deleteErr))
 		}
 	}
 	if err := k8s.DeleteDeployment(c, namespace, smeeDeploymentName); err != nil {
-		errs = append(errs, fmt.Errorf("delete smee deployment: %w", err))
+		errs = append(errs, fmt.Errorf("failed to delete smee deployment: %w", err))
 	}
 	return errors.Join(errs...)
 }
