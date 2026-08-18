@@ -264,11 +264,26 @@ func AssertForNoNewPipelineRunCreation(c *clients.Clients, namespace string) {
 		fmt.Sprintf("Expected no new PipelineRuns in namespace %s, but %d were created", namespace, count))
 }
 
+func runOC(args ...string) (string, error) {
+	result := cmd.Run(append([]string{"oc"}, args...)...)
+	if result.ExitCode != 0 {
+		details := strings.TrimSpace(result.Stderr())
+		if details == "" {
+			details = strings.TrimSpace(result.Stdout())
+		}
+		return "", fmt.Errorf("oc %s failed with exit code %d: %s", strings.Join(args, " "), result.ExitCode, details)
+	}
+	return result.Stdout(), nil
+}
+
 // AssertNumberOfPipelineruns polls until exactly expectedCount PipelineRuns are present in namespace.
 func AssertNumberOfPipelineruns(namespace string, expectedCount, timeoutSeconds int) {
 	log.Printf("Verifying if %d pipelinerun(s) are present in %s", expectedCount, namespace)
 	Eventually(func(g Gomega) {
-		output := cmd.Run("oc", "get", "pipelinerun", "-n", namespace, "-o", "name").Stdout()
+		output, err := runOC("get", "pipelinerun", "-n", namespace, "-o", "name")
+		if !g.Expect(err).NotTo(HaveOccurred()) {
+			return
+		}
 		lines := strings.Split(strings.TrimSpace(output), "\n")
 		count := 0
 		for _, line := range lines {
@@ -286,8 +301,11 @@ func AssertNumberOfPipelineruns(namespace string, expectedCount, timeoutSeconds 
 func AssertNumberOfPipelinerunsWithStatus(namespace, status string, expectedCount, timeoutSeconds int) {
 	log.Printf("Verifying if %d pipelineruns with status %s are present in %s", expectedCount, status, namespace)
 	Eventually(func(g Gomega) {
-		output := cmd.Run("oc", "get", "pipelinerun", "-n", namespace,
-			"-o", `jsonpath={range .items[*]}{.status.conditions[0].reason}{"\n"}{end}`).Stdout()
+		output, err := runOC("get", "pipelinerun", "-n", namespace,
+			"-o", `jsonpath={range .items[*]}{.status.conditions[0].reason}{"\n"}{end}`)
+		if !g.Expect(err).NotTo(HaveOccurred()) {
+			return
+		}
 		count := 0
 		for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
 			if strings.TrimSpace(line) == status {
@@ -304,7 +322,10 @@ func AssertNumberOfPipelinerunsWithStatus(namespace, status string, expectedCoun
 func AssertNumberOfTaskruns(namespace string, expectedCount, timeoutSeconds int) {
 	log.Printf("Verifying if %d taskrun(s) are present in %s", expectedCount, namespace)
 	Eventually(func(g Gomega) {
-		output := cmd.Run("oc", "get", "taskrun", "-n", namespace, "-o", "name").Stdout()
+		output, err := runOC("get", "taskrun", "-n", namespace, "-o", "name")
+		if !g.Expect(err).NotTo(HaveOccurred()) {
+			return
+		}
 		lines := strings.Split(strings.TrimSpace(output), "\n")
 		count := 0
 		for _, line := range lines {
@@ -322,8 +343,11 @@ func AssertNumberOfTaskruns(namespace string, expectedCount, timeoutSeconds int)
 func AssertNumberOfTaskrunsWithStatus(namespace, status string, expectedCount, timeoutSeconds int) {
 	log.Printf("Verifying if %d taskrun(s) with status %s are present in %s", expectedCount, status, namespace)
 	Eventually(func(g Gomega) {
-		output := cmd.Run("oc", "get", "taskrun", "-n", namespace,
-			"-o", `jsonpath={range .items[*]}{.status.conditions[0].reason}{"\n"}{end}`).Stdout()
+		output, err := runOC("get", "taskrun", "-n", namespace,
+			"-o", `jsonpath={range .items[*]}{.status.conditions[0].reason}{"\n"}{end}`)
+		if !g.Expect(err).NotTo(HaveOccurred()) {
+			return
+		}
 		count := 0
 		for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
 			if strings.TrimSpace(line) == status {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -41,11 +42,12 @@ func SetGitHubClient(c *github.Client) {
 }
 
 // InitGitHubClient creates a GitHub client from the PAC_GITHUB_TOKEN env var.
-// Fails the spec immediately if the token is not set.
+// It skips the GitHub PAC tests if the token is not set.
 func InitGitHubClient() *github.Client {
 	token := os.Getenv("PAC_GITHUB_TOKEN")
 	if token == "" {
-		Fail("PAC_GITHUB_TOKEN was not exported as a system variable")
+		Skip("PAC_GITHUB_TOKEN not set - skipping GitHub PAC tests")
+		return nil
 	}
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(context.Background(), ts)
@@ -60,25 +62,42 @@ func randWebhookSecret() (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func ensureWebhookSecret(c *clients.Clients, namespace, token, webhookSecret string) error {
+func ensureWebhookSecret(c *clients.Clients, namespace, token, webhookSecret string) (func() error, error) {
+	ctx := context.Background()
 	secretsClient := c.KubeClient.Kube.CoreV1().Secrets(namespace)
 	want := map[string]string{
 		"provider.token": token,
 		"webhook.secret": webhookSecret,
 	}
-	existing, err := secretsClient.Get(context.Background(), githubWebhookConfigName, metav1.GetOptions{})
+	existing, err := secretsClient.Get(ctx, githubWebhookConfigName, metav1.GetOptions{})
 	if err == nil {
+		original := existing.DeepCopy()
 		if existing.StringData == nil {
 			existing.StringData = map[string]string{}
 		}
 		for k, v := range want {
 			existing.StringData[k] = v
 		}
-		_, err = secretsClient.Update(context.Background(), existing, metav1.UpdateOptions{})
-		return err
+		if _, err = secretsClient.Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+			return nil, err
+		}
+		return func() error {
+			current, getErr := secretsClient.Get(ctx, githubWebhookConfigName, metav1.GetOptions{})
+			if apierrors.IsNotFound(getErr) {
+				original.ResourceVersion = ""
+				_, createErr := secretsClient.Create(ctx, original, metav1.CreateOptions{})
+				return createErr
+			}
+			if getErr != nil {
+				return getErr
+			}
+			original.ResourceVersion = current.ResourceVersion
+			_, updateErr := secretsClient.Update(ctx, original, metav1.UpdateOptions{})
+			return updateErr
+		}, nil
 	}
 	if !apierrors.IsNotFound(err) {
-		return err
+		return nil, err
 	}
 	sec := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -88,8 +107,16 @@ func ensureWebhookSecret(c *clients.Clients, namespace, token, webhookSecret str
 		Type:       corev1.SecretTypeOpaque,
 		StringData: want,
 	}
-	_, err = secretsClient.Create(context.Background(), sec, metav1.CreateOptions{})
-	return err
+	if _, err = secretsClient.Create(ctx, sec, metav1.CreateOptions{}); err != nil {
+		return nil, err
+	}
+	return func() error {
+		deleteErr := secretsClient.Delete(ctx, githubWebhookConfigName, metav1.DeleteOptions{})
+		if apierrors.IsNotFound(deleteErr) {
+			return nil
+		}
+		return deleteErr
+	}, nil
 }
 
 func createGitHubRepositoryCR(c *clients.Clients, repoName, repoURL, namespace string) error {
@@ -121,6 +148,34 @@ func createGitHubRepositoryCR(c *clients.Clients, repoName, repoURL, namespace s
 	}
 	_, err := c.PacClientset.Repositories(namespace).Create(context.Background(), repo, metav1.CreateOptions{})
 	return err
+}
+
+func deleteGitHubRepositoryCR(c *clients.Clients, namespace, repoName string) error {
+	if repoName == "" {
+		return nil
+	}
+	name := sanitizeGitHubK8sName(repoName)
+	err := c.PacClientset.Repositories(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func deleteGitHubWebhookSecret(c *clients.Clients, namespace string) error {
+	err := c.KubeClient.Kube.CoreV1().Secrets(namespace).Delete(
+		context.Background(), githubWebhookConfigName, metav1.DeleteOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func deleteGitHubK8sResources(c *clients.Clients, namespace, repoName string) error {
+	return errors.Join(
+		deleteGitHubRepositoryCR(c, namespace, repoName),
+		deleteGitHubWebhookSecret(c, namespace),
+	)
 }
 
 func waitForGitHubRepoReady(ctx context.Context, owner, repo string) error {
@@ -280,6 +335,35 @@ func SetupGitHubProject(c *clients.Clients, namespace, smeeURL string) (owner, r
 		return "", "", fmt.Errorf("failed to create github repository: %w", createErr)
 	}
 
+	rollbackOwner := org
+	if rollbackOwner == "" {
+		rollbackOwner = created.GetOwner().GetLogin()
+	}
+	rollbackRepo := repoName
+	var secretRollback func() error
+	repositoryCreated := false
+	setupComplete := false
+	defer func() {
+		if setupComplete {
+			return
+		}
+		if repositoryCreated {
+			if cleanupErr := deleteGitHubRepositoryCR(c, namespace, rollbackRepo); cleanupErr != nil {
+				log.Printf("WARNING: failed to clean up PAC Repository: %v", cleanupErr)
+			}
+		}
+		if secretRollback != nil {
+			if cleanupErr := secretRollback(); cleanupErr != nil {
+				log.Printf("WARNING: failed to restore GitHub PAC credentials: %v", cleanupErr)
+			}
+		}
+		if rollbackOwner != "" {
+			if _, deleteErr := ghClient.Repositories.Delete(ctx, rollbackOwner, rollbackRepo); deleteErr != nil {
+				log.Printf("WARNING: failed to delete GitHub repo during rollback: %v", deleteErr)
+			}
+		}
+	}()
+
 	switch {
 	case org != "":
 		owner = org
@@ -291,6 +375,7 @@ func SetupGitHubProject(c *clients.Clients, namespace, smeeURL string) (owner, r
 			return "", "", fmt.Errorf("failed to determine github username: %w", uerr)
 		}
 		owner = u.GetLogin()
+		rollbackOwner = owner
 	}
 
 	if waitErr := waitForGitHubRepoReady(ctx, owner, repoName); waitErr != nil {
@@ -305,17 +390,21 @@ func SetupGitHubProject(c *clients.Clients, namespace, smeeURL string) (owner, r
 		repoURL = fmt.Sprintf("https://github.com/%s/%s", owner, repoName)
 	}
 
-	if secretErr := ensureWebhookSecret(c, namespace, token, webhookSecret); secretErr != nil {
+	var secretErr error
+	secretRollback, secretErr = ensureWebhookSecret(c, namespace, token, webhookSecret)
+	if secretErr != nil {
 		return "", "", fmt.Errorf("failed to ensure github webhook secret: %w", secretErr)
 	}
 	if crErr := createGitHubRepositoryCR(c, sanitizeGitHubK8sName(repoName), repoURL, namespace); crErr != nil {
 		return "", "", fmt.Errorf("failed to create PAC Repository CR: %w", crErr)
 	}
+	repositoryCreated = true
 	if hookErr := addGitHubWebhook(ctx, owner, repoName, smeeURL, webhookSecret); hookErr != nil {
 		return "", "", fmt.Errorf("failed to add github webhook: %w", hookErr)
 	}
 
 	log.Printf("GitHub repo created: %s", strings.ReplaceAll(strings.ReplaceAll(repoURL, "\n", ""), "\r", "")) //nolint:gosec // repoURL comes from GitHub API or is built from sanitized owner+name
+	setupComplete = true
 	return owner, repoName, nil
 }
 
@@ -340,11 +429,13 @@ func waitForPRMergeable(ctx context.Context, owner, repo string, number int) err
 func ConfigurePreviewChangesGitHub(owner, repo string) (prURL string, prNumber int, err error) {
 	ctx := context.Background()
 
-	prData, readErr := os.ReadFile(filepath.Clean(pullRequestFileName))
+	prPath := pullRequestFile()
+	pushPath := pushFile()
+	prData, readErr := os.ReadFile(filepath.Clean(prPath))
 	if readErr != nil {
-		return "", 0, fmt.Errorf("read %s: %w", pullRequestFileName, readErr)
+		return "", 0, fmt.Errorf("read %s: %w", prPath, readErr)
 	}
-	pushData, pushErr := os.ReadFile(filepath.Clean(pushFileName))
+	pushData, pushErr := os.ReadFile(filepath.Clean(pushPath))
 	hasPush := pushErr == nil
 
 	branchName := fmt.Sprintf("preview-%08d", time.Now().UnixNano()%1e8)
@@ -447,20 +538,23 @@ func WaitForNewPipelineRunNameByEventType(c *clients.Clients, namespace, previou
 	return "", fmt.Errorf("timed out waiting for a new PipelineRun with event-type=%q in namespace %q (previous=%q)", eventType, namespace, previousName)
 }
 
-// CleanupPACGitHub removes the generated YAML files, deletes the GitHub repository,
-// and removes the Smee deployment.
+// CleanupPACGitHub removes generated files, credentials, cluster resources,
+// the GitHub repository, and the Smee deployment.
 func CleanupPACGitHub(c *clients.Clients, namespace, smeeDeploymentName, owner, repo string) error {
-	_ = os.Remove(pullRequestFileName)
-	_ = os.Remove(pushFileName)
+	_ = os.Remove(pullRequestFile())
+	_ = os.Remove(pushFile())
 
+	var errs []error
+	if cleanupErr := deleteGitHubK8sResources(c, namespace, repo); cleanupErr != nil {
+		errs = append(errs, cleanupErr)
+	}
 	if owner != "" && repo != "" && ghClient != nil {
 		if _, deleteErr := ghClient.Repositories.Delete(context.Background(), owner, repo); deleteErr != nil {
-			return fmt.Errorf("failed to delete github repository %s/%s: %w", owner, repo, deleteErr)
+			errs = append(errs, fmt.Errorf("delete github repository %s/%s: %w", owner, repo, deleteErr))
 		}
 	}
-
 	if err := k8s.DeleteDeployment(c, namespace, smeeDeploymentName); err != nil {
-		return fmt.Errorf("failed to delete smee deployment: %w", err)
+		errs = append(errs, fmt.Errorf("delete smee deployment: %w", err))
 	}
-	return nil
+	return errors.Join(errs...)
 }

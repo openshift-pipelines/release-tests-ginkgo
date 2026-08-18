@@ -44,9 +44,15 @@ const (
 	maxRetriesPipelineStatus = 10
 	targetURL                = "http://pipelines-as-code-controller.openshift-pipelines:8080"
 	webhookConfigName        = "gitlab-webhook-config"
-	pullRequestFileName      = "/tmp/pull_request.yaml"
-	pushFileName             = "/tmp/push.yaml"
 )
+
+func pullRequestFile() string {
+	return filepath.Join(os.TempDir(), fmt.Sprintf("pac_pull_request_%d.yaml", GinkgoParallelProcess()))
+}
+
+func pushFile() string {
+	return filepath.Join(os.TempDir(), fmt.Sprintf("pac_push_%d.yaml", GinkgoParallelProcess()))
+}
 
 // client is the package-level GitLab client. Within Ordered containers
 // this is safe since PAC tests run serially via SetGitLabClient.
@@ -387,34 +393,27 @@ func validateYAML(yamlContent []byte) error {
 }
 
 // GeneratePipelineRunYaml generates a PipelineRun YAML for the given event type and branch.
-// The generated file is stored in /tmp/{pull_request,push}.yaml.
+// The generated file is stored in a worker-specific temporary file.
 func GeneratePipelineRunYaml(eventType, branch string) error {
-	fileName := eventType + ".yaml"
+	var fileName string
+	switch eventType {
+	case "pull_request":
+		fileName = pullRequestFile()
+	case "push":
+		fileName = pushFile()
+	default:
+		return fmt.Errorf("unknown eventType: %s", eventType)
+	}
 
 	if err := generatePipelineRun(eventType, branch, fileName); err != nil {
 		return fmt.Errorf("failed to generate pipelinerun: %w", err)
 	}
-
 	fileContent, err := os.ReadFile(filepath.Clean(fileName))
 	if err != nil {
 		return fmt.Errorf("could not read file %s: %w", fileName, err)
 	}
-
 	if err := validateYAML(fileContent); err != nil {
 		return fmt.Errorf("invalid YAML content: %w", err)
-	}
-
-	var destPath string
-	switch eventType {
-	case "pull_request":
-		destPath = pullRequestFileName
-	case "push":
-		destPath = pushFileName
-	default:
-		return fmt.Errorf("unknown eventType: %s", eventType)
-	}
-	if err := os.WriteFile(destPath, fileContent, 0600); err != nil { //nolint:gosec // G703: path is sanitized before this call
-		return fmt.Errorf("failed to write %s: %w", destPath, err)
 	}
 	return nil
 }
@@ -422,7 +421,7 @@ func GeneratePipelineRunYaml(eventType, branch string) error {
 // UpdateAnnotation updates the specified annotation in the pull-request.yaml file.
 // Returns the updated YAML content.
 func UpdateAnnotation(annotationKey, annotationValue string) (string, error) {
-	fileName := pullRequestFileName
+	fileName := pullRequestFile()
 	data, err := os.ReadFile(filepath.Clean(fileName))
 	if err != nil {
 		return "", fmt.Errorf("failed to read YAML file: %w", err)
@@ -466,7 +465,7 @@ func createCommit(projectID int, branch, commitMessage, eventType string) error 
 
 	switch eventType {
 	case "pull_request":
-		data, err := os.ReadFile(pullRequestFileName)
+		data, err := os.ReadFile(pullRequestFile())
 		if err != nil {
 			return fmt.Errorf("read PR file: %w", err)
 		}
@@ -476,7 +475,7 @@ func createCommit(projectID int, branch, commitMessage, eventType string) error 
 			Content:  gitlab.Ptr(string(data)),
 		})
 	case "push":
-		data, err := os.ReadFile(pushFileName)
+		data, err := os.ReadFile(pushFile())
 		if err != nil {
 			return fmt.Errorf("read push file: %w", err)
 		}
@@ -617,22 +616,24 @@ func ConfigurePreviewChanges(projectID int) (mrID int, err error) {
 		return 0, fmt.Errorf("createBranch %q: %w", branchName, err)
 	}
 
+	prPath := pullRequestFile()
+	pushPath := pushFile()
 	prExists := false
 	pushExists := false
-	if _, err := os.Stat(pullRequestFileName); err == nil {
+	if _, err := os.Stat(prPath); err == nil {
 		prExists = true
 	}
-	if _, err := os.Stat(pushFileName); err == nil {
+	if _, err := os.Stat(pushPath); err == nil {
 		pushExists = true
 	}
 
 	if prExists && pushExists {
 		action := gitlab.FileCreate
-		prData, err := os.ReadFile(pullRequestFileName)
+		prData, err := os.ReadFile(prPath)
 		if err != nil {
 			return 0, fmt.Errorf("read PR file: %w", err)
 		}
-		pushData, err := os.ReadFile(pushFileName)
+		pushData, err := os.ReadFile(pushPath)
 		if err != nil {
 			return 0, fmt.Errorf("read push file: %w", err)
 		}
@@ -688,9 +689,10 @@ func repoFileExists(projectID int, branch, path string) (bool, error) {
 // TriggerPushOnForkMain commits push.yaml to the main branch along with a trigger file
 // to trigger a push pipeline event.
 func TriggerPushOnForkMain(projectID int) error {
-	data, err := os.ReadFile("/tmp/push.yaml")
+	pushPath := pushFile()
+	data, err := os.ReadFile(pushPath)
 	if err != nil {
-		return fmt.Errorf("failed to read /tmp/push.yaml: %w", err)
+		return fmt.Errorf("failed to read %s: %w", pushPath, err)
 	}
 	pushFileContent := string(data)
 
@@ -796,8 +798,8 @@ func deleteGitlabProject(projectID int) error {
 // and deletes the Smee deployment.
 func CleanupPAC(c *clients.Clients, namespace string, projectID int, smeeDeploymentName string) error {
 	// Remove the generated PipelineRun YAML files
-	_ = os.Remove(pullRequestFileName)
-	_ = os.Remove(pushFileName)
+	_ = os.Remove(pullRequestFile())
+	_ = os.Remove(pushFile())
 
 	// Remove Forked Project
 	if cleanupErr := deleteGitlabProject(projectID); cleanupErr != nil {
@@ -814,9 +816,10 @@ func CleanupPAC(c *clients.Clients, namespace string, projectID int, smeeDeploym
 // UpdatePushOnTargetBranch updates the pipelinesascode.tekton.dev/on-target-branch annotation
 // in the generated push.yaml file.
 func UpdatePushOnTargetBranch(target string) error {
-	data, err := os.ReadFile(pushFileName)
+	fileName := pushFile()
+	data, err := os.ReadFile(fileName)
 	if err != nil {
-		return fmt.Errorf("failed to read push YAML file %s: %w", pushFileName, err)
+		return fmt.Errorf("failed to read push YAML file %s: %w", fileName, err)
 	}
 
 	var content map[string]any
@@ -841,7 +844,7 @@ func UpdatePushOnTargetBranch(target string) error {
 		return fmt.Errorf("failed to marshal updated push YAML: %w", err)
 	}
 
-	if err := os.WriteFile(pushFileName, out, 0600); err != nil {
+	if err := os.WriteFile(fileName, out, 0600); err != nil {
 		return fmt.Errorf("failed to write updated push YAML file: %w", err)
 	}
 
@@ -849,7 +852,7 @@ func UpdatePushOnTargetBranch(target string) error {
 		return fmt.Errorf("invalid YAML content after updating on-target-branch: %w", err)
 	}
 
-	log.Printf("Updated pipelinesascode.tekton.dev/on-target-branch to %q in %s\n", target, pushFileName)
+	log.Printf("Updated pipelinesascode.tekton.dev/on-target-branch to %q in %s\n", target, fileName)
 	return nil
 }
 
@@ -900,9 +903,10 @@ func AddCommitCommentOnTag(projectID int, comment, tag string) error {
 // getPipelineRunNameFromPushYAML reads the generated push.yaml and returns the
 // PipelineRun metadata.name defined there.
 func getPipelineRunNameFromPushYAML() (string, error) {
-	data, err := os.ReadFile(pushFileName)
+	fileName := pushFile()
+	data, err := os.ReadFile(fileName)
 	if err != nil {
-		return "", fmt.Errorf("failed to read push YAML file %s: %w", pushFileName, err)
+		return "", fmt.Errorf("failed to read push YAML file %s: %w", fileName, err)
 	}
 
 	var content map[string]any

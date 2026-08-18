@@ -102,6 +102,18 @@ func TestRunWithEnvUsesConnectionFlags(t *testing.T) {
 	}
 }
 
+func TestRunWithEnvPreservesParentEnvironment(t *testing.T) {
+	t.Setenv("PARENT_ONLY", "parent")
+
+	result := RunWithEnv([]string{"EXTRA_ONLY=extra"}, "sh", "-c", `printf '%s:%s' "$PARENT_ONLY" "$EXTRA_ONLY"`)
+	if result.ExitCode != 0 {
+		t.Fatalf("command failed: %s", result.Stderr())
+	}
+	if got := result.Stdout(); got != "parent:extra" {
+		t.Fatalf("expected inherited and extra environment variables, got %q", got)
+	}
+}
+
 func TestMustSucceedWithStdinUsesConnectionFlags(t *testing.T) {
 	gomega.RegisterTestingT(t)
 	original := *config.Flags

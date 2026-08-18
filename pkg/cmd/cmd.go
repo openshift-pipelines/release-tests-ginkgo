@@ -4,6 +4,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -88,7 +89,7 @@ func RunIncreasedTimeout(timeout time.Duration, args ...string) *icmd.Result {
 
 // RunWithEnv executes a command with additional environment variables appended to the current env.
 func RunWithEnv(env []string, args ...string) *icmd.Result {
-	return icmd.RunCmd(icmd.Cmd{Command: Command(args...), Timeout: config.CLITimeout, Env: env})
+	return icmd.RunCmd(icmd.Cmd{Command: Command(args...), Timeout: config.CLITimeout, Env: append(os.Environ(), env...)})
 }
 
 // MustSucceedWithEnv asserts exit code 0 for a command run with extra env vars.
