@@ -403,6 +403,7 @@ func SetupGitHubProject(c *clients.Clients, namespace, smeeURL string) (owner, r
 		return "", "", fmt.Errorf("failed to add github webhook: %w", hookErr)
 	}
 
+	projectURL = repoURL
 	log.Printf("GitHub repo created: %s", strings.ReplaceAll(strings.ReplaceAll(repoURL, "\n", ""), "\r", "")) //nolint:gosec // repoURL comes from GitHub API or is built from sanitized owner+name
 	setupComplete = true
 	return owner, repoName, nil

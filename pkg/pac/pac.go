@@ -58,7 +58,7 @@ func pushFile() string {
 // this is safe since PAC tests run serially via SetGitLabClient.
 var client *gitlab.Client
 
-// projectURL holds the web URL of the forked project, set during SetupGitLabProject.
+// projectURL holds the web URL of the current PAC test repository.
 var projectURL string
 
 // SetGitLabClient sets the package-level GitLab client.

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -104,6 +105,65 @@ func kubeTestClient(t *testing.T, secretExists bool) *kubernetes.Clientset {
 		t.Fatal(err)
 	}
 	return client
+}
+
+func TestSetupGitHubProjectConfiguresGeneratedPipelineRunName(t *testing.T) {
+	const (
+		namespace = "test"
+		owner     = "test-owner"
+	)
+	var repoName string
+	client := githubTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/user/repos":
+			var request struct {
+				Name string `json:"name"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode create request: %v", err)
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			repoName = request.Name
+			_, _ = fmt.Fprintf(w, `{"name":%q,"html_url":"https://github.com/%s/%s","default_branch":"main","owner":{"login":%q}}`, repoName, owner, repoName, owner)
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/repos/"+owner+"/"):
+			_, _ = fmt.Fprintf(w, `{"name":%q,"default_branch":"main","owner":{"login":%q}}`, repoName, owner)
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/hooks"):
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"id":1}`))
+		default:
+			http.Error(w, "unexpected request: "+r.Method+" "+r.URL.Path, http.StatusNotFound)
+		}
+	}))
+	SetGitHubClient(client)
+	t.Cleanup(func() { SetGitHubClient(nil) })
+	t.Setenv("PAC_GITHUB_TOKEN", "token")
+	t.Setenv("PAC_GITHUB_WEBHOOK_TOKEN", "webhook")
+	t.Setenv("PAC_GITHUB_ORG", "")
+	oldProjectURL := projectURL
+	projectURL = ""
+	t.Cleanup(func() { projectURL = oldProjectURL })
+
+	cs := &clients.Clients{
+		KubeClient:   &clients.KubeClient{Kube: kubeTestClient(t, false)},
+		PacClientset: pacfake.NewSimpleClientset().PipelinesascodeV1alpha1(),
+	}
+	if _, _, err := SetupGitHubProject(cs, namespace, "https://smee.example/test"); err != nil {
+		t.Fatal(err)
+	}
+	fileName := pullRequestFile()
+	t.Cleanup(func() { _ = os.Remove(fileName) })
+	if err := GeneratePipelineRunYaml("pull_request", "main"); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(fileName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "name: "+repoName+"-pull-request") {
+		t.Fatal("generated PipelineRun name does not use the GitHub repository name")
+	}
 }
 
 func TestSetupGitHubProjectRollsBackPartialSetup(t *testing.T) {
