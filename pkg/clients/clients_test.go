@@ -60,16 +60,20 @@ func TestBuildClientConfigUsesContextCredentialsWithClusterOverride(t *testing.T
 	}
 }
 
-func TestNewClientFromKubeconfigInitializesScheme(t *testing.T) {
+func TestNewClientFromKubeconfigRequiresScheme(t *testing.T) {
 	path := writeKubeconfig(t, "spoke", "https://spoke.example.test", "spoke-token")
-	clients := &Clients{}
 
-	controllerClient, err := clients.NewClientFromKubeconfig(path, "", "")
+	_, err := (&Clients{}).NewClientFromKubeconfig(path, "", "")
+	if err == nil || !strings.Contains(err.Error(), "configured scheme") {
+		t.Fatalf("NewClientFromKubeconfig() error = %v, want missing scheme error", err)
+	}
+
+	controllerClient, err := (&Clients{Scheme: createScheme()}).NewClientFromKubeconfig(path, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if controllerClient == nil || clients.Scheme == nil {
-		t.Fatal("controller-runtime client or scheme was not initialized")
+	if controllerClient == nil {
+		t.Fatal("controller-runtime client was not initialized")
 	}
 }
 

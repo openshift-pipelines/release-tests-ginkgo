@@ -77,6 +77,7 @@ func newClients(configPath, clusterName, contextName, namespace string) (*Client
 	clients := &Clients{
 		Scheme: scheme,
 	}
+
 	connection := "standard kubeconfig loading rules"
 	if configPath != "" {
 		connection = fmt.Sprintf("kubeconfig %q", configPath)
@@ -255,13 +256,11 @@ func (c *Clients) NewClientFromKubeconfig(kubeconfigPath, clusterName, contextNa
 	if c == nil {
 		return nil, fmt.Errorf("cannot create controller-runtime client from a nil Clients receiver")
 	}
-	scheme := c.Scheme
-	if scheme == nil {
-		scheme = createScheme()
-		c.Scheme = scheme
+	if c.Scheme == nil {
+		return nil, fmt.Errorf("cannot create controller-runtime client without a configured scheme")
 	}
 
-	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	k8sClient, err := client.New(config, client.Options{Scheme: c.Scheme})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create controller-runtime client: %w", err)
 	}
