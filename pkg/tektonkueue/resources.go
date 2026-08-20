@@ -50,7 +50,6 @@ func (e *Environment) createNamespace(ctx context.Context, cluster Cluster) erro
 	}
 
 	labels := e.ownedLabels()
-	labels["kueue.openshift.io/managed"] = "true"
 	var uid types.UID
 	e.addCleanup(func(cleanupCtx context.Context) error {
 		current, getErr := namespaces.Get(cleanupCtx, e.Namespace, metav1.GetOptions{})
@@ -106,6 +105,12 @@ func (e *Environment) createQueues(ctx context.Context, cluster Cluster, hub boo
 		return err
 	}
 
+	quota := int64(1)
+	if !hub {
+		// The worker temporarily holds the copied MultiKueue Workload and the
+		// PipelineRun-owned Workload, so one execution needs two quota units.
+		quota = 2
+	}
 	clusterQueueSpec := map[string]any{
 		"namespaceSelector": map[string]any{},
 		"resourceGroups": []any{map[string]any{
@@ -114,7 +119,7 @@ func (e *Environment) createQueues(ctx context.Context, cluster Cluster, hub boo
 				"name": e.Prefix,
 				"resources": []any{map[string]any{
 					"name":         "tekton.dev/pipelineruns",
-					"nominalQuota": int64(1),
+					"nominalQuota": quota,
 				}},
 			}},
 		}},
