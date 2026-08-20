@@ -30,7 +30,7 @@ func TestBuildClientConfigExplicitPathOverridesEnvironment(t *testing.T) {
 	explicit := writeKubeconfig(t, "explicit", "https://explicit.example.test", "explicit-token")
 	t.Setenv(clientcmd.RecommendedConfigPathEnvVar, fromEnv)
 
-	cfg, err := BuildClientConfig(explicit, "", "")
+	cfg, err := BuildClientConfig(explicit, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,12 +51,25 @@ func TestBuildClientConfigUsesContextCredentialsWithClusterOverride(t *testing.T
 		t.Fatal(err)
 	}
 
-	cfg, err := buildClientConfig(path, "override-cluster", "selected-context")
+	cfg, err := BuildClientConfigWithContext(path, "override-cluster", "selected-context")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.Host != "https://override.example.test" || cfg.BearerToken != "context-token" {
 		t.Fatalf("selected host/token = %q/%q", cfg.Host, cfg.BearerToken)
+	}
+}
+
+func TestNewClientFromKubeconfigInitializesScheme(t *testing.T) {
+	path := writeKubeconfig(t, "spoke", "https://spoke.example.test", "spoke-token")
+	clients := &Clients{}
+
+	controllerClient, err := clients.NewClientFromKubeconfig(path, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if controllerClient == nil || clients.Scheme == nil {
+		t.Fatal("controller-runtime client or scheme was not initialized")
 	}
 }
 

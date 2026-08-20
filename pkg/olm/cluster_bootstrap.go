@@ -3,202 +3,178 @@ package olm
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
-	olm "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 )
+
+const operatorInstallTimeout = 30 * time.Minute
 
 // ClusterBootstrap holds a controller-runtime client for cluster setup operations.
 type ClusterBootstrap struct {
 	client.Client
 }
 
-// Bootstrap function does the basic setup on provided cluster.
-// This includes Installing Operators and updating  configurations
-func (cb *ClusterBootstrap) Bootstrap(ctx context.Context) error {
-	if err := cb.EnsureOperators(ctx); err != nil {
-		return err
-	}
-	return nil
-}
-
-// EnsureOperators function installs the necessary operators on the cluster
+// EnsureOperators installs or reuses the operators required by Tekton Kueue tests.
 func (cb *ClusterBootstrap) EnsureOperators(ctx context.Context) error {
-	logger := log.FromContext(ctx)
-
-	logger.Info("Installing Operators")
-
-	// Ensure Pipelines Operator
-	if err := cb.EnsureOperator(ctx, config.PipelineOperatorPackageName, config.Flags.PipelineOperatorChannel, config.Flags.CatalogSource, config.Flags.PipelinesOperatorNamespace); err != nil {
-		return err
+	operators := []struct {
+		name, channel, source, namespace string
+	}{
+		{config.PipelineOperatorPackageName, config.Flags.PipelineOperatorChannel, config.Flags.CatalogSource, config.Flags.PipelinesOperatorNamespace},
+		{config.KueueOperatorPackageName, config.Flags.KueueOperatorChannel, "redhat-operators", config.Flags.KueueOperatorNamespace},
+		{config.CertManagerOperatorPackageName, config.Flags.CertManagerOperatorChannel, "redhat-operators", config.Flags.CertManagerOperatorNamespace},
 	}
 
-	// Kueue and Cert-Manager operators will be installed from Released version Only. No customer CatalogSource being used here
-
-	// Ensure Kueue Operator
-	if err := cb.EnsureOperator(ctx, config.KueueOperatorPackageName, config.Flags.KueueOperatorChannel, "redhat-operators", config.Flags.KueueOperatorNamespace); err != nil {
-		return err
+	for _, operator := range operators {
+		log.Printf("ensuring operator package %s", operator.name)
+		if err := cb.EnsureOperator(ctx, operator.name, operator.channel, operator.source, operator.namespace); err != nil {
+			return fmt.Errorf("ensure operator %s: %w", operator.name, err)
+		}
 	}
-
-	// Ensure Cert-Manager Operator
-	if err := cb.EnsureOperator(ctx, config.CertManagerOperatorPackageName, config.Flags.CertManagerOperatorChannel, "redhat-operators", config.Flags.CertManagerOperatorNamespace); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-// EnsureOperator checks the state of the Subscription instantly.
-// If it is not fully installed, it returns an error to trigger a controller requeue.
-func (cb *ClusterBootstrap) EnsureOperator(ctx context.Context, packageName, channel, catalogSource, subNamespace string) error {
-	logger := log.FromContext(ctx)
-	found := false
-
-	//	Ensure OperatorGroup
-	if err := cb.ensureOperatorGroup(ctx, subNamespace); err != nil {
-		return err
+// EnsureOperator creates an OLM Subscription when needed and waits for its CSV to succeed.
+// Existing subscriptions are reused without changing their channel or catalog source.
+func (cb *ClusterBootstrap) EnsureOperator(ctx context.Context, packageName, channel, catalogSource, namespace string) error {
+	if cb == nil || cb.Client == nil {
+		return fmt.Errorf("cannot ensure operator %s with a nil client", packageName)
 	}
 
-	// 1. Use the strongly typed SubscriptionList
-	subsList := &olm.SubscriptionList{}
-	subscription := &olm.Subscription{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      packageName,
-			Namespace: subNamespace,
-		},
-		Spec: &olm.SubscriptionSpec{
-			Channel:                channel,
-			Package:                packageName,
-			CatalogSource:          catalogSource,
-			CatalogSourceNamespace: "openshift-marketplace",
-		},
+	subscriptions := &olmv1alpha1.SubscriptionList{}
+	if err := cb.List(ctx, subscriptions); err != nil {
+		return fmt.Errorf("list subscriptions: %w", err)
 	}
 
-	// 2. List all subscriptions cluster-wide
-	if err := cb.List(ctx, subsList, client.InNamespace(subNamespace)); err != nil {
-		return fmt.Errorf("failed to list subscriptions: %w", err)
-	}
-
-	// 3. Search for the pipeline operator natively
-	for _, sub := range subsList.Items {
-		// In the Go struct, the YAML 'name' field is represented as 'Package'
-		if sub.Spec.Package == packageName {
-			subscription.Name = sub.Name
-			subscription.Namespace = sub.Namespace
-			found = true
-			break
+	var matches []olmv1alpha1.Subscription
+	for i := range subscriptions.Items {
+		subscription := subscriptions.Items[i]
+		if subscription.Spec != nil && subscription.Spec.Package == packageName {
+			matches = append(matches, subscription)
 		}
 	}
+	if len(matches) > 1 {
+		return fmt.Errorf("found %d subscriptions for package %s", len(matches), packageName)
+	}
 
-	if !found {
-		logger.Info("Subscription not found. Creating it.", "packageName", packageName)
-		// Ensure Namespace
-		if err := cb.EnsureNamespace(ctx, subscription.Namespace); err != nil {
-			return err
-		}
-		err := cb.Create(ctx, subscription)
-		if err != nil && !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create subscription: %w", err)
+	var subscription *olmv1alpha1.Subscription
+	if len(matches) == 1 {
+		subscription = matches[0].DeepCopy()
+		if subscription.Spec.Channel != channel || subscription.Spec.CatalogSource != catalogSource || subscription.Spec.CatalogSourceNamespace != OLMNamespace {
+			log.Printf("reusing existing subscription %s/%s for %s (channel=%s, source=%s/%s)", subscription.Namespace, subscription.Name, packageName, subscription.Spec.Channel, subscription.Spec.CatalogSourceNamespace, subscription.Spec.CatalogSource)
 		}
 	} else {
-		logger.Info("Subscription found", "Package", subscription.Spec.Package, "subscription", subscription.Name, "Namespace", subscription.Namespace)
+		if err := cb.ensureOperatorGroup(ctx, namespace); err != nil {
+			return err
+		}
+		subscription = &olmv1alpha1.Subscription{
+			ObjectMeta: metav1.ObjectMeta{Name: packageName, Namespace: namespace},
+			Spec: &olmv1alpha1.SubscriptionSpec{
+				Channel:                channel,
+				Package:                packageName,
+				CatalogSource:          catalogSource,
+				CatalogSourceNamespace: OLMNamespace,
+				InstallPlanApproval:    olmv1alpha1.ApprovalAutomatic,
+			},
+		}
+		if err := cb.Create(ctx, subscription); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("create subscription %s/%s: %w", namespace, packageName, err)
+			}
+			existing := &olmv1alpha1.Subscription{}
+			if err := cb.Get(ctx, client.ObjectKeyFromObject(subscription), existing); err != nil {
+				return fmt.Errorf("get existing subscription %s/%s: %w", namespace, packageName, err)
+			}
+			if existing.Spec == nil || existing.Spec.Package != packageName {
+				return fmt.Errorf("subscription %s/%s already exists for a different package", namespace, packageName)
+			}
+			subscription = existing
+		}
 	}
-	logger.Info("Waiting for operator to become ready...")
 
-	// 5. Block and poll for readiness using the strongly typed object
-	return wait.PollUntilContextTimeout(ctx, 5*time.Second, 30*time.Minute, true, func(ctx context.Context) (bool, error) {
-		sub := &olm.Subscription{}
+	key := client.ObjectKeyFromObject(subscription)
+	if err := cb.waitForOperator(ctx, key, packageName); err != nil {
+		return fmt.Errorf("wait for subscription %s/%s: %w", key.Namespace, key.Name, err)
+	}
+	return nil
+}
 
-		err := cb.Get(ctx, client.ObjectKey{Name: subscription.Name, Namespace: subscription.Namespace}, sub)
-		if errors.IsNotFound(err) {
+func (cb *ClusterBootstrap) waitForOperator(ctx context.Context, key client.ObjectKey, packageName string) error {
+	return wait.PollUntilContextTimeout(ctx, config.APIRetry, operatorInstallTimeout, true, func(ctx context.Context) (bool, error) {
+		subscription := &olmv1alpha1.Subscription{}
+		if err := cb.Get(ctx, key, subscription); apierrors.IsNotFound(err) {
+			return false, nil
+		} else if err != nil {
+			return false, err
+		}
+		if subscription.Status.InstalledCSV == "" {
 			return false, nil
 		}
-		if err != nil {
+
+		csv := &olmv1alpha1.ClusterServiceVersion{}
+		csvKey := client.ObjectKey{Name: subscription.Status.InstalledCSV, Namespace: subscription.Namespace}
+		if err := cb.Get(ctx, csvKey, csv); apierrors.IsNotFound(err) {
+			return false, nil
+		} else if err != nil {
 			return false, err
 		}
 
-		// Directly access the Status field instead of parsing unstructured maps
-		if sub.Status.InstalledCSV == "" {
-			logger.Info("Waiting for CSV to be installed", "subscription", subscription.Name, "Status", sub.Status)
+		switch csv.Status.Phase {
+		case olmv1alpha1.CSVPhaseSucceeded:
+			log.Printf("operator package %s is ready as %s/%s", packageName, csv.Namespace, csv.Name)
+			return true, nil
+		case olmv1alpha1.CSVPhaseFailed:
+			return false, fmt.Errorf("CSV %s/%s failed: %s: %s", csv.Namespace, csv.Name, csv.Status.Reason, csv.Status.Message)
+		default:
 			return false, nil
 		}
-		csv := &olm.ClusterServiceVersion{}
-		key := client.ObjectKey{Name: sub.Status.InstalledCSV, Namespace: sub.Namespace}
-		if err := cb.Get(ctx, key, csv); err != nil {
-			return false, err
-		}
-		if csv.Status.Phase != olm.CSVPhaseSucceeded {
-			return false, nil
-		}
-		logger.Info("Subscription is ready", "Namespace", subscription.Namespace, "subscription", subscription.Name, "InstalledCSV", sub.Status.InstalledCSV)
-		return true, nil
 	})
 }
 
-// ensureOperatorGroup Ensures that an OperatorGroup is available in the namespace. If not then it creates it.
 func (cb *ClusterBootstrap) ensureOperatorGroup(ctx context.Context, namespace string) error {
-
 	if err := cb.EnsureNamespace(ctx, namespace); err != nil {
 		return err
 	}
 
-	operatorGroupList := &operatorsv1.OperatorGroupList{}
-	if err := cb.List(ctx, operatorGroupList, client.InNamespace(namespace)); err != nil {
-		return err
+	operatorGroups := &operatorsv1.OperatorGroupList{}
+	if err := cb.List(ctx, operatorGroups, client.InNamespace(namespace)); err != nil {
+		return fmt.Errorf("list OperatorGroups in %s: %w", namespace, err)
+	}
+	if len(operatorGroups.Items) > 1 {
+		return fmt.Errorf("found %d OperatorGroups in namespace %s", len(operatorGroups.Items), namespace)
+	}
+	if len(operatorGroups.Items) == 1 {
+		return nil
 	}
 
-	if len(operatorGroupList.Items) == 0 {
-		operatorGroup := &operatorsv1.OperatorGroup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      namespace,
-				Namespace: namespace,
-			},
-		}
-		return cb.Create(ctx, operatorGroup)
+	operatorGroup := &operatorsv1.OperatorGroup{ObjectMeta: metav1.ObjectMeta{Name: namespace, Namespace: namespace}}
+	if err := cb.Create(ctx, operatorGroup); err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("create OperatorGroup in %s: %w", namespace, err)
 	}
 	return nil
 }
 
-// EnsureNamespace ensures that Namespace is available. If not then it creates it.
-func (cb *ClusterBootstrap) EnsureNamespace(ctx context.Context, namespaceName string) error {
-	ns := &corev1.Namespace{}
-
-	// 1. Try to get the namespace
-	err := cb.Get(ctx, client.ObjectKey{Name: namespaceName}, ns)
-	if err == nil {
-		klog.V(4).Infof("Namespace %s already exists.", namespaceName)
+// EnsureNamespace creates a namespace when it does not already exist.
+func (cb *ClusterBootstrap) EnsureNamespace(ctx context.Context, namespace string) error {
+	existing := &corev1.Namespace{}
+	if err := cb.Get(ctx, client.ObjectKey{Name: namespace}, existing); err == nil {
 		return nil
+	} else if !apierrors.IsNotFound(err) {
+		return fmt.Errorf("get namespace %s: %w", namespace, err)
 	}
 
-	// 2. If the error is anything OTHER than "Not Found", return the error
-	if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get namespace %s: %w", namespaceName, err)
+	created := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	if err := cb.Create(ctx, created); err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("create namespace %s: %w", namespace, err)
 	}
-
-	// 3. If we reach here, it means the namespace is Not Found. Let's create it.
-	klog.Infof("Namespace %s not found. Creating it...", namespaceName)
-	newNs := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespaceName,
-		},
-	}
-
-	err = cb.Create(ctx, newNs)
-	// We also check IsAlreadyExists just in case another process created it in the few milliseconds since our Get call
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create namespace %s: %w", namespaceName, err)
-	}
-
-	klog.Infof("Successfully created namespace %s.", namespaceName)
 	return nil
 }

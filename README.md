@@ -33,6 +33,12 @@ Key environment variables:
 | `KO_DOCKER_REPO` | Registry for built test images |
 | `CHAINS_REPOSITORY` | OCI repo to push Kaniko-built images to *(Chains TC02)* |
 | `CHAINS_DOCKER_CONFIG_JSON` | Raw JSON contents of `docker/config.json` with push access to `CHAINS_REPOSITORY` *(Chains TC02)* |
+| `KUEUE_NAMESPACE` | Kueue operator namespace; defaults to `openshift-kueue-operator` |
+| `PIPELINE_NAMESPACE` | Pipelines operator namespace; defaults to `openshift-operators` |
+| `CERTMANAGER_NAMESPACE` | cert-manager operator namespace; defaults to `cert-manager-operator` |
+| `CHANNEL_KUEUE` | Kueue operator channel; defaults to `stable-v1.4` |
+| `CHANNEL_PIPELINE` | Pipelines operator channel; defaults to `latest` |
+| `CHANNEL_CERTMANAGER` | cert-manager operator channel; defaults to `stable-v1` |
 
 OLM subscription defaults (in `env/default/default.properties`):
 
@@ -216,6 +222,19 @@ LABEL_FILTER='triggers && sanity' ./scripts/run-tests.sh
 | Hub | `hub` | `tests/hub/` |
 | Metrics | `metrics` | `tests/metrics/` |
 | Versions | `versions` | `tests/versions/` |
+| Tekton Kueue bootstrap | `tekton-kueue`, `install`, `admin` | `tests/tektonkueue/` |
+
+### Running the Tekton Kueue bootstrap suite
+
+Provide one hub kubeconfig and at least one spoke kubeconfig. Test-binary flags must follow `--`:
+
+```bash
+ginkgo run --procs=1 --label-filter='tekton-kueue && install' ./tests/tektonkueue -- \
+  --kubeconfig /path/to/hub \
+  --spoke-kubeconfig /path/to/spoke-1
+```
+
+Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one matching `--spoke-context` per spoke. The suite installs or reuses the Pipelines, Kueue, and cert-manager operators on every cluster; it validates multi-cluster bootstrap, not workload scheduling.
 
 ### Running the Chains suite
 
@@ -400,6 +419,7 @@ tests/          # Ginkgo test suites (one directory per area)
   mag/          #   Manual Approval Gate
   metrics/      #   Prometheus metrics
   versions/     #   Component version verification
+  tektonkueue/  #   Multi-cluster operator bootstrap
 pkg/            # Shared helper packages
   clients/      #   Kubernetes/Tekton client wrappers
   oc/           #   oc CLI wrappers (Create, Apply, Delete, ...)

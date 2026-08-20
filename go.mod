@@ -38,7 +38,7 @@ require (
 	k8s.io/api v0.35.6
 	k8s.io/apimachinery v0.36.3
 	k8s.io/client-go v1.5.2
-	k8s.io/klog/v2 v2.140.0
+	k8s.io/klog/v2 v2.140.0 // indirect
 	knative.dev/pkg v0.0.0-20260531000007-52dbd5ece63f
 	sigs.k8s.io/controller-runtime v0.23.3
 )
@@ -61,7 +61,6 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/jsonreference v0.21.5 // indirect
 	github.com/go-openapi/swag v0.25.5 // indirect

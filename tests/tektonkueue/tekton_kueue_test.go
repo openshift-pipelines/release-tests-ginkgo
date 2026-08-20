@@ -1,29 +1,34 @@
 package tektonkueue_test
 
 import (
+	"fmt"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
-
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 
 	olmpkg "github.com/openshift-pipelines/release-tests-ginkgo/pkg/olm"
 )
 
-var _ = Describe("TektonKueue Tests", Ordered, Label("tekton-kueue"), func() {
-	var hubCluster olmpkg.ClusterBootstrap
-	Describe("Bootstrap Clusters", Ordered, Label("install", "sanity"), func() {
-		It("Creating a Hub Client", func() {
-			hubClient, err := sharedClients.NewClientFromKubeconfig(config.Flags.Kubeconfig, config.Flags.Cluster, config.Flags.Context)
-			Expect(err).NotTo(HaveOccurred(), "Failed to create Client")
-			Expect(hubClient).NotTo(BeNil())
-			hubCluster = olmpkg.ClusterBootstrap{
-				Client: hubClient,
-			}
-		})
-		It("Setup Hub Cluster", func() {
-			err := hubCluster.Bootstrap(sharedClients.Ctx)
-			Expect(err).NotTo(HaveOccurred(), "Failed to subscribe to operators")
-		})
-	})
+var _ = Describe("Multi-cluster operator bootstrap", Serial, Label("tekton-kueue", "install", "sanity", "admin"), func() {
+	It("installs the required operators on the hub and every spoke", NodeTimeout(6*time.Hour), func(specCtx SpecContext) {
+		type clusterTarget struct {
+			name   string
+			config clientConfig
+		}
+		clusters := make([]clusterTarget, 0, 1+len(spokeConfigs))
+		clusters = append(clusters, clusterTarget{name: "hub", config: hubConfig})
+		for i, cfg := range spokeConfigs {
+			clusters = append(clusters, clusterTarget{name: fmt.Sprintf("spoke-%d", i+1), config: cfg})
+		}
 
+		for _, cluster := range clusters {
+			By(fmt.Sprintf("bootstrapping %s", cluster.name))
+			controllerClient, err := sharedClients.NewClientFromKubeconfig(cluster.config.Kubeconfig, cluster.config.Cluster, cluster.config.Context)
+			Expect(err).NotTo(HaveOccurred(), "failed to create %s client", cluster.name)
+
+			bootstrap := olmpkg.ClusterBootstrap{Client: controllerClient}
+			Expect(bootstrap.EnsureOperators(specCtx)).To(Succeed(), "failed to bootstrap %s", cluster.name)
+		}
+	})
 })

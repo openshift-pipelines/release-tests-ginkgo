@@ -155,7 +155,12 @@ func newKubeClient(configPath, clusterName, contextName string) (*KubeClient, *r
 }
 
 // BuildClientConfig builds a REST config using client-go's standard loading rules.
-func BuildClientConfig(kubeConfigPath, clusterName, contextName string) (*rest.Config, error) {
+func BuildClientConfig(kubeConfigPath, clusterName string) (*rest.Config, error) {
+	return buildClientConfig(kubeConfigPath, clusterName, "")
+}
+
+// BuildClientConfigWithContext builds a REST config with an explicit context override.
+func BuildClientConfigWithContext(kubeConfigPath, clusterName, contextName string) (*rest.Config, error) {
 	return buildClientConfig(kubeConfigPath, clusterName, contextName)
 }
 
@@ -240,22 +245,23 @@ func (c *Clients) NewClientSet(namespace string) {
 	c.PacClientset = pacclientset.NewForConfigOrDie(c.KubeConfig)
 }
 
-//	NewClientFromKubeconfig function creates a controller-runtime client from the provided kubeconfig.
-//
-// Core K8s APIs are registered in the scheme.
-// If you are  going to use this client for a Custom Resource then make sure to register the scheme before using it
-func (c *Clients) NewClientFromKubeconfig(kubeconfigPath, clusterName, kubeContext string) (client.Client, error) {
-	// 1. Build rest.Config from Kubeconfig path
-	config, err := BuildClientConfig(kubeconfigPath, clusterName, kubeContext)
+// NewClientFromKubeconfig creates a controller-runtime client from the provided kubeconfig.
+func (c *Clients) NewClientFromKubeconfig(kubeconfigPath, clusterName, contextName string) (client.Client, error) {
+	config, err := BuildClientConfigWithContext(kubeconfigPath, clusterName, contextName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build rest config from kubeconfig: %w", err)
+		return nil, fmt.Errorf("failed to build REST config from kubeconfig: %w", err)
 	}
 
+	if c == nil {
+		return nil, fmt.Errorf("cannot create controller-runtime client from a nil Clients receiver")
+	}
 	scheme := c.Scheme
+	if scheme == nil {
+		scheme = createScheme()
+		c.Scheme = scheme
+	}
 
-	k8sClient, err := client.New(config, client.Options{
-		Scheme: scheme,
-	})
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create controller-runtime client: %w", err)
 	}
