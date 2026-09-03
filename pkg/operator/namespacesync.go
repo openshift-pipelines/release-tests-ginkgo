@@ -81,13 +81,25 @@ func RestoreNamespaceSyncDefaults(cs *clients.Clients) {
 
 // PatchLegacyNamespaceSyncParams sets the three legacy spec.params entries
 // that migrateNamespaceSyncParams maps onto the typed namespaceSync fields
-// (createRbacResource, createCABundleConfigMaps, legacyPipelineRbac). Callers
-// must RemoveNamespaceSync first: migration only fills typed fields that are
-// still nil, so a namespaceSync block with explicit values already set (e.g.
-// from RestoreNamespaceSyncDefaults) would silently ignore these params.
+// (createRbacResource, createCABundleConfigMaps, legacyPipelineRbac).
+//
+// This must null out spec.platforms.openshift.namespaceSync in the very same
+// merge patch as the params, not in a preceding call. TektonConfig has a
+// mutating admission webhook (webhook.operator.tekton.dev) that runs
+// SetDefaults on every write and persists the result immediately — so a
+// prior, separate "namespaceSync: null" patch gets that write's own admission
+// pass filled in with all-true defaults before this call's params ever reach
+// the server. migrateNamespaceSyncParams only fills fields that are still nil
+// at the time it runs, so by the next write there is nothing left for it to
+// override, and the legacy params silently become a no-op (beyond being
+// dropped from spec.params, which happens unconditionally). Combining both
+// mutations into one merge patch means the single resulting admission pass
+// sees namespaceSync genuinely nil-fielded and the params simultaneously, so
+// the migration can actually apply its overrides before the generic defaults
+// fill in.
 func PatchLegacyNamespaceSyncParams(cs *clients.Clients, createRbacResource, createCABundleConfigMaps, legacyPipelineRbac string) {
 	patch := fmt.Sprintf(
-		`{"spec":{"params":[{"name":"createRbacResource","value":"%s"},{"name":"createCABundleConfigMaps","value":"%s"},{"name":"legacyPipelineRbac","value":"%s"}]}}`,
+		`{"spec":{"platforms":{"openshift":{"namespaceSync":null}},"params":[{"name":"createRbacResource","value":"%s"},{"name":"createCABundleConfigMaps","value":"%s"},{"name":"legacyPipelineRbac","value":"%s"}]}}`,
 		createRbacResource, createCABundleConfigMaps, legacyPipelineRbac)
 	log.Printf("Patching TektonConfig legacy namespaceSync params: %s\n", patch)
 	oc.UpdateTektonConfig(patch)
