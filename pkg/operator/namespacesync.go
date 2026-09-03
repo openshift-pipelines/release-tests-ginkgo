@@ -100,6 +100,71 @@ func ClearLegacyNamespaceSyncParams(cs *clients.Clients) {
 	AssertTektonConfigCRReadyStatus(cs, store.GetCRNames())
 }
 
+// namespaceSyncPreUpgradeVersionAnnotation mirrors
+// v1alpha1.PreUpgradeVersionKey (tektoncd/operator's
+// pkg/apis/operator/v1alpha1/const.go). Kept as a local string constant
+// instead of importing that package, consistent with this file's use of raw
+// JSON patches to stay compatible with the older pinned operator release
+// (see the package doc comment above).
+const namespaceSyncPreUpgradeVersionAnnotation = "operator.tekton.dev/pre-upgrade-version"
+
+// ForcePreUpgradeRerun clears the pre-upgrade-version status annotation on
+// TektonConfig via a status-subresource update. Upgrade.RunPreUpgrade
+// (tektoncd/operator's pkg/reconciler/shared/tektonconfig/upgrade) only
+// re-executes its registered pre-upgrade functions — including the
+// persisted legacy spec.params migration — when this annotation differs
+// from the running operator version. Clearing it forces the very next
+// TektonConfig reconcile to treat the CR as freshly upgraded and re-run
+// every pre-upgrade function again, letting tests exercise one-time
+// persisted upgrade migrations without needing an actual two-version
+// operator upgrade in CI.
+func ForcePreUpgradeRerun(cs *clients.Clients) {
+	tc, err := cs.Operator.TektonConfigs().Get(context.TODO(), "config", metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred(), "failed to get TektonConfig to reset pre-upgrade-version")
+	if tc.Status.Annotations == nil {
+		return
+	}
+	delete(tc.Status.Annotations, namespaceSyncPreUpgradeVersionAnnotation)
+	_, err = cs.Operator.TektonConfigs().UpdateStatus(context.TODO(), tc, metav1.UpdateOptions{})
+	Expect(err).NotTo(HaveOccurred(), "failed to reset pre-upgrade-version annotation")
+}
+
+// AssertLegacyNamespaceSyncParamsPersisted polls until spec.params no longer
+// contains any of the three legacy NamespaceSync keys (createRbacResource,
+// createCABundleConfigMaps, legacyPipelineRbac) and the pre-upgrade-version
+// status annotation has been restored to a non-empty value. This complements
+// the "maps ... onto typed defaults" spec, which only proves SetDefaults'
+// in-memory behavior: this proves the pre-upgrade job actually rewrites the
+// stored CR (see migrateLegacyNamespaceSyncParams in tektoncd/operator's
+// pkg/reconciler/shared/tektonconfig/upgrade/pre_upgrade.go) — without it,
+// the deprecated params would remain in spec.params forever.
+func AssertLegacyNamespaceSyncParamsPersisted(cs *clients.Clients) {
+	legacyKeys := map[string]bool{
+		"createRbacResource":       true,
+		"createCABundleConfigMaps": true,
+		"legacyPipelineRbac":       true,
+	}
+	err := wait.PollUntilContextTimeout(cs.Ctx, config.APIRetry, config.APITimeout, false, func(context.Context) (bool, error) {
+		tc, err := cs.Operator.TektonConfigs().Get(context.TODO(), "config", metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		for _, p := range tc.Spec.Params {
+			if legacyKeys[p.Name] {
+				log.Printf("Legacy param %s is still present in spec.params, waiting for the pre-upgrade job\n", p.Name)
+				return false, nil
+			}
+		}
+		if tc.Status.Annotations[namespaceSyncPreUpgradeVersionAnnotation] == "" {
+			log.Println("pre-upgrade-version annotation not yet restored, waiting for the pre-upgrade job")
+			return false, nil
+		}
+		return true, nil
+	})
+	Expect(err).NotTo(HaveOccurred(),
+		"expected legacy spec.params to be removed and pre-upgrade-version restored after the pre-upgrade job re-ran")
+}
+
 // ---------------------------------------------------------------------------
 // Assertions not already covered by pkg/operator/rbac.go
 // ---------------------------------------------------------------------------

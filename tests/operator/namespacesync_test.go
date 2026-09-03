@@ -58,7 +58,7 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 			// asserts the resource appears retroactively in that same
 			// namespace, without recreating it.
 			DescribeTable("disabling a single feature flag only affects its own resource",
-				func(field, resourceKind string, assertAbsent, assertPresent func(ns string)) {
+				func(field, resourceKind string, assertAbsent, assertPresent, assertOthersStillPresent func(ns string)) {
 					operator.RestoreNamespaceSyncDefaults(sharedClients)
 					operator.PatchNamespaceSync(sharedClients, field+":false")
 
@@ -71,7 +71,7 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 
 					By("the toggled-off resource (" + resourceKind + ") is absent, the others are present")
 					assertAbsent(ns)
-					operator.AssertServiceAccountPresent(sharedClients, ns, operator.NamespaceSyncPipelineSA)
+					assertOthersStillPresent(ns)
 
 					By("re-enabling the flag retroactively syncs the resource into the existing namespace")
 					operator.PatchNamespaceSync(sharedClients, field+":true")
@@ -84,6 +84,16 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 					func(ns string) {
 						operator.AssertServiceAccountPresent(sharedClients, ns, operator.NamespaceSyncPipelineSA)
 					},
+					func(ns string) {
+						operator.AssertConfigMapPresent(sharedClients, ns, operator.NamespaceSyncTrustedCABundleConfigMap)
+						operator.AssertRoleBindingPresent(sharedClients, ns, operator.NamespaceSyncEditRoleBinding)
+						// pipelines-scc-rolebinding is intentionally NOT asserted here:
+						// ensureSCCRoleBinding defers creation until the pipeline SA
+						// exists (it relies on the SA-created event to re-enqueue), so
+						// with createPipelineSA:false it never appears. This differs
+						// from ensureEditRoleBinding, which binds the SA name
+						// unconditionally regardless of whether the SA object exists.
+					},
 				),
 				Entry("createCABundles", "\"createCABundles\"", "CA bundle ConfigMaps",
 					func(ns string) {
@@ -91,6 +101,9 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 					},
 					func(ns string) {
 						operator.AssertConfigMapPresent(sharedClients, ns, operator.NamespaceSyncTrustedCABundleConfigMap)
+					},
+					func(ns string) {
+						operator.AssertServiceAccountPresent(sharedClients, ns, operator.NamespaceSyncPipelineSA)
 					},
 				),
 				Entry("createEditRoleBinding", "\"createEditRoleBinding\"", "edit RoleBinding",
@@ -100,6 +113,9 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 					func(ns string) {
 						operator.AssertRoleBindingPresent(sharedClients, ns, operator.NamespaceSyncEditRoleBinding)
 					},
+					func(ns string) {
+						operator.AssertServiceAccountPresent(sharedClients, ns, operator.NamespaceSyncPipelineSA)
+					},
 				),
 				Entry("createSCCRoleBinding", "\"createSCCRoleBinding\"", "SCC RoleBinding",
 					func(ns string) {
@@ -107,6 +123,9 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 					},
 					func(ns string) {
 						operator.AssertRoleBindingPresent(sharedClients, ns, operator.NamespaceSyncSCCRoleBinding)
+					},
+					func(ns string) {
+						operator.AssertServiceAccountPresent(sharedClients, ns, operator.NamespaceSyncPipelineSA)
 					},
 				),
 			)
@@ -246,6 +265,15 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 				matching := names.SimpleNameGenerator.RestrictLengthWithRandomSuffix("nssync-sel-match")
 				nonMatching := names.SimpleNameGenerator.RestrictLengthWithRandomSuffix("nssync-sel-nomatch")
 
+				// The selector is applied before either namespace is created.
+				// namespaceMatchesSelector short-circuits reconcileNamespace
+				// entirely for non-matching namespaces (pkg/reconciler/openshift/
+				// namespacesync/reconciler.go), so there is no cleanup path that
+				// retroactively removes resources from a namespace that was
+				// synced before the selector excluded it. Creating nonMatching
+				// beforehand would make AssertServiceAccountAbsent wait forever.
+				operator.PatchNamespaceSync(sharedClients, `"namespaceSelector":{"matchLabels":{"`+labelKey+`":"`+labelValue+`"}}`)
+
 				oc.CreateNewNamespace(matching)
 				oc.LabelNamespace(matching, labelKey+"="+labelValue)
 				oc.CreateNewNamespace(nonMatching)
@@ -254,8 +282,6 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 					oc.DeleteProjectIgnoreErrors(nonMatching)
 					operator.RestoreNamespaceSyncDefaults(sharedClients)
 				})
-
-				operator.PatchNamespaceSync(sharedClients, `"namespaceSelector":{"matchLabels":{"`+labelKey+`":"`+labelValue+`"}}`)
 
 				operator.AssertServiceAccountPresent(sharedClients, matching, operator.NamespaceSyncPipelineSA)
 				operator.AssertServiceAccountAbsent(sharedClients, nonMatching, operator.NamespaceSyncPipelineSA)
@@ -313,6 +339,40 @@ var _ = Describe("NamespaceSyncController", Serial, Ordered, ContinueOnFailure,
 				operator.AssertRoleBindingNotPresent(sharedClients, ns, operator.NamespaceSyncSCCRoleBinding)
 				// createCABundleConfigMaps is independent of the master switch.
 				operator.AssertConfigMapPresent(sharedClients, ns, operator.NamespaceSyncTrustedCABundleConfigMap)
+			})
+
+			// The previous spec only proves SetDefaults' in-memory behavior
+			// (every webhook admission recomputes the typed fields from
+			// spec.params, but never writes the result back). This spec
+			// proves the separate, persisted migration: a one-time
+			// pre-upgrade job that actually rewrites the stored CR so the
+			// legacy params are gone for good. That job only re-runs when
+			// the operator version changes, so it's forced here by
+			// resetting the pre-upgrade-version status annotation, as if
+			// the operator had just been upgraded.
+			It("persists the migration onto the stored CR via the pre-upgrade job, not just in-memory defaulting", func() {
+				operator.RemoveNamespaceSync(sharedClients)
+				DeferCleanup(func() {
+					operator.ClearLegacyNamespaceSyncParams(sharedClients)
+					operator.RestoreNamespaceSyncDefaults(sharedClients)
+				})
+
+				By("setting a legacy param (createRbacResource=false) while namespaceSync is unset")
+				operator.PatchLegacyNamespaceSyncParams(sharedClients, "false", "", "")
+
+				By("forcing the pre-upgrade job to re-run, as if the operator had just been upgraded")
+				operator.ForcePreUpgradeRerun(sharedClients)
+
+				By("the pre-upgrade job rewrites the stored spec: legacy param removed, typed default persisted")
+				operator.AssertLegacyNamespaceSyncParamsPersisted(sharedClients)
+
+				By("a namespace created afterwards still honors the migrated, now-persisted typed default")
+				ns := names.SimpleNameGenerator.RestrictLengthWithRandomSuffix("nssync-legacy-persist")
+				oc.CreateNewNamespace(ns)
+				DeferCleanup(func() {
+					oc.DeleteProjectIgnoreErrors(ns)
+				})
+				operator.AssertServiceAccountAbsent(sharedClients, ns, operator.NamespaceSyncPipelineSA)
 			})
 		})
 
