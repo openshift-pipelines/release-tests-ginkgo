@@ -17,7 +17,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v74 v74.0.0
 	github.com/onsi/ginkgo/v2 v2.32.1
-	github.com/onsi/gomega v1.42.1
+	github.com/onsi/gomega v1.43.0
 	github.com/openshift-pipelines/manual-approval-gate v0.9.0
 	github.com/openshift-pipelines/pipelines-as-code v0.49.0
 	github.com/openshift/api v0.0.0-20260511191110-9b69e5fa27e9
