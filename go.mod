@@ -16,8 +16,8 @@ replace (
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v74 v74.0.0
-	github.com/onsi/ginkgo/v2 v2.32.1
-	github.com/onsi/gomega v1.42.1
+	github.com/onsi/ginkgo/v2 v2.33.0
+	github.com/onsi/gomega v1.43.1
 	github.com/openshift-pipelines/manual-approval-gate v0.9.0
 	github.com/openshift-pipelines/pipelines-as-code v0.49.0
 	github.com/openshift/api v0.0.0-20260511191110-9b69e5fa27e9
@@ -131,7 +131,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
