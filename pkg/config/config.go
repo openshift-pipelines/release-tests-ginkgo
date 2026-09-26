@@ -109,6 +109,25 @@ const (
 	// WebhookTLSCipherSuitesEnvVar is the env var name for TLS cipher suites on knative
 	// webhook-based components.
 	WebhookTLSCipherSuitesEnvVar = "WEBHOOK_TLS_CIPHER_SUITES"
+	// TLSCurvePreferencesEnvVar is the env var name for TLS elliptic curve / key-exchange
+	// group preferences on non-knative components (e.g. tekton-triggers-core-interceptors,
+	// tekton-results-api). Values use Knative names (P-256), not IANA (secp256r1).
+	TLSCurvePreferencesEnvVar = "TLS_CURVE_PREFERENCES"
+	// WebhookTLSCurvePreferencesEnvVar is the env var name for TLS curve preferences on
+	// knative webhook-based components (WEBHOOK_ prefix).
+	WebhookTLSCurvePreferencesEnvVar = "WEBHOOK_TLS_CURVE_PREFERENCES"
+
+	// TLSCurveX25519MLKEM768 is the Knative / nginx name for the PQC hybrid group.
+	TLSCurveX25519MLKEM768 = "X25519MLKEM768"
+	// TLSCurveX25519 is the Knative / nginx name for X25519.
+	TLSCurveX25519 = "X25519"
+	// TLSCurveP256 is the Knative / nginx name for NIST P-256 (not IANA secp256r1).
+	TLSCurveP256 = "P-256"
+	// TLSCurveP384 is the Knative / nginx name for NIST P-384.
+	TLSCurveP384 = "P-384"
+	// TLSCurveIANAP256 is the OpenShift API / IANA name for P-256. Must not appear in
+	// injected WEBHOOK_TLS_CURVE_PREFERENCES / TLS_CURVE_PREFERENCES after conversion.
+	TLSCurveIANAP256 = "secp256r1"
 
 	// TLSVersionTLS10 is the TLS version string "1.0" as injected by the Tekton Operator
 	// into component env vars (short numeric format, not Go's "VersionTLS10").
@@ -167,6 +186,24 @@ const (
 	// KueueOperatorPackageName is the Kueue OLM package name.
 	KueueOperatorPackageName = "kueue-operator"
 )
+
+// IntermediateTLSCurvePreferences are the Knative curve names expected in
+// WEBHOOK_TLS_CURVE_PREFERENCES / TLS_CURVE_PREFERENCES for the Intermediate
+// (and typically Modern) APIServer TLS profile after IANA→Knative conversion.
+// OpenShift Intermediate groups are X25519MLKEM768, X25519, secp256r1, secp384r1.
+var IntermediateTLSCurvePreferences = []string{
+	TLSCurveX25519MLKEM768,
+	TLSCurveX25519,
+	TLSCurveP256,
+	TLSCurveP384,
+}
+
+// IntermediateNginxECDHCurves are substrings expected in nginx ssl_ecdh_curve
+// for Intermediate (colon-separated groups, e.g. X25519MLKEM768:X25519:P-256:…).
+var IntermediateNginxECDHCurves = []string{
+	TLSCurveX25519MLKEM768,
+	TLSCurveP256,
+}
 
 // TektonInstallersetNamePrefixes lists the name prefixes of all TektonInstallerSet resources.
 var TektonInstallersetNamePrefixes = [29]string{
