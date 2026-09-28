@@ -107,6 +107,8 @@ func SetupScannerRBAC() {
 func TeardownScannerRBAC() {
 	saRef := "system:serviceaccount:" + ScannerNamespace + ":" + scannerSA
 
+	TeardownConsolePluginScannerNetworkPolicy()
+
 	log.Printf("Removing cluster-reader from %s", saRef)
 	oc.RemoveClusterRoleFromUser("cluster-reader", saRef)
 
