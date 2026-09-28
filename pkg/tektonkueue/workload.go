@@ -3,6 +3,7 @@ package tektonkueue
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -18,15 +19,18 @@ const (
 	multiKueueController = "kueue.x-k8s.io/multikueue"
 	queueLabel           = "kueue.x-k8s.io/queue-name"
 	workloadImage        = "registry.access.redhat.com/ubi9/ubi-minimal@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7"
+	workloadLogMarker    = "multi-cluster-execution-ok"
+	workloadLogContainer = "step-prove-execution"
 )
 
-// Result identifies the selected spoke without exposing its API endpoint.
+// Result identifies the selected spoke and contains its workload logs.
 type Result struct {
 	PipelineRun string
 	Spoke       string
+	Logs        string
 }
 
-// Execute creates one hub PipelineRun and proves it runs on exactly one spoke.
+// Execute creates one hub PipelineRun and validates its execution on exactly one spoke.
 func (e *Environment) Execute(ctx context.Context) (*Result, error) {
 	run, err := e.createPipelineRun(ctx)
 	if err != nil {
@@ -40,10 +44,11 @@ func (e *Environment) Execute(ctx context.Context) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := e.waitForCompletion(ctx, run.Name, workloadName, spoke); err != nil {
+	logs, err := e.waitForCompletion(ctx, run.Name, workloadName, spoke)
+	if err != nil {
 		return nil, err
 	}
-	return &Result{PipelineRun: run.Name, Spoke: spoke.Name}, nil
+	return &Result{PipelineRun: run.Name, Spoke: spoke.Name, Logs: logs}, nil
 }
 
 func (e *Environment) createPipelineRun(ctx context.Context) (*pipelinev1.PipelineRun, error) {
@@ -66,7 +71,7 @@ func (e *Environment) createPipelineRun(ctx context.Context) (*pipelinev1.Pipeli
 				TaskSpec: &pipelinev1.EmbeddedTask{TaskSpec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{{
 					Name:   "prove-execution",
 					Image:  workloadImage,
-					Script: "#!/bin/sh\necho multi-cluster-execution-ok\nsleep 45\n",
+					Script: "#!/bin/sh\necho " + workloadLogMarker + "\nsleep 45\n",
 				}}}},
 			}}},
 		},
@@ -158,13 +163,25 @@ func (e *Environment) waitForSpokeExecution(ctx context.Context, runName string)
 	return selected, nil
 }
 
-func (e *Environment) waitForCompletion(ctx context.Context, runName, workloadName string, spoke Cluster) error {
+func (e *Environment) waitForCompletion(ctx context.Context, runName, workloadName string, spoke Cluster) (string, error) {
 	workerObservedSuccess := false
 	seen := map[string]bool{spoke.Name: true}
-	var hubState, workerState string
+	var hubState, workerState, logs, logState string
 	err := wait.PollUntilContextTimeout(ctx, pollInterval, 10*time.Minute, true, func(ctx context.Context) (bool, error) {
 		if err := e.recordSpokes(ctx, runName, seen); err != nil {
 			return false, err
+		}
+		if logs == "" {
+			candidate, err := e.pipelineRunLogs(ctx, spoke, runName)
+			switch {
+			case err != nil:
+				logState = err.Error()
+			case !strings.Contains(candidate, workloadLogMarker):
+				logState = "expected marker not present"
+			default:
+				logs = candidate
+				logState = "captured"
+			}
 		}
 
 		worker, workerErr := spoke.Clients.PipelineRunClient.Get(ctx, runName, metav1.GetOptions{})
@@ -188,27 +205,47 @@ func (e *Environment) waitForCompletion(ctx context.Context, runName, workloadNa
 		if terminal && !succeeded {
 			return false, fmt.Errorf("hub PipelineRun failed after execution on %s (%s)", spoke.Name, state)
 		}
-		return succeeded && workerObservedSuccess, nil
+		return succeeded && workerObservedSuccess && logs != "", nil
 	})
 	if err != nil {
-		return fmt.Errorf("PipelineRun %s did not complete (hub=%s, %s=%s): %w", runName, hubState, spoke.Name, workerState, err)
+		return "", fmt.Errorf("PipelineRun %s did not complete (hub=%s, %s=%s, logs=%s): %w", runName, hubState, spoke.Name, workerState, logState, err)
 	}
 
 	if err := e.waitForWorkloadFinished(ctx, workloadName, runName, seen); err != nil {
-		return err
+		return "", err
 	}
 	if err := e.waitForWorkerCleanup(ctx, spoke, runName, workloadName, seen); err != nil {
-		return err
+		return "", err
 	}
 
 	hubTaskRuns, err := e.Hub.Clients.TaskRunClient.List(ctx, metav1.ListOptions{LabelSelector: "tekton.dev/pipelineRun=" + runName})
 	if err != nil {
-		return err
+		return "", err
 	}
 	if len(hubTaskRuns.Items) != 0 {
-		return fmt.Errorf("PipelineRun %s created TaskRuns on the hub", runName)
+		return "", fmt.Errorf("PipelineRun %s created TaskRuns on the hub", runName)
 	}
-	return nil
+	return logs, nil
+}
+
+func (e *Environment) pipelineRunLogs(ctx context.Context, spoke Cluster, runName string) (string, error) {
+	pods, err := spoke.Clients.KubeClient.Kube.CoreV1().Pods(e.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "tekton.dev/pipelineRun=" + runName,
+	})
+	if err != nil {
+		return "", fmt.Errorf("list PipelineRun pods on %s: %w", spoke.Name, err)
+	}
+	if len(pods.Items) != 1 {
+		return "", fmt.Errorf("found %d PipelineRun pods on %s, want 1", len(pods.Items), spoke.Name)
+	}
+	logs, err := spoke.Clients.KubeClient.Kube.CoreV1().Pods(e.Namespace).GetLogs(
+		pods.Items[0].Name,
+		&corev1.PodLogOptions{Container: workloadLogContainer},
+	).DoRaw(ctx)
+	if err != nil {
+		return "", fmt.Errorf("read PipelineRun logs on %s: %w", spoke.Name, err)
+	}
+	return string(logs), nil
 }
 
 func (e *Environment) recordSpokes(ctx context.Context, runName string, seen map[string]bool) error {
