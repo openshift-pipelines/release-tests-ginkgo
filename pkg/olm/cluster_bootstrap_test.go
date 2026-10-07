@@ -4,12 +4,15 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	fakediscovery "k8s.io/client-go/discovery/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -93,5 +96,30 @@ func readyCSV(namespace string, phase olmv1alpha1.ClusterServiceVersionPhase) *o
 			Reason:  "test reason",
 			Message: "test message",
 		},
+	}
+}
+
+func TestWaitForAPIReturnsOnceServed(t *testing.T) {
+	discoveryClient := &fakediscovery.FakeDiscovery{Fake: &k8stesting.Fake{
+		Resources: []*metav1.APIResourceList{{GroupVersion: "kueue.openshift.io/v1"}},
+	}}
+
+	if err := WaitForAPI(context.Background(), discoveryClient, "kueue.openshift.io/v1"); err != nil {
+		t.Fatalf("WaitForAPI() = %v, want nil for a served API", err)
+	}
+}
+
+func TestWaitForAPIFailsWhenNeverServed(t *testing.T) {
+	discoveryClient := &fakediscovery.FakeDiscovery{Fake: &k8stesting.Fake{}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := WaitForAPI(ctx, discoveryClient, "kueue.openshift.io/v1")
+	if err == nil {
+		t.Fatal("WaitForAPI() = nil, want an error for an API that is never served")
+	}
+	if !strings.Contains(err.Error(), "kueue.openshift.io/v1") {
+		t.Fatalf("WaitForAPI() error = %v, want it to name the group version", err)
 	}
 }

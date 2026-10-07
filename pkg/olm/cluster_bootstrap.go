@@ -12,6 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
@@ -24,22 +25,93 @@ type ClusterBootstrap struct {
 	client.Client
 }
 
-// EnsureOperators installs or reuses the operators required by Tekton Kueue tests.
-func (cb *ClusterBootstrap) EnsureOperators(ctx context.Context) error {
-	operators := []struct {
-		name, channel, source, namespace string
-	}{
-		{config.PipelineOperatorPackageName, config.Flags.PipelineOperatorChannel, config.Flags.CatalogSource, config.Flags.PipelinesOperatorNamespace},
-		{config.KueueOperatorPackageName, config.Flags.KueueOperatorChannel, "redhat-operators", config.Flags.KueueOperatorNamespace},
-		{config.CertManagerOperatorPackageName, config.Flags.CertManagerOperatorChannel, "redhat-operators", config.Flags.CertManagerOperatorNamespace},
-	}
+// OperatorPrerequisite pairs an OLM package with the API group version it
+// registers, so callers can install an operator and wait for it to be usable.
+type OperatorPrerequisite struct {
+	Package       string
+	Channel       string
+	CatalogSource string
+	Namespace     string
+	GroupVersion  string
+}
 
-	for _, operator := range operators {
-		log.Printf("ensuring operator package %s", operator.name)
-		if err := cb.EnsureOperator(ctx, operator.name, operator.channel, operator.source, operator.namespace); err != nil {
-			return fmt.Errorf("ensure operator %s: %w", operator.name, err)
+// PipelinePrerequisite describes the OpenShift Pipelines operator.
+func PipelinePrerequisite() OperatorPrerequisite {
+	return OperatorPrerequisite{
+		Package:       config.PipelineOperatorPackageName,
+		Channel:       config.Flags.PipelineOperatorChannel,
+		CatalogSource: config.Flags.CatalogSource,
+		Namespace:     config.Flags.PipelinesOperatorNamespace,
+		GroupVersion:  "operator.tekton.dev/v1alpha1",
+	}
+}
+
+// MulticlusterPrerequisites describes the operators that multi-cluster work needs
+// on top of Pipelines. The Kueue entry names kueue.openshift.io rather than
+// kueue.x-k8s.io because the latter's CRDs are installed by the operand and only
+// exist once a Kueue CR has been created.
+func MulticlusterPrerequisites() []OperatorPrerequisite {
+	return []OperatorPrerequisite{
+		{
+			Package:       config.CertManagerOperatorPackageName,
+			Channel:       config.Flags.CertManagerOperatorChannel,
+			CatalogSource: "redhat-operators",
+			Namespace:     config.Flags.CertManagerOperatorNamespace,
+			GroupVersion:  "cert-manager.io/v1",
+		},
+		{
+			Package:       config.KueueOperatorPackageName,
+			Channel:       config.Flags.KueueOperatorChannel,
+			CatalogSource: "redhat-operators",
+			Namespace:     config.Flags.KueueOperatorNamespace,
+			GroupVersion:  "kueue.openshift.io/v1",
+		},
+	}
+}
+
+// EnsurePrerequisites installs or reuses each operator and, when discoveryClient is
+// non-nil, waits for its API to be served before moving on. Pass nil to install
+// without waiting.
+func (cb *ClusterBootstrap) EnsurePrerequisites(ctx context.Context, discoveryClient discovery.DiscoveryInterface, prerequisites []OperatorPrerequisite) error {
+	for _, prerequisite := range prerequisites {
+		log.Printf("ensuring operator package %s", prerequisite.Package)
+		if err := cb.EnsureOperator(ctx, prerequisite.Package, prerequisite.Channel,
+			prerequisite.CatalogSource, prerequisite.Namespace); err != nil {
+			return fmt.Errorf("ensure operator %s: %w", prerequisite.Package, err)
+		}
+		if discoveryClient == nil {
+			continue
+		}
+		if err := WaitForAPI(ctx, discoveryClient, prerequisite.GroupVersion); err != nil {
+			return fmt.Errorf("ensure operator %s: %w", prerequisite.Package, err)
 		}
 	}
+	return nil
+}
+
+// EnsureOperators installs or reuses the operators required by Tekton Kueue tests.
+// It does not wait for their APIs; call EnsurePrerequisites with a discovery client
+// when the APIs are used immediately afterwards.
+func (cb *ClusterBootstrap) EnsureOperators(ctx context.Context) error {
+	return cb.EnsurePrerequisites(ctx, nil,
+		append([]OperatorPrerequisite{PipelinePrerequisite()}, MulticlusterPrerequisites()...))
+}
+
+// WaitForAPI blocks until groupVersion is served by the API server.
+//
+// An operator's CSV reaches Succeeded before its CRDs finish registering, so a
+// caller that uses the operator's API immediately after EnsureOperator can see
+// "could not find the requested resource". That error is not IsNotFound, so it
+// propagates instead of being treated as a missing object.
+func WaitForAPI(ctx context.Context, discoveryClient discovery.DiscoveryInterface, groupVersion string) error {
+	if err := wait.PollUntilContextTimeout(ctx, config.APIRetry, operatorInstallTimeout, true,
+		func(context.Context) (bool, error) {
+			_, err := discoveryClient.ServerResourcesForGroupVersion(groupVersion)
+			return err == nil, nil
+		}); err != nil {
+		return fmt.Errorf("API %s was never served: %w", groupVersion, err)
+	}
+	log.Printf("API %s is served", groupVersion)
 	return nil
 }
 
