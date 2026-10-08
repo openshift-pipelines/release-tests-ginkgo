@@ -7,9 +7,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -38,16 +40,14 @@ func CreateHTTPClient() *http.Client {
 }
 
 // CreateHTTPSClient creates an HTTPS client with TLS certificates for connection re-use.
+// The certificates are the ones generated for this process by ExposeEventListenerForTLS.
 func CreateHTTPSClient() *http.Client {
+	certs := certsDir()
 	// Load client cert
-	cert, err := tls.LoadX509KeyPair(config.Path("testdata/triggers/certs/server.crt"), config.Path("testdata/triggers/certs/server.key"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	caCert, err := os.ReadFile(config.Path("testdata/triggers/certs/ca.crt"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	cert, err := tls.LoadX509KeyPair(filepath.Join(certs, "server.crt"), filepath.Join(certs, "server.key"))
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to load the TLS key pair from %s", certs))
+	caCert, err := os.ReadFile(filepath.Join(certs, "ca.crt"))
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to read the CA certificate from %s", certs))
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
 	client := &http.Client{
