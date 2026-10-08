@@ -37,7 +37,7 @@ type execution struct {
 
 // Execute creates one hub PipelineRun and validates its admission and execution on exactly one spoke.
 func (e *Environment) Execute(ctx context.Context, name string, prelabelled bool) (*Result, error) {
-	run, execution, err := e.createPipelineRun(ctx, name, prelabelled)
+	run, execution, err := e.createPipelineRun(ctx, name, prelabelled, 90*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +59,8 @@ func (e *Environment) Execute(ctx context.Context, name string, prelabelled bool
 	return &Result{PipelineRun: run.Name, Spoke: spoke.Name, Logs: logs}, nil
 }
 
-func (e *Environment) createPipelineRun(ctx context.Context, name string, prelabelled bool) (*pipelinev1.PipelineRun, *execution, error) {
-	run, expectedQueue := e.newPipelineRun(name, prelabelled)
+func (e *Environment) createPipelineRun(ctx context.Context, name string, prelabelled bool, duration time.Duration) (*pipelinev1.PipelineRun, *execution, error) {
+	run, expectedQueue := e.newPipelineRun(name, prelabelled, duration)
 	execution := &execution{}
 	var uid types.UID
 	e.addCleanup(func(cleanupCtx context.Context) error {
@@ -88,8 +88,8 @@ func (e *Environment) createPipelineRun(ctx context.Context, name string, prelab
 	return created, execution, nil
 }
 
-func (e *Environment) newPipelineRun(name string, prelabelled bool) (*pipelinev1.PipelineRun, string) {
-	timeout := metav1.Duration{Duration: 10 * time.Minute}
+func (e *Environment) newPipelineRun(name string, prelabelled bool, duration time.Duration) (*pipelinev1.PipelineRun, string) {
+	timeout := metav1.Duration{Duration: duration + 10*time.Minute}
 	labels := e.ownedLabels()
 	expectedQueue := e.Prefix
 	if prelabelled {
@@ -110,7 +110,7 @@ func (e *Environment) newPipelineRun(name string, prelabelled bool) (*pipelinev1
 				TaskSpec: &pipelinev1.EmbeddedTask{TaskSpec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{{
 					Name:   "prove-execution",
 					Image:  workloadImage,
-					Script: "#!/bin/sh\necho " + workloadLogMarker + "\nsleep 90\n",
+					Script: fmt.Sprintf("#!/bin/sh\necho %s\nsleep %d\n", workloadLogMarker, int(duration.Seconds())),
 				}}}},
 			}}},
 		},

@@ -245,7 +245,7 @@ ginkgo run --procs=1 --grace-period=25m --label-filter='tekton-kueue && workload
   --spoke-kubeconfig /path/to/spoke-2
 ```
 
-Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one matching `--spoke-context` per spoke. The workload test makes every configured spoke eligible and submits two hub PipelineRuns: one without a queue label and one with a distinct valid queue label. It verifies webhook defaulting and preservation, worker `managedBy` removal, Running and terminal status propagation, execution on exactly one spoke, and marker-bearing step logs.
+Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one matching `--spoke-context` per spoke. The workload test makes every configured spoke eligible and submits two hub PipelineRuns: one without a queue label and one with a distinct valid queue label. It verifies webhook defaulting and preservation, worker `managedBy` removal, Running and terminal status propagation, execution on exactly one spoke, and marker-bearing step logs. It also checks hub and spoke quota limits, Pending behavior when workers are unavailable, worker cancellation, manager deletion cleanup, and `HoldAndDrain` behavior on hub and spoke queues.
 
 The workload test temporarily configures and restores `TektonConfig.spec.scheduler`, Kueue, scoped worker credentials, RBAC, queues, and test-owned network access. Test namespaces and resources are removed even after failure. OLM operator installations remain available, matching the install suite. Secret synchronization, CEL routing, and NetworkPolicy behavior are separate coverage.
 

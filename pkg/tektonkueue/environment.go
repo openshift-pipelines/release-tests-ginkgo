@@ -470,7 +470,7 @@ func schedulerTerminalError(ctx context.Context, cluster Cluster) error {
 	return nil
 }
 
-func conditionTrue(object *unstructured.Unstructured, conditionType string) (bool, string) {
+func conditionStatus(object *unstructured.Unstructured, conditionType string) (string, string, bool) {
 	conditions, _, _ := unstructured.NestedSlice(object.Object, "status", "conditions")
 	for _, item := range conditions {
 		condition, ok := item.(map[string]any)
@@ -478,9 +478,14 @@ func conditionTrue(object *unstructured.Unstructured, conditionType string) (boo
 			continue
 		}
 		detail := fmt.Sprintf("%v: %v", condition["reason"], condition["message"])
-		return condition["status"] == "True", detail
+		return fmt.Sprint(condition["status"]), detail, true
 	}
-	return false, "condition not reported"
+	return "", "condition not reported", false
+}
+
+func conditionTrue(object *unstructured.Unstructured, conditionType string) (bool, string) {
+	status, detail, _ := conditionStatus(object, conditionType)
+	return status == "True", detail
 }
 
 func ignoreNotFound(err error) error {

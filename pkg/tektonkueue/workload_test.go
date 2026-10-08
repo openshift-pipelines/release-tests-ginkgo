@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -28,7 +29,7 @@ func TestNewPipelineRunLeavesWebhookDefaultsUnset(t *testing.T) {
 		{name: "prelabelled", prelabelled: true, wantQueue: "test-explicit"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			run, expectedQueue := environment.newPipelineRun(test.name, test.prelabelled)
+			run, expectedQueue := environment.newPipelineRun(test.name, test.prelabelled, 90*time.Second)
 			if run.Spec.ManagedBy != nil || run.Spec.Status != "" {
 				t.Fatalf("newPipelineRun() set webhook-owned fields: managedBy=%v, status=%q", run.Spec.ManagedBy, run.Spec.Status)
 			}

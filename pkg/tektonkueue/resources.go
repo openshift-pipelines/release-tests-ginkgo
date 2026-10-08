@@ -27,6 +27,11 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+const (
+	queueStopPolicyHold         = "Hold"
+	queueStopPolicyHoldAndDrain = "HoldAndDrain"
+)
+
 var (
 	resourceFlavorGVR    = kueueGVR("resourceflavors")
 	clusterQueueGVR      = kueueGVR("clusterqueues")
@@ -106,9 +111,8 @@ func (e *Environment) createQueues(ctx context.Context, cluster Cluster, hub boo
 	}
 
 	quota := int64(1)
-	if !hub {
-		// The worker temporarily holds the copied MultiKueue Workload and the
-		// PipelineRun-owned Workload, so one execution needs two quota units.
+	if hub {
+		// Admit two manager Workloads while each worker admits one PipelineRun.
 		quota = 2
 	}
 	clusterQueueSpec := map[string]any{
@@ -437,6 +441,61 @@ func (e *Environment) waitForKueueResources(ctx context.Context) error {
 		if err := waitForActive(ctx, e.Hub, multiKueueClusterGVR, "", e.workerName(spoke)); err != nil {
 			return fmt.Errorf("MultiKueueCluster for %s: %w", spoke.Name, err)
 		}
+	}
+	return nil
+}
+
+func (e *Environment) stopLocalQueue(ctx context.Context, cluster Cluster, policy string) (cleanupFunc, error) {
+	restore := func(restoreCtx context.Context) error {
+		if err := e.updateLocalQueueStopPolicy(restoreCtx, cluster, nil); err != nil {
+			return err
+		}
+		return e.waitForQueueActive(restoreCtx, cluster, true)
+	}
+	e.addCleanup(restore)
+	if err := e.updateLocalQueueStopPolicy(ctx, cluster, &policy); err != nil {
+		return nil, err
+	}
+	if err := e.waitForQueueActive(ctx, cluster, false); err != nil {
+		return nil, err
+	}
+	return restore, nil
+}
+
+func (e *Environment) updateLocalQueueStopPolicy(ctx context.Context, cluster Cluster, policy *string) error {
+	resource := cluster.Clients.Dynamic.Resource(localQueueGVR).Namespace(e.Namespace)
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		queue, err := resource.Get(ctx, e.Prefix, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if !e.owns(queue.GetLabels()) {
+			return fmt.Errorf("refusing to modify unowned LocalQueue %s on %s", e.Prefix, cluster.Name)
+		}
+		if policy == nil {
+			unstructured.RemoveNestedField(queue.Object, "spec", "stopPolicy")
+		} else if err := unstructured.SetNestedField(queue.Object, *policy, "spec", "stopPolicy"); err != nil {
+			return err
+		}
+		_, err = resource.Update(ctx, queue, metav1.UpdateOptions{})
+		return err
+	})
+}
+
+func (e *Environment) waitForQueueActive(ctx context.Context, cluster Cluster, want bool) error {
+	resource := cluster.Clients.Dynamic.Resource(localQueueGVR).Namespace(e.Namespace)
+	var last string
+	err := wait.PollUntilContextTimeout(ctx, pollInterval, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
+		queue, err := resource.Get(ctx, e.Prefix, metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		status, detail, found := conditionStatus(queue, "Active")
+		last = detail
+		return found && (status == "True") == want, nil
+	})
+	if err != nil {
+		return fmt.Errorf("LocalQueue %s on %s active=%t was not observed (%s): %w", e.Prefix, cluster.Name, want, last, err)
 	}
 	return nil
 }

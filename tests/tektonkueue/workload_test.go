@@ -74,5 +74,8 @@ var _ = Describe("Multi-cluster PipelineRun execution", Serial, Label("tekton-ku
 			GinkgoWriter.Printf("PipelineRun %s executed on %s and completed on the hub; spoke logs:\n%s",
 				result.PipelineRun, result.Spoke, result.Logs)
 		}
+
+		By("validating quota, unavailable workers, cancellation, and queue draining")
+		Expect(environment.ExerciseQueueLifecycle(specCtx)).To(Succeed())
 	})
 })

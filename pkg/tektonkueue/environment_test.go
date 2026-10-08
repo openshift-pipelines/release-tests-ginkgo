@@ -8,6 +8,10 @@ import (
 
 	operatorv1alpha1 "github.com/tektoncd/operator/pkg/apis/operator/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -169,6 +173,37 @@ func TestSpokeAPIPeersRestrictDestinations(t *testing.T) {
 		if peer.IPBlock == nil || (peer.IPBlock.CIDR != "192.0.2.10/32" && peer.IPBlock.CIDR != "2001:db8::10/128") {
 			t.Fatalf("unexpected egress peer: %+v", peer)
 		}
+	}
+}
+
+func TestUpdateLocalQueueStopPolicy(t *testing.T) {
+	environment := &Environment{Prefix: "rtg-mk-test", Namespace: "test"}
+	queue := object("LocalQueue", environment.Prefix, environment.Namespace, map[string]any{"clusterQueue": environment.Prefix})
+	queue.SetLabels(environment.ownedLabels())
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), queue)
+	cluster := Cluster{Name: "spoke-1", Clients: &clients.Clients{Dynamic: dynamicClient}}
+
+	policy := queueStopPolicyHoldAndDrain
+	if err := environment.updateLocalQueueStopPolicy(context.Background(), cluster, &policy); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := dynamicClient.Resource(localQueueGVR).Namespace(environment.Namespace).Get(context.Background(), environment.Prefix, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, found, _ := unstructured.NestedString(updated.Object, "spec", "stopPolicy"); !found || got != policy {
+		t.Fatalf("stopPolicy = %q, found=%t, want %q", got, found, policy)
+	}
+
+	if err := environment.updateLocalQueueStopPolicy(context.Background(), cluster, nil); err != nil {
+		t.Fatal(err)
+	}
+	updated, err = dynamicClient.Resource(localQueueGVR).Namespace(environment.Namespace).Get(context.Background(), environment.Prefix, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, found, _ := unstructured.NestedString(updated.Object, "spec", "stopPolicy"); found {
+		t.Fatal("stopPolicy was not removed")
 	}
 }
 
