@@ -27,6 +27,7 @@ func ensureScanned() {
 
 		tlsscanner.SetupScannerNamespace()
 		tlsscanner.SetupScannerRBAC()
+		tlsscanner.SetupConsolePluginScannerNetworkPolicy()
 		DeferCleanup(tlsscanner.TeardownScannerRBAC)
 
 		podName := tlsscanner.RunScannerJob(sharedClients, config.TargetNamespace)
