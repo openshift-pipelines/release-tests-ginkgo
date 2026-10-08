@@ -18,6 +18,7 @@ import (
 const (
 	multiKueueController = "kueue.x-k8s.io/multikueue"
 	queueLabel           = "kueue.x-k8s.io/queue-name"
+	explicitQueueSuffix  = "-explicit"
 	workloadImage        = "registry.access.redhat.com/ubi9/ubi-minimal@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7"
 	workloadLogMarker    = "multi-cluster-execution-ok"
 	workloadLogContainer = "step-prove-execution"
@@ -30,13 +31,17 @@ type Result struct {
 	Logs        string
 }
 
-// Execute creates one hub PipelineRun and validates its execution on exactly one spoke.
-func (e *Environment) Execute(ctx context.Context) (*Result, error) {
-	run, err := e.createPipelineRun(ctx)
+type execution struct {
+	workloadName string
+}
+
+// Execute creates one hub PipelineRun and validates its admission and execution on exactly one spoke.
+func (e *Environment) Execute(ctx context.Context, name string, prelabelled bool) (*Result, error) {
+	run, execution, err := e.createPipelineRun(ctx, name, prelabelled)
 	if err != nil {
 		return nil, err
 	}
-	workloadName, err := e.waitForHubWorkload(ctx, run)
+	execution.workloadName, err = e.waitForHubWorkload(ctx, run)
 	if err != nil {
 		return nil, err
 	}
@@ -44,39 +49,19 @@ func (e *Environment) Execute(ctx context.Context) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	logs, err := e.waitForCompletion(ctx, run.Name, workloadName, spoke)
+	if err := e.waitForHubRunning(ctx, run.Name, spoke); err != nil {
+		return nil, err
+	}
+	logs, err := e.waitForCompletion(ctx, run.Name, execution.workloadName, spoke)
 	if err != nil {
 		return nil, err
 	}
 	return &Result{PipelineRun: run.Name, Spoke: spoke.Name, Logs: logs}, nil
 }
 
-func (e *Environment) createPipelineRun(ctx context.Context) (*pipelinev1.PipelineRun, error) {
-	managedBy := multiKueueController
-	timeout := metav1.Duration{Duration: 10 * time.Minute}
-	labels := e.ownedLabels()
-	labels[queueLabel] = e.Prefix
-	run := &pipelinev1.PipelineRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      e.Prefix + "-run",
-			Namespace: e.Namespace,
-			Labels:    labels,
-		},
-		Spec: pipelinev1.PipelineRunSpec{
-			ManagedBy:       &managedBy,
-			Timeouts:        &pipelinev1.TimeoutFields{Pipeline: &timeout},
-			TaskRunTemplate: pipelinev1.PipelineTaskRunTemplate{ServiceAccountName: "default"},
-			PipelineSpec: &pipelinev1.PipelineSpec{Tasks: []pipelinev1.PipelineTask{{
-				Name: "execute-on-spoke",
-				TaskSpec: &pipelinev1.EmbeddedTask{TaskSpec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{{
-					Name:   "prove-execution",
-					Image:  workloadImage,
-					Script: "#!/bin/sh\necho " + workloadLogMarker + "\nsleep 45\n",
-				}}}},
-			}}},
-		},
-	}
-	e.runName = run.Name
+func (e *Environment) createPipelineRun(ctx context.Context, name string, prelabelled bool) (*pipelinev1.PipelineRun, *execution, error) {
+	run, expectedQueue := e.newPipelineRun(name, prelabelled)
+	execution := &execution{}
 	var uid types.UID
 	e.addCleanup(func(cleanupCtx context.Context) error {
 		current, getErr := e.Hub.Clients.PipelineRunClient.Get(cleanupCtx, run.Name, metav1.GetOptions{})
@@ -90,14 +75,63 @@ func (e *Environment) createPipelineRun(ctx context.Context) (*pipelinev1.Pipeli
 		} else if !apierrors.IsNotFound(getErr) {
 			return getErr
 		}
-		return e.waitForExecutionObjectsGone(cleanupCtx)
+		return e.waitForExecutionObjectsGone(cleanupCtx, run.Name, execution.workloadName)
 	})
 	created, err := e.Hub.Clients.PipelineRunClient.Create(ctx, run, metav1.CreateOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("create hub PipelineRun: %w", err)
+		return nil, execution, fmt.Errorf("create hub PipelineRun: %w", err)
 	}
 	uid = created.UID
-	return created, nil
+	if err := e.validateHubAdmission(created, expectedQueue); err != nil {
+		return nil, execution, err
+	}
+	return created, execution, nil
+}
+
+func (e *Environment) newPipelineRun(name string, prelabelled bool) (*pipelinev1.PipelineRun, string) {
+	timeout := metav1.Duration{Duration: 10 * time.Minute}
+	labels := e.ownedLabels()
+	expectedQueue := e.Prefix
+	if prelabelled {
+		expectedQueue = e.explicitQueueName()
+		labels[queueLabel] = expectedQueue
+	}
+	return &pipelinev1.PipelineRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      e.Prefix + "-" + name,
+			Namespace: e.Namespace,
+			Labels:    labels,
+		},
+		Spec: pipelinev1.PipelineRunSpec{
+			Timeouts:        &pipelinev1.TimeoutFields{Pipeline: &timeout},
+			TaskRunTemplate: pipelinev1.PipelineTaskRunTemplate{ServiceAccountName: "default"},
+			PipelineSpec: &pipelinev1.PipelineSpec{Tasks: []pipelinev1.PipelineTask{{
+				Name: "execute-on-spoke",
+				TaskSpec: &pipelinev1.EmbeddedTask{TaskSpec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{{
+					Name:   "prove-execution",
+					Image:  workloadImage,
+					Script: "#!/bin/sh\necho " + workloadLogMarker + "\nsleep 90\n",
+				}}}},
+			}}},
+		},
+	}, expectedQueue
+}
+
+func (e *Environment) explicitQueueName() string {
+	return e.Prefix + explicitQueueSuffix
+}
+
+func (e *Environment) validateHubAdmission(run *pipelinev1.PipelineRun, queueName string) error {
+	if got := run.Labels[queueLabel]; got != queueName {
+		return fmt.Errorf("hub PipelineRun %s queue label = %q, want %q", run.Name, got, queueName)
+	}
+	if run.Spec.ManagedBy == nil || *run.Spec.ManagedBy != multiKueueController {
+		return fmt.Errorf("hub PipelineRun %s managedBy was not set to %q", run.Name, multiKueueController)
+	}
+	if run.Spec.Status != pipelinev1.PipelineRunSpecStatusPending {
+		return fmt.Errorf("hub PipelineRun %s spec.status = %q, want %q", run.Name, run.Spec.Status, pipelinev1.PipelineRunSpecStatusPending)
+	}
+	return nil
 }
 
 func (e *Environment) waitForHubWorkload(ctx context.Context, run *pipelinev1.PipelineRun) (string, error) {
@@ -121,7 +155,6 @@ func (e *Environment) waitForHubWorkload(ctx context.Context, run *pipelinev1.Pi
 	if err != nil {
 		return "", fmt.Errorf("hub Workload was not created for PipelineRun %s: %w", run.Name, err)
 	}
-	e.workloadName = name
 	return name, nil
 }
 
@@ -130,7 +163,11 @@ func (e *Environment) waitForSpokeExecution(ctx context.Context, runName string)
 	var selected Cluster
 	err := wait.PollUntilContextTimeout(ctx, pollInterval, 10*time.Minute, true, func(ctx context.Context) (bool, error) {
 		for _, spoke := range e.Spokes {
-			if _, err := spoke.Clients.PipelineRunClient.Get(ctx, runName, metav1.GetOptions{}); err == nil {
+			worker, err := spoke.Clients.PipelineRunClient.Get(ctx, runName, metav1.GetOptions{})
+			if err == nil {
+				if worker.Spec.ManagedBy != nil {
+					return false, fmt.Errorf("worker PipelineRun %s on %s retained managedBy %q", runName, spoke.Name, *worker.Spec.ManagedBy)
+				}
 				seen[spoke.Name] = true
 				selected = spoke
 			} else if !apierrors.IsNotFound(err) {
@@ -161,6 +198,36 @@ func (e *Environment) waitForSpokeExecution(ctx context.Context, runName string)
 		return Cluster{}, fmt.Errorf("PipelineRun %s unexpectedly created TaskRuns on the hub", runName)
 	}
 	return selected, nil
+}
+
+func (e *Environment) waitForHubRunning(ctx context.Context, runName string, spoke Cluster) error {
+	var hubState, workerState string
+	err := wait.PollUntilContextTimeout(ctx, pollInterval, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
+		hub, err := e.Hub.Clients.PipelineRunClient.Get(ctx, runName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		worker, err := spoke.Clients.PipelineRunClient.Get(ctx, runName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		hubCondition := hub.Status.GetCondition(apis.ConditionSucceeded)
+		workerCondition := worker.Status.GetCondition(apis.ConditionSucceeded)
+		if hubCondition == nil || workerCondition == nil {
+			return false, nil
+		}
+		hubState = fmt.Sprintf("%s: %s", hubCondition.Reason, hubCondition.Message)
+		workerState = fmt.Sprintf("%s: %s", workerCondition.Reason, workerCondition.Message)
+		if hubCondition.Status == corev1.ConditionFalse || workerCondition.Status == corev1.ConditionFalse {
+			return false, fmt.Errorf("PipelineRun failed before Running was observed (hub=%s, %s=%s)", hubState, spoke.Name, workerState)
+		}
+		running := pipelinev1.PipelineRunReasonRunning.String()
+		return hubCondition.Status == corev1.ConditionUnknown && workerCondition.Status == corev1.ConditionUnknown && hubCondition.Reason == running && workerCondition.Reason == running, nil
+	})
+	if err != nil {
+		return fmt.Errorf("hub PipelineRun %s did not mirror Running status from %s (hub=%s, worker=%s): %w", runName, spoke.Name, hubState, workerState, err)
+	}
+	return nil
 }
 
 func (e *Environment) waitForCompletion(ctx context.Context, runName, workloadName string, spoke Cluster) (string, error) {
@@ -299,24 +366,24 @@ func (e *Environment) waitForWorkloadFinished(ctx context.Context, workloadName,
 	return nil
 }
 
-func (e *Environment) waitForExecutionObjectsGone(ctx context.Context) error {
+func (e *Environment) waitForExecutionObjectsGone(ctx context.Context, runName, workloadName string) error {
 	hubWorkloads := e.Hub.Clients.Dynamic.Resource(workloadGVR).Namespace(e.Namespace)
 	err := wait.PollUntilContextTimeout(ctx, pollInterval, 10*time.Minute, true, func(ctx context.Context) (bool, error) {
-		if _, err := e.Hub.Clients.PipelineRunClient.Get(ctx, e.runName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
+		if _, err := e.Hub.Clients.PipelineRunClient.Get(ctx, runName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
 			return false, ignoreNotFound(err)
 		}
-		if e.workloadName != "" {
-			if _, err := hubWorkloads.Get(ctx, e.workloadName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
+		if workloadName != "" {
+			if _, err := hubWorkloads.Get(ctx, workloadName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
 				return false, ignoreNotFound(err)
 			}
 		}
 		for _, spoke := range e.Spokes {
-			if _, err := spoke.Clients.PipelineRunClient.Get(ctx, e.runName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
+			if _, err := spoke.Clients.PipelineRunClient.Get(ctx, runName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
 				return false, ignoreNotFound(err)
 			}
-			if e.workloadName != "" {
+			if workloadName != "" {
 				workloads := spoke.Clients.Dynamic.Resource(workloadGVR).Namespace(e.Namespace)
-				if _, err := workloads.Get(ctx, e.workloadName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
+				if _, err := workloads.Get(ctx, workloadName, metav1.GetOptions{}); !apierrors.IsNotFound(err) {
 					return false, ignoreNotFound(err)
 				}
 			}
