@@ -14,8 +14,8 @@ import (
 	workload "github.com/openshift-pipelines/release-tests-ginkgo/pkg/tektonkueue"
 )
 
-var _ = Describe("Multi-cluster PipelineRun execution", Serial, Label("tekton-kueue", "workload", "admin"), func() {
-	It("executes a hub PipelineRun on one spoke and validates its logs", NodeTimeout(2*time.Hour), func(specCtx SpecContext) {
+var _ = Describe("Multi-cluster PipelineRun execution", Serial, Label("tekton-kueue", "workload", "webhook", "admin", "e2e"), func() {
+	It("defaults and preserves queue labels while executing hub PipelineRuns on a spoke", NodeTimeout(2*time.Hour), func(specCtx SpecContext) {
 		prefix := "rtg-mk-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 		type target struct {
 			name   string
@@ -59,11 +59,23 @@ var _ = Describe("Multi-cluster PipelineRun execution", Serial, Label("tekton-ku
 		})
 
 		Expect(environment.Setup(specCtx)).To(Succeed(), "failed to configure multi-cluster workload environment")
-		result, err := environment.Execute(specCtx)
-		Expect(err).NotTo(HaveOccurred(), "multi-cluster PipelineRun execution failed")
-		Expect(result.Logs).To(ContainSubstring("multi-cluster-execution-ok"),
-			"selected spoke %s did not return the expected workload log", result.Spoke)
-		GinkgoWriter.Printf("PipelineRun %s executed on %s and completed on the hub; spoke logs:\n%s",
-			result.PipelineRun, result.Spoke, result.Logs)
+		for _, scenario := range []struct {
+			name        string
+			prelabelled bool
+		}{
+			{name: "defaulted"},
+			{name: "prelabelled", prelabelled: true},
+		} {
+			By(fmt.Sprintf("executing the %s queue-label scenario", scenario.name))
+			result, err := environment.Execute(specCtx, scenario.name, scenario.prelabelled)
+			Expect(err).NotTo(HaveOccurred(), "multi-cluster PipelineRun %s execution failed", scenario.name)
+			Expect(result.Logs).To(ContainSubstring("multi-cluster-execution-ok"),
+				"selected spoke %s did not return the expected workload log", result.Spoke)
+			GinkgoWriter.Printf("PipelineRun %s executed on %s and completed on the hub; spoke logs:\n%s",
+				result.PipelineRun, result.Spoke, result.Logs)
+		}
+
+		By("validating quota, unavailable workers, cancellation, and queue draining")
+		Expect(environment.ExerciseQueueLifecycle(specCtx)).To(Succeed())
 	})
 })
