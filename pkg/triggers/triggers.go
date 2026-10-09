@@ -88,10 +88,10 @@ func ExposeEventListenerForTLS(c *clients.Clients, elname, namespace string) str
 		cmd.MustSucceed("openssl", "genrsa", "-out", serverKey, "4096").Stdout()
 	}
 
-	// other files depend on domain name which changes for every test cluster
+	// other files depend on domain name which changes for every test cluster.
 	log.Println("Generating server.csr")
 	cmd.MustSucceed("openssl", "req", "-new", "-key", serverKey, "-out", serverCsr,
-		"-subj", fmt.Sprintf("/C=IN/ST=Kar/L=Blr/O=RedHat/CN=%s", domain)).Stdout()
+		"-subj", "/C=IN/ST=Kar/L=Blr/O=RedHat/CN=eventlistener").Stdout()
 
 	extData := fmt.Sprintf("authorityKeyIdentifier=keyid,issuer\nbasicConstraints=CA:FALSE\nkeyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment\n"+
 		"subjectAltName = @alt_names\n\n\n[alt_names]\nDNS.1 = %s\n", domain)
