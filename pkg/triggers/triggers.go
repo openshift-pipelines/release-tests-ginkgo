@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -57,20 +58,32 @@ func ExposeEventListener(c *clients.Clients, elname, namespace string) string {
 	return GetRoute(elname, namespace)
 }
 
+// certsDir returns the directory holding the TLS material generated for the
+// EventListener routes of the current test process. Ginkgo runs the specs of
+// one process sequentially, so a per-process directory keeps parallel
+// processes from deleting or rewriting each other's certificates while they
+// are in use.
+func certsDir() string {
+	return filepath.Join(os.TempDir(), fmt.Sprintf("release-tests-triggers-certs-%d", os.Getpid()))
+}
+
 // ExposeEventListenerForTLS exposes an EventListener with TLS and returns the route URL.
 func ExposeEventListenerForTLS(c *clients.Clients, elname, namespace string) string {
 	svcName, portName := getServiceNameAndPort(c, elname, namespace)
 	domain := getDomain()
-	cmd.MustSucceed("mkdir", "-p", resource.Path("testdata/triggers/certs")).Stdout()
+	certs := certsDir()
+	err := os.MkdirAll(certs, 0o700)
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to create certs directory %s", certs))
 
-	caKey := resource.Path("testdata/triggers/certs/ca.key")
-	caCrt := resource.Path("testdata/triggers/certs/ca.crt")
-	serverKey := resource.Path("testdata/triggers/certs/server.key")
-	serverCrt := resource.Path("testdata/triggers/certs/server.crt")
-	serverCsr := resource.Path("testdata/triggers/certs/server.csr")
-	serverExt := resource.Path("testdata/triggers/certs/server.ext")
+	caKey := filepath.Join(certs, "ca.key")
+	caCrt := filepath.Join(certs, "ca.crt")
+	serverKey := filepath.Join(certs, "server.key")
+	serverCrt := filepath.Join(certs, "server.crt")
+	serverCsr := filepath.Join(certs, "server.csr")
+	serverExt := filepath.Join(certs, "server.ext")
 
-	// first 3 files can be reused so they are committed in git repository
+	// first 3 files do not depend on the cluster, so they are reused by the
+	// specs of this process until CleanupTriggers removes them
 	if _, err := os.Stat(caKey); errors.Is(err, os.ErrNotExist) {
 		log.Println("Generating ca.key")
 		cmd.MustSucceed("openssl", "genrsa", "-out", caKey, "4096").Stdout()
@@ -97,7 +110,7 @@ func ExposeEventListenerForTLS(c *clients.Clients, elname, namespace string) str
 		"subjectAltName = @alt_names\n\n\n[alt_names]\nDNS.1 = %s\n", domain)
 
 	log.Println("Generating server.ext")
-	err := os.WriteFile(serverExt, []byte(extData), 0600)
+	err = os.WriteFile(serverExt, []byte(extData), 0o600)
 	Expect(err).NotTo(HaveOccurred(), "failed to write server.ext")
 
 	log.Println("Generating server.crt")
@@ -232,7 +245,8 @@ func CleanupTriggers(c *clients.Clients, elName, namespace string) {
 	log.Println("EventListener's Route got deleted successfully...")
 
 	// Clean up TLS cert files
-	cmd.MustSucceed("rm", "-rf", resource.Path("testdata/triggers/certs"))
+	err = os.RemoveAll(certsDir())
+	Expect(err).NotTo(HaveOccurred(), "failed to remove the TLS certs directory")
 }
 
 // GetRoute retrieves the route for an EventListener and returns the route URL.
@@ -243,12 +257,11 @@ func GetRoute(elname, namespace string) string {
 
 	// event listener is using TLS
 	if serverCert != "" {
-		file, err := os.Create(resource.Path("testdata/triggers/certs/server.crt"))
-		Expect(err).NotTo(HaveOccurred(), "failed to create server.crt file")
-		//nolint:errcheck
-		defer file.Close()
+		certs := certsDir()
+		err := os.MkdirAll(certs, 0o700)
+		Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("failed to create certs directory %s", certs))
 
-		_, err = file.WriteString(serverCert)
+		err = os.WriteFile(filepath.Join(certs, "server.crt"), []byte(serverCert), 0o600)
 		Expect(err).NotTo(HaveOccurred(), "failed to write server.crt")
 	}
 	return GetRouteURL(route, namespace)
