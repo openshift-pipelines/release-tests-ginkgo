@@ -45,9 +45,7 @@ type Environment struct {
 	Prefix    string
 	Namespace string
 
-	runName      string
-	workloadName string
-	cleanups     []cleanupFunc
+	cleanups []cleanupFunc
 }
 
 // NewEnvironment creates a test environment. Setup performs validation before mutating clusters.
