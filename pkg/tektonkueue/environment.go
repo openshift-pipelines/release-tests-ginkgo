@@ -45,7 +45,8 @@ type Environment struct {
 	Prefix    string
 	Namespace string
 
-	cleanups []cleanupFunc
+	cleanups      []cleanupFunc
+	pacSecretSync bool
 }
 
 // NewEnvironment creates a test environment. Setup performs validation before mutating clusters.

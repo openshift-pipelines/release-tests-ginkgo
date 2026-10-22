@@ -67,6 +67,12 @@ func (s *ArmedExecution) observe(ctx context.Context, run *pipelinev1.PipelineRu
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(w.retained[spoke.Name].pod.object.Object, &pod); err != nil {
 			return false, fmt.Errorf("invalid observed Pod")
 		}
+		if s.pac != nil {
+			ready, err := s.pacReady(run, spoke)
+			if err != nil || !ready {
+				return false, err
+			}
+		}
 		for _, status := range pod.Status.ContainerStatuses {
 			if status.Name == workloadLogContainer && status.State.Running != nil {
 				return true, nil
@@ -101,6 +107,9 @@ func (s *ArmedExecution) observe(ctx context.Context, run *pipelinev1.PipelineRu
 	}
 	if err := w.completePlacement(spoke.Name); err != nil {
 		return nil, err
+	}
+	if s.pac != nil {
+		s.pac.allowDeletion = true
 	}
 	if err := target.release(ctx, "gate2", "finish"); err != nil {
 		return nil, err
@@ -142,6 +151,9 @@ func (s *ArmedExecution) workerCleanup(ctx context.Context) (bool, error) {
 			return false, fmt.Errorf("worker Workload was replaced")
 		}
 		return false, nil
+	}
+	if s.pac != nil {
+		return s.pacCleanup(ctx, false)
 	}
 	return true, nil
 }

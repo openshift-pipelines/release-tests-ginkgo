@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -55,7 +56,7 @@ func executionEnvironment(t *testing.T) *executionFixture {
 	clusters := make([]Cluster, 0, 3)
 	for _, name := range []string{"hub", "spoke-1", "spoke-2"} {
 		dynamic := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
-			pipelineRunGVR: "PipelineRunList", taskRunGVR: "TaskRunList", workloadGVR: "WorkloadList", podGVR: "PodList",
+			pipelineRunGVR: "PipelineRunList", taskRunGVR: "TaskRunList", workloadGVR: "WorkloadList", podGVR: "PodList", secretGVR: "SecretList",
 		})
 		dynamic.PrependWatchReactor("*", func(action k8stesting.Action) (bool, watch.Interface, error) {
 			stream, err := dynamic.Tracker().Watch(action.GetResource(), action.GetNamespace())
@@ -65,7 +66,7 @@ func executionEnvironment(t *testing.T) *executionFixture {
 			return true, stream, err
 		})
 		tekton := pipelinefake.NewSimpleClientset()
-		cfg := &rest.Config{Host: server.URL}
+		cfg := &rest.Config{Host: server.URL, BearerToken: name}
 		kube, err := kubernetes.NewForConfig(cfg)
 		if err != nil {
 			t.Fatal(err)
@@ -139,6 +140,24 @@ func executionEnvironment(t *testing.T) *executionFixture {
 
 func (f *executionFixture) exec(t *testing.T, w http.ResponseWriter, r *http.Request) {
 	t.Helper()
+	if r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/api/v1/namespaces/test-ns/secrets/") {
+		cluster := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		client := f.dynamic[cluster]
+		if client == nil {
+			http.Error(w, "unknown cluster", http.StatusForbidden)
+			return
+		}
+		secret, err := client.Resource(secretGVR).Namespace(wireRun.namespace).Get(r.Context(), strings.TrimPrefix(r.URL.Path, "/api/v1/namespaces/test-ns/secrets/"), metav1.GetOptions{})
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(secret); err != nil {
+			t.Error(err)
+		}
+		return
+	}
 	if r.Method == "GET" && r.URL.Path == "/api/v1/namespaces/test-ns/pods/worker-pod" {
 		pod, err := f.dynamic["spoke-1"].Resource(podGVR).Namespace(wireRun.namespace).Get(r.Context(), wireRun.pod, metav1.GetOptions{})
 		if err != nil {

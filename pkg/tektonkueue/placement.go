@@ -163,6 +163,9 @@ func (w *executionWatches) validateHistory() error {
 			}
 		}
 	}
+	if w.pac != nil {
+		return w.pac.checkRunHistory(w)
+	}
 	return nil
 }
 

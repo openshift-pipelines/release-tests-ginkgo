@@ -20,6 +20,7 @@ type ArmedExecution struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	root        *pipelinev1.PipelineRun
+	pac         *pacExecution
 }
 
 // Arm must succeed before any external trigger. Environment.Cleanup is already
@@ -66,14 +67,14 @@ func (s *ArmedExecution) Observe(run *pipelinev1.PipelineRun) (*Result, error) {
 	if s.root != nil {
 		return nil, fmt.Errorf("armed execution is already bound")
 	}
-	if run == nil || run.Name == "" || run.UID == "" || run.Namespace != e.Namespace || !e.owns(run.Labels) {
+	if run == nil || run.Name == "" || run.UID == "" || run.Namespace != e.Namespace || !s.owns(run.Labels) {
 		return nil, fmt.Errorf("binding requires a test-owned hub PipelineRun identity")
 	}
 	current, err := e.Hub.Clients.PipelineRunClient.Get(s.ctx, run.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, requestError(s.ctx, "verify hub PipelineRun identity")
 	}
-	if current.UID != run.UID || !e.owns(current.Labels) {
+	if current.UID != run.UID || !s.owns(current.Labels) {
 		return nil, fmt.Errorf("hub binding found a replacement PipelineRun")
 	}
 	s.root = current.DeepCopy()
@@ -85,18 +86,22 @@ func (s *ArmedExecution) cleanup(ctx context.Context) error {
 	defer s.watches.stop()
 	e, w := s.environment, s.watches
 	historyErr := w.drain(ctx)
+	if s.pac != nil {
+		s.pac.allowDeletion = true
+		s.pac.cleaning = true
+	}
 	// This list is only a guarded deletion inventory if the caller failed before
 	// binding. It never replaces execution history or repairs a broken stream.
 	if s.root == nil {
 		for _, event := range w.events {
-			if event.cluster != e.Hub.Name || event.gvr != pipelineRunGVR || !e.owns(event.object.GetLabels()) {
+			if event.cluster != e.Hub.Name || event.gvr != pipelineRunGVR || !s.owns(event.object.GetLabels()) {
 				continue
 			}
 			if s.root != nil && (s.root.Name != event.object.GetName() || s.root.UID != event.object.GetUID()) {
 				return fmt.Errorf("cleanup found conflicting historic hub identities")
 			}
 			s.root = &pipelinev1.PipelineRun{ObjectMeta: metav1.ObjectMeta{
-				Name: event.object.GetName(), Namespace: e.Namespace, UID: event.object.GetUID(), Labels: event.object.GetLabels(),
+				Name: event.object.GetName(), Namespace: e.Namespace, UID: event.object.GetUID(), Labels: event.object.GetLabels(), Annotations: event.object.GetAnnotations(),
 			}}
 		}
 		runs, err := e.Hub.Clients.PipelineRunClient.List(ctx, metav1.ListOptions{})
@@ -105,7 +110,7 @@ func (s *ArmedExecution) cleanup(ctx context.Context) error {
 		}
 		for i := range runs.Items {
 			run := &runs.Items[i]
-			if !e.owns(run.Labels) {
+			if !s.owns(run.Labels) {
 				continue
 			}
 			if s.root != nil {
@@ -123,7 +128,7 @@ func (s *ArmedExecution) cleanup(ctx context.Context) error {
 	run := s.root
 	current, err := e.Hub.Clients.PipelineRunClient.Get(ctx, run.Name, metav1.GetOptions{})
 	if err == nil {
-		if current.UID != run.UID || !e.owns(current.Labels) {
+		if current.UID != run.UID || !s.owns(current.Labels) {
 			return fmt.Errorf("refusing to delete a replacement hub PipelineRun")
 		}
 		uid := run.UID
@@ -148,6 +153,13 @@ func (s *ArmedExecution) cleanup(ctx context.Context) error {
 				return false, nil
 			}
 		}
-		return s.workerCleanup(ctx)
+		ready, err := s.workerCleanup(ctx)
+		if err != nil || !ready {
+			return ready, err
+		}
+		if s.pac != nil {
+			return s.pacCleanup(ctx, true)
+		}
+		return true, nil
 	})
 }

@@ -44,6 +44,7 @@ type executionWatches struct {
 	failed        map[string]bool
 	discontinuity error
 	armed         bool
+	pac           *pacExecution
 }
 
 func (e *Environment) watchExecution(ctx context.Context) (*executionWatches, error) {
@@ -90,6 +91,9 @@ func (w *executionWatches) bind(run *pipelinev1.PipelineRun) error {
 }
 
 func (w *executionWatches) record(s *executionSubscription, kind watch.EventType, object *unstructured.Unstructured) error {
+	if s.gvr == secretGVR {
+		return w.pac.record(s.cluster.Name, kind, object)
+	}
 	if len(w.events) >= 4096 {
 		w.discontinuity = fmt.Errorf("execution history exceeded its bounded capacity")
 		return w.discontinuity

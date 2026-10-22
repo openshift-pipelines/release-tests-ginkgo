@@ -24,6 +24,15 @@ read -r finish < /tmp/rtg-gate2
 `
 
 func (e *Environment) createPipelineRun(ctx context.Context) (*pipelinev1.PipelineRun, error) {
+	run := e.producerRun()
+	created, err := e.Hub.Clients.PipelineRunClient.Create(ctx, run, metav1.CreateOptions{})
+	if err != nil {
+		return nil, requestError(ctx, "create hub PipelineRun")
+	}
+	return created, nil
+}
+
+func (e *Environment) producerRun() *pipelinev1.PipelineRun {
 	timeout := metav1.Duration{Duration: 10 * time.Minute}
 	labels := e.ownedLabels()
 	labels[queueLabel] = e.Prefix
@@ -41,11 +50,7 @@ func (e *Environment) createPipelineRun(ctx context.Context) (*pipelinev1.Pipeli
 			}}},
 		},
 	}
-	created, err := e.Hub.Clients.PipelineRunClient.Create(ctx, run, metav1.CreateOptions{})
-	if err != nil {
-		return nil, requestError(ctx, "create hub PipelineRun")
-	}
-	return created, nil
+	return run
 }
 
 type gateTarget struct {

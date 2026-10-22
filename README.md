@@ -405,6 +405,86 @@ endpoint coverage, not browser rendering or console UI coverage.
 
 The workload test temporarily configures and restores `TektonConfig.spec.scheduler`, Kueue, scoped worker credentials, RBAC, queues, and test-owned network access. Test namespaces and resources are removed even after failure. OLM operator installations remain available, matching the install suite. Secret synchronization, CEL routing, and NetworkPolicy behavior are separate coverage.
 
+#### PAC multi-cluster Secret synchronization
+
+This dependent draft requires execution/readiness parent `1f56072`, installed
+Pipelines-as-Code on the hub, and the hub/spoke prerequisites above. It creates a
+disposable public GitHub repository and a genuine `pull_request` webhook event;
+PAC, not the test client, creates the PipelineRun. The definition committed at
+`.tekton/pull-request.yaml` has PAC matching annotations, an independent random
+correlation label, the environment queue label, and a read-only Secret volume
+named `{{ git_auth_secret }}`. The producer checks mounted `username` and
+`password` files are nonempty before running the parent's exact two-gate protocol.
+It never prints credential contents or performs a substitute run creation.
+
+Credential and relay inputs:
+
+| Input | Requirement |
+| --- | --- |
+| `PAC_GITHUB_TOKEN` | GitHub credential allowed to create/delete disposable repositories, write git trees/commits/refs, open pull requests, and configure webhooks. Repository access and organization policy/SSO must permit these operations. |
+| `PAC_GITHUB_ORG` | Optional canonical GitHub organization login; otherwise the token user's account owns the disposable repository. |
+| `PAC_GITHUB_WEBHOOK_TOKEN` | Optional webhook HMAC secret; the existing helper generates one when absent. |
+| `MULTICLUSTER_CONSOLE_TOKEN_FILE` | Explicit bounded `sha256~` user OAuth token file, as described above. |
+| `MULTICLUSTER_CONSOLE_SESSION_FILE` | Out-of-band secure console cookie JSON file for the same authenticated user, as described above. |
+| Hub/spoke kubeconfig flags | Explicit administrator targets, including hub access to OAuth token metadata and all test namespaces. |
+
+The existing Smee helper uses runner-side `curl` to obtain a fresh
+`https://smee.io/new` relay; there is no runner `SMEE_URL` credential input.
+The hub relay Pod needs outbound Smee connectivity and access to the existing
+controller target `http://pipelines-as-code-controller.openshift-pipelines:8080`.
+GitHub must reach the relay webhook URL. The test subscribes to Deployment
+readiness before creating this relay.
+
+```bash
+# Supply PAC_GITHUB_TOKEN securely; never put its value in command logs.
+export MULTICLUSTER_CONSOLE_TOKEN_FILE=/secure/path/hub-user-oauth-token
+export MULTICLUSTER_CONSOLE_SESSION_FILE=/secure/path/console-session-cookies.json
+go run github.com/onsi/ginkgo/v2/ginkgo run \
+  --procs=1 --timeout=8h --grace-period=25m --fail-on-empty \
+  --label-filter='tekton-kueue && pac-sync' ./tests/tektonkueue -- \
+  --kubeconfig /path/to/hub \
+  --spoke-kubeconfig /path/to/spoke-1 \
+  --spoke-kubeconfig /path/to/spoke-2
+```
+
+`EnablePACSecretSync(ctx)` is explicit opt-in. It adds worker `get/create/update`
+on Secrets only in the test namespace and checks that credential's actual
+authorization there and denial elsewhere; list/watch/delete/patch remain denied.
+Default workload credentials retain their Secret denial.
+
+`ArmPAC` first registers parent failure cleanup and authenticates the console,
+then snapshots Secret names and subscribes to namespace Secret histories before
+the GitHub trigger. The returned PR's verified head SHA, number, repository,
+event type and unique correlation label identify the exact PAC run. Its UID,
+MultiKueue management/queue fields and admitted Workload are required. The only
+generated Secret name comes from the admitted run's
+`pipelinesascode.tekton.dev/git-auth-secret` annotation.
+
+The test rejects baseline/preexisting Secrets and compares the hub/spoke type,
+complete key set and byte values in memory. Copied ownership must point to the
+selected spoke PipelineRun UID, not the hub UID. Errors identify names or mismatch
+keys, never values. Secret replacement, mutation after verification, wrong-spoke
+copies and early deletion fail closed. The same console WebSocket must carry the
+new post-subscription marker while the run is nonterminal; returned hub status,
+worker cleanup and product Secret GC are required for success.
+
+Run cleanup precedes removal of the disposable GitHub repository/relay.
+If verification rejects an invalid owner, the parent's guarded test-namespace
+cleanup removes remaining Secrets after worker/run removal; no owner or payload
+is patched to manufacture a passing result.
+
+Cluster-free checks:
+
+```bash
+go test -race -shuffle=on -count=1 ./pkg/tektonkueue ./pkg/pac
+go run github.com/onsi/ginkgo/v2/ginkgo run --dry-run --fail-on-empty \
+  --label-filter='tekton-kueue && pac-sync' ./tests/tektonkueue
+```
+
+Live PAC/hub/spoke execution is **unverified**. The deterministic HTTP,
+WebSocket/SPDY, watch and Secret tests do not replace a provisioned live run
+with the credentials and relay connectivity above.
+
 ### Running the Chains suite
 
 The Chains suite has two test cases with different requirements:
