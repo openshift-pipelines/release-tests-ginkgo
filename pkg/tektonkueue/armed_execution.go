@@ -123,7 +123,9 @@ func (s *ArmedExecution) cleanup(ctx context.Context) error {
 		}
 	}
 	if s.root == nil {
-		return historyErr
+		// Observation history errors already fail the test. They must not become
+		// a permanent cleanup barrier when no owned run exists.
+		return nil
 	}
 	run := s.root
 	current, err := e.Hub.Clients.PipelineRunClient.Get(ctx, run.Name, metav1.GetOptions{})
@@ -138,7 +140,10 @@ func (s *ArmedExecution) cleanup(ctx context.Context) error {
 		return requestError(ctx, "delete owned hub PipelineRun")
 	}
 	if historyErr != nil {
-		return historyErr
+		// After UID-guarded hub deletion, namespace cleanup can safely remove
+		// remaining test-owned resources without treating a repaired snapshot as
+		// execution evidence.
+		return nil
 	}
 	if err := w.bind(run); err != nil {
 		return err
