@@ -144,12 +144,38 @@ func TestWorkerRBACLimitsClusterWideAccessToReadOnly(t *testing.T) {
 			}
 		}
 	}
-	for _, rule := range append(readRole.Rules, workerWriteRole("test").Rules...) {
+	for _, rule := range readRole.Rules {
 		for _, resource := range rule.Resources {
 			if rule.APIGroups[0] == "" || resource == "secrets" || resource == "pods" || resource == "taskruns" || resource == "taskruns/status" {
 				t.Fatalf("worker RBAC grants unrelated resource %q in API group %q", resource, rule.APIGroups[0])
 			}
 		}
+	}
+	// The namespaced role may read exactly the proxy resources, never mutate
+	// them, execute commands, or access Secrets.
+	want := map[string][]string{
+		"tekton.dev/taskruns": {"list"},
+		"/pods":               {"get", "list"},
+		"/pods/log":           {"get"},
+	}
+	for _, rule := range workerWriteRole("test").Rules {
+		for _, resource := range rule.Resources {
+			if resource == "secrets" || resource == "pods/exec" {
+				t.Fatalf("worker credential grants %s", resource)
+			}
+			key := rule.APIGroups[0] + "/" + resource
+			if verbs, ok := want[key]; ok {
+				if !reflect.DeepEqual(rule.Verbs, verbs) {
+					t.Fatalf("proxy permission %s = %v, want %v", key, rule.Verbs, verbs)
+				}
+				delete(want, key)
+			} else if rule.APIGroups[0] == "" || resource == "taskruns/status" {
+				t.Fatalf("unexpected worker permission %s", key)
+			}
+		}
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing proxy permissions: %v", want)
 	}
 }
 
