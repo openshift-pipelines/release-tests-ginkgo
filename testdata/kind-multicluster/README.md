@@ -89,7 +89,9 @@ Token issuance and port-forward lifecycle remain in `pkg/kindmulticluster`.
 ## Local checks without clusters
 
 ```sh
-bash -n scripts/kind-multicluster.sh scripts/kind-multicluster/*.sh
+for script in scripts/kind-multicluster.sh scripts/kind-multicluster/*.sh; do
+  /bin/bash -n "$script" || exit
+done
 gofmt -l pkg/kindmulticluster pkg/multicluster/{proxy,logs,logs_test}.go tests/kindmulticluster
 go test -race -shuffle=on -count=1 ./pkg/kindmulticluster ./pkg/multicluster
 go test -c -o ./kind-multicluster.test ./tests/kindmulticluster
@@ -108,5 +110,6 @@ coverage. A successful compile or unit run does not replace the Docker/Kind run.
 The focused race tests, shell syntax checks, checksum verification, Kustomize
 render, suite compile, vet, build, and configured golangci-lint passed during
 development. Live end-to-end execution has not been verified on this workstation:
-it has Kind v0.22.0 rather than v0.31.0, and its Docker daemon is stopped.
+it has Kind v0.22.0 rather than v0.31.0. A reachable Docker daemon alone does not
+provide the pinned Kind v0.31.0 environment required by this test.
 ShellCheck and Bash/YAML language servers are not installed.
