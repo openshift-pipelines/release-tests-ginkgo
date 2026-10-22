@@ -227,6 +227,89 @@ LABEL_FILTER='triggers && sanity' ./scripts/run-tests.sh
 
 ### Running the Tekton Kueue suite
 
+#### CEL routing coverage
+
+The separate `routing` label requires pre-installed operators on the hub and
+every spoke (run the `install` command below first), with a scheduler image
+supporting `multiKueue()` and `multiKueue(queue)` CEL helpers (Tekton Kueue v0.4
+or a build carrying that capability). The Go dependency's older CEL engine is
+not used to simulate admission; expressions are sent as typed config strings
+to the installed operator through `TektonConfig.spec.scheduler.config.yaml`.
+Operator v0.80 derives the hub override from its role even when this boolean is
+false. The test also supplies the same config through
+`spec.scheduler.options.configMaps.tekton-kueue-config.data["config.yaml"]`,
+the operator's final configuration override, and checks the resulting runtime
+ConfigMap. This preserves the hub role and MultiKueue adapter while disabling
+the blanket override. The original ConfigMap option is restored too.
+
+```bash
+ginkgo run --procs=1 --timeout=8h --grace-period=35m \
+  --label-filter='tekton-kueue && routing' ./tests/tektonkueue -- \
+  --kubeconfig /path/to/hub \
+  --spoke-kubeconfig /path/to/spoke-1 \
+  --spoke-kubeconfig /path/to/spoke-2
+```
+
+The four real scenarios cover remote routing with the default queue, explicit
+remote queue override (starting with a conflicting input queue), local fallback
+for an unmatched route label, and local fallback when the route label is absent.
+All run with `multiKueueOverride: false`. A separate hub ClusterQueue without a
+MultiKueue admission check admits local work. Remote queues retain the existing
+MultiKueue setup. CEL is scoped to the test namespace and cleared on spokes.
+
+Each scenario checks the API create response's managedBy, queue, and Pending
+admission fields, then observes successful PipelineRuns and actual successful
+TaskRuns on the expected cluster. Version-continuous LIST/WATCH streams are
+opened before creation, including Workload observation, so short-lived workers
+and immediate Workload create/finish/delete cannot escape observation. Remote work must not create hub
+TaskRuns or execute on multiple spokes; local work must not appear on a spoke.
+The workload has no fixed sleep. Observations continue through terminal state
+and execution-object cleanup. Each resource stream has an inert test-owned
+fence: a PipelineRun with a custom managedBy and no queue, a Pending TaskRun,
+and an inactive Workload with no usable queue. These never execute. Observation
+continues while every owned execution namespace is deleted, with label and UID
+checks. Namespace disappearance prevents further execution-object writes.
+Namespace-local marker deletions are not final fences: later events can still
+follow them. The same collection-wide watches then consume final marker deletions
+from separate owned observation namespaces, ordered after namespace quiescence
+and all earlier execution events. Only the two owned namespaces are recorded.
+Every producer is joined before success; an empty snapshot, cancellation, or
+nonblocking channel drain is not used as proof. Watch
+closure or expiration fails the test rather than relisting away evidence.
+Routing setup and cleanup use event barriers instead of the workload scenario's
+polling waits. Deferred cleanup restores config, queues, and credentials and
+idempotently removes remaining execution/observation namespaces.
+
+These are serial cluster-admin tests that temporarily restart schedulers through
+TektonConfig disable/enable transitions. After observing scheduler deletion,
+watches require exact desired QueueName/CEL propagation and Ready=True on the
+recreated scheduler. Operator v0.80 does not publish observedGeneration for this
+resource. Together with the runtime ConfigMap check, this verifies the requested
+config after restart rather than racing hot reload. Do not run against shared
+production clusters or alongside other tests
+that modify scheduler configuration. Original CEL, queue, override, and scheduler
+settings are restored by deferred cleanup, including after failure. Each write
+and conflict retry checks the exact fetched TektonConfig resourceVersion's UID,
+Disabled value, scheduler config, role, and owned ConfigMap option against the
+last acknowledged state. Concurrent edits abort restoration without overwriting
+them, including during the disabled interval. A partial disable can be recovered
+from its acknowledged intermediate state. Unsupported
+installed CEL helpers fail setup/admission rather than producing Pending tests.
+The existing `workload` scenario is unchanged.
+
+Cluster-free checks:
+
+```bash
+go test -race -shuffle=on -count=1 ./pkg/tektonkueue
+go test -run '^$' ./tests/tektonkueue
+go vet ./pkg/tektonkueue ./tests/tektonkueue
+go build ./...
+golangci-lint run ./pkg/tektonkueue ./tests/tektonkueue
+go test -v ./tests/tektonkueue -ginkgo.dry-run -ginkgo.label-filter='tekton-kueue && routing'
+```
+
+#### Bootstrap and existing workload coverage
+
 Provide one hub kubeconfig and at least one spoke kubeconfig. Test-binary flags must follow `--`.
 
 Bootstrap the required operators:
