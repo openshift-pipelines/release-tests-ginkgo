@@ -2,8 +2,9 @@
 
 End-to-end test suite for [OpenShift Pipelines](https://docs.openshift.com/pipelines/latest/about/about-pipelines.html), written with [Ginkgo v2](https://onsi.github.io/ginkgo/).
 
-For the isolated Kubernetes draft, see [Kind: one hub, one spoke](testdata/kind-multicluster/README.md).
-Run it with `bash scripts/kind-multicluster.sh`; it owns and cleans up both clusters.
+For isolated Kubernetes drafts, see [Kind multicluster](testdata/kind-multicluster/README.md).
+Run `bash scripts/kind-multicluster.sh` for one spoke, or add `--spokes=2` for the
+quota-ten scale story. The script owns and cleans up all its clusters.
 
 ## Prerequisites
 

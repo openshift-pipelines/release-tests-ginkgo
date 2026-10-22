@@ -5,10 +5,16 @@ umask 077
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ ${1:-} == --help ]]; then
-  printf 'Usage: bash scripts/kind-multicluster.sh\nRequires Kind v0.31.0, Docker, kubectl, curl, jq, Go, and sha256sum or shasum.\n'
+  printf 'Usage: bash scripts/kind-multicluster.sh [--spokes=1|--spokes=2]\nDefault: one spoke. Two spokes: quota ten, ten PipelineRuns.\nRequires Kind v0.31.0, Docker, kubectl, curl, jq, Go, and sha256sum or shasum.\n'
   exit 0
 fi
-[[ $# == 0 ]] || { printf 'Unexpected arguments\n' >&2; exit 2; }
+[[ $# -le 1 ]] || { printf 'Unexpected arguments\n' >&2; exit 2; }
+SPOKE_COUNT=1
+case ${1:-} in
+  ""|--spokes=1) ;;
+  --spokes=2) SPOKE_COUNT=2 ;;
+  *) printf 'Unexpected arguments\n' >&2; exit 2 ;;
+esac
 for tool in kind docker kubectl curl jq go; do
   command -v "$tool" >/dev/null || { printf 'Missing tool: %s\n' "$tool" >&2; exit 2; }
 done
@@ -45,15 +51,21 @@ go test -c -o "$RUN_DIR/kind.test" ./tests/kindmulticluster
 suffix=$(basename "$RUN_DIR" | tr '[:upper:]' '[:lower:]')
 suffix=${suffix#.kind-multicluster.}
 HUB="rtg-$suffix-hub"
-SPOKE="rtg-$suffix-spoke"
+SPOKES=()
+for ((i=1; i<=SPOKE_COUNT; i++)); do
+  spoke="rtg-$suffix-spoke"
+  if [[ $SPOKE_COUNT == 2 ]]; then spoke="$spoke-$i"; fi
+  SPOKES+=("$spoke")
+done
+TARGETS=("$HUB" "${SPOKES[@]}")
 existing=$(kind get clusters)
-for cluster in "$HUB" "$SPOKE"; do
+for cluster in "${TARGETS[@]}"; do
   if printf '%s\n' "$existing" | grep -Fxq "$cluster"; then
     printf 'Refusing existing cluster %s\n' "$cluster" >&2
     exit 1
   fi
 done
-for cluster in "$HUB" "$SPOKE"; do
+for cluster in "${TARGETS[@]}"; do
   # Include partial Kind creations in cleanup, but never an existing cluster.
   CLUSTERS+=("$cluster")
   kind create cluster --name "$cluster" --kubeconfig "$RUN_DIR/$cluster.kubeconfig" \
@@ -62,9 +74,15 @@ for cluster in "$HUB" "$SPOKE"; do
   install_components "$RUN_DIR/$cluster.kubeconfig"
 done
 
-bash "$ROOT/scripts/kind-multicluster/configure.sh" \
-  "$RUN_DIR/$HUB.kubeconfig" "$RUN_DIR/$SPOKE.kubeconfig" "$SPOKE" "$RUN_DIR"
+"$BASH" "$ROOT/scripts/kind-multicluster/configure.sh" \
+  "$RUN_DIR/$HUB.kubeconfig" "$RUN_DIR" "${SPOKES[@]}"
 
+label=kind-one-spoke timeout=20m second_spoke=""
+if [[ $SPOKE_COUNT == 2 ]]; then
+  label=kind-two-spoke timeout=40m second_spoke="$RUN_DIR/${SPOKES[1]}.kubeconfig"
+fi
 KIND_HUB_KUBECONFIG="$RUN_DIR/$HUB.kubeconfig" \
-KIND_SPOKE_KUBECONFIG="$RUN_DIR/$SPOKE.kubeconfig" \
-  "$RUN_DIR/kind.test" -test.v -test.timeout=20m -ginkgo.v
+KIND_SPOKE_KUBECONFIG="$RUN_DIR/${SPOKES[0]}.kubeconfig" \
+KIND_SECOND_SPOKE_KUBECONFIG="$second_spoke" \
+  "$RUN_DIR/kind.test" -test.v "-test.timeout=$timeout" -ginkgo.v \
+    "-ginkgo.label-filter=$label" -ginkgo.fail-on-empty

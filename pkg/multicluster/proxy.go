@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"syscall"
 
 	"golang.org/x/net/websocket"
 )
@@ -63,7 +65,14 @@ func openProxyStream(ctx context.Context, request LogRequest) (*proxyStream, err
 
 func (s *proxyStream) close() error {
 	s.stop()
-	return s.conn.Close()
+	err := s.conn.Close()
+	// The proxy can finish its stream before the client sends a TLS closeNotify.
+	// These peer-close results still release the socket and cannot invalidate
+	// bytes already received. Receive errors and other close errors still fail.
+	if errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
+		return nil
+	}
+	return err
 }
 
 func (s *proxyStream) receive() (string, error) {

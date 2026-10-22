@@ -3,6 +3,7 @@ package kindmulticluster
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,20 +13,26 @@ import (
 )
 
 func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
-	cases := []struct{ shell, stage string }{
-		{"bash", "download"},
-		{"bash", "compile"},
-		{"bash", "create"},
-	}
+	shells := []string{"bash"}
 	if _, err := os.Stat("/bin/bash"); err == nil {
-		for _, stage := range []string{"download", "compile", "create"} {
-			cases = append(cases, struct{ shell, stage string }{"/bin/bash", stage})
-		}
+		shells = append(shells, "/bin/bash")
 	} else if !errors.Is(err, os.ErrNotExist) {
 		t.Fatal(err)
 	}
+	type bootstrapCase struct {
+		shell, stage string
+		spokes       int
+	}
+	cases := make([]bootstrapCase, 0, 8*len(shells))
+	for _, shell := range shells {
+		for _, spokes := range []int{1, 2} {
+			for _, stage := range []string{"download", "compile", "create-last", "success"} {
+				cases = append(cases, bootstrapCase{shell, stage, spokes})
+			}
+		}
+	}
 	for _, tc := range cases {
-		t.Run(tc.shell+"/"+tc.stage, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/%d-spokes/%s", tc.shell, tc.spokes, tc.stage), func(t *testing.T) {
 			stage := tc.stage
 			// Given command-boundary fakes, including an unrelated Kind cluster.
 			dir := t.TempDir()
@@ -39,45 +46,49 @@ func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 			defer cancel()
-			command := exec.CommandContext(ctx, tc.shell, script)
+			args := []string{script}
+			if tc.spokes == 2 {
+				args = append(args, "--spokes=2")
+			}
+			command := exec.CommandContext(ctx, tc.shell, args...)
 			command.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
-				"CALLS="+logPath, "FAIL_AT="+stage)
+				"CALLS="+logPath, "FAIL_AT="+stage, fmt.Sprintf("EXPECTED_CLUSTERS=%d", tc.spokes+1))
 
 			// When downloading, compiling, or partially creating a cluster fails.
 			output, runErr := command.CombinedOutput()
 
 			// Then failure is preserved and cleanup never touches the foreign cluster.
-			var exit *exec.ExitError
-			if !errors.As(runErr, &exit) || exit.ExitCode() != 42 {
-				t.Fatalf("bootstrap error=%v output=%s", runErr, output)
-			}
 			calls, err := os.ReadFile(logPath)
 			if err != nil {
 				t.Fatal(err)
 			}
-			var created, deleted, runDir string
+			created, deleted := map[string]bool{}, map[string]bool{}
+			var runDir string
+			internalEndpoints, quotaPatches := 0, 0
 			for _, line := range strings.Split(string(calls), "\n") {
 				fields := strings.Fields(line)
 				if strings.HasPrefix(line, "kind create cluster --name ") {
-					created = fields[4]
+					created[fields[4]] = true
 				}
 				if strings.HasPrefix(line, "kind delete cluster --name ") {
-					deleted = fields[4]
+					deleted[fields[4]] = true
 				}
 				if strings.HasPrefix(line, "curl ") {
 					runDir = filepath.Dir(filepath.Dir(fields[len(fields)-1]))
 				}
-			}
-			if stage == "create" && (created == "" || deleted != created || !strings.HasPrefix(created, "rtg-")) {
-				t.Fatalf("partial cluster was not cleaned: %s", calls)
-			}
-			if stage != "create" && (created != "" || deleted != "") {
-				t.Fatalf("cluster touched before provisioning: %s", calls)
-			}
-			if strings.Contains(string(calls), "delete cluster --name unrelated-cluster") {
-				t.Fatal("foreign cluster deleted")
+				if strings.HasPrefix(line, "kind get kubeconfig ") && strings.HasSuffix(line, " --internal") {
+					internalEndpoints++
+				}
+				if strings.HasPrefix(line, "kubectl ") {
+					if !strings.Contains(line, " --kubeconfig ") {
+						t.Fatalf("ambient kubeconfig used: %s", line)
+					}
+					if strings.Contains(line, "quota-ten.yaml") {
+						quotaPatches++
+					}
+				}
 			}
 			if runDir == "" {
 				t.Fatal("no isolated artifact directory was used")
@@ -87,30 +98,45 @@ func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
 					t.Error(err)
 				}
 			})
+			wantClusters := 0
+			switch stage {
+			case "download", "compile":
+			case "create-last", "success":
+				wantClusters = tc.spokes + 1
+			default:
+				t.Fatal("unknown bootstrap stage")
+			}
+			if len(created) != wantClusters || len(deleted) != wantClusters {
+				t.Fatalf("creates=%v deletes=%v want=%d\n%s", created, deleted, wantClusters, calls)
+			}
+			for name := range deleted {
+				if !created[name] || !strings.HasPrefix(name, "rtg-") {
+					t.Fatalf("deleted an unowned cluster %s", name)
+				}
+			}
+			if stage == "success" {
+				if runErr != nil {
+					t.Fatalf("bootstrap error=%v output=%s", runErr, output)
+				}
+				wantQuotaPatches := 0
+				label := "kind-one-spoke"
+				if tc.spokes == 2 {
+					wantQuotaPatches, label = 3, "kind-two-spoke"
+				}
+				if internalEndpoints != tc.spokes || quotaPatches != wantQuotaPatches ||
+					!strings.Contains(string(calls), "-ginkgo.label-filter="+label) ||
+					!strings.Contains(string(calls), "-ginkgo.fail-on-empty") {
+					t.Fatalf("wrong topology, quota, or suite selection:\n%s", calls)
+				}
+			} else {
+				var exit *exec.ExitError
+				if !errors.As(runErr, &exit) || exit.ExitCode() != 42 {
+					t.Fatalf("bootstrap error=%v output=%s", runErr, output)
+				}
+			}
 			if _, err := os.Stat(runDir); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("run directory survived cleanup: %s (%v)", runDir, err)
 			}
 		})
 	}
 }
-
-// These fakes exercise shell ownership/cleanup, not component readiness or
-// artifact integrity. No Kubernetes API or Docker daemon is contacted.
-const fakeProvisioner = `#!/usr/bin/env bash
-set -eu
-tool=${0##*/}
-printf '%s %s\n' "$tool" "$*" >> "$CALLS"
-case "$tool:$1" in
-  kind:version) printf 'kind v0.31.0 go1.26.4 linux/amd64\n' ;;
-  kind:get) printf 'unrelated-cluster\n' ;;
-  kind:create) exit 42 ;;
-  go:*) if [[ $FAIL_AT == compile ]]; then exit 42; fi ;;
-  sha256sum:*) while IFS= read -r line; do :; done ;;
-  curl:*)
-    if [[ $FAIL_AT == download ]]; then exit 42; fi
-    while [[ $# -gt 0 ]]; do
-      if [[ $1 == -o ]]; then : > "$2"; break; fi
-      shift
-    done ;;
-esac
-`
