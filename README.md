@@ -223,7 +223,7 @@ LABEL_FILTER='triggers && sanity' ./scripts/run-tests.sh
 | Hub | `hub` | `tests/hub/` |
 | Metrics | `metrics` | `tests/metrics/` |
 | Versions | `versions` | `tests/versions/` |
-| Tekton Kueue | `tekton-kueue`, `install`, `workload`, `admin` | `tests/tektonkueue/` |
+| Tekton Kueue | `tekton-kueue`, `install`, `prerequisites`, `workload`, `proxy-logs`, `admin` | `tests/tektonkueue/` |
 
 ### Running the Tekton Kueue suite
 
@@ -286,16 +286,122 @@ ginkgo run --procs=1 --label-filter='tekton-kueue && install' ./tests/tektonkueu
   --spoke-kubeconfig /path/to/spoke-1
 ```
 
-Validate multi-cluster PipelineRun execution:
+#### OpenShift execution, returned status and console proxy live logs
+
+This draft depends on prerequisite readiness commit `3d68ad4`. The execution
+spec independently bootstraps its environment and calls `WaitReady` and
+`AssertReady`; running the prerequisite spec in a previous process is not required.
+
+Provide `MULTICLUSTER_CONSOLE_TOKEN_FILE`, a local file containing only an explicit
+hub **user OAuth access token** (protect it with mode 0600). The test does not use
+the kubeconfig's credential for console requests. The administrator hub kubeconfig
+must be able to read the corresponding `oauth.openshift.io/v1` OAuthAccessToken:
+the test checks its server-side creation time and `expiresIn`, rejects expired or
+unbounded tokens, and requires a total lifetime of at most three hours. Provision
+that bounded user credential before running the spec; the test neither mints
+tokens nor changes OAuth configuration. Every proxy request/stream is bounded by
+the token's expiration and the observation's ten-minute deadline.
+
+The token must use OpenShift's supported `sha256~payload` form. Object lookup
+strips that prefix, hashes only the payload, and prefixes the encoded hash.
+The bearer is not sent to the console as an authentication substitute.
+
+Also provide `MULTICLUSTER_CONSOLE_SESSION_FILE`, exported **out-of-band from an
+already authenticated console session** for this exact Console Route host. It is
+a JSON array of Go `http.Cookie` objects: `Name` and opaque `Value` are required,
+`Path` must be `/`, `Secure` must be true, and optional `Domain` must name this
+console host. Preserve the session's actual cookie names/values, `HttpOnly` and
+optional RFC3339 `Expires`. Protect both files with mode 0600. The test does not
+perform browser automation, acquire a session, or fabricate cookies from a bearer.
+
+Both HTTP and WebSocket requests use this cookie jar. Before arming resource
+watches or allowing a trigger, the test requests
+`/api/kubernetes/apis/user.openshift.io/v1/users/~` through the authenticated
+console and requires its User identity to match `OAuthAccessToken.UserName`.
+This proves the same user, not that two independently supplied credentials are
+the same token. The OAuth expiration bounds the observer even if the session has
+a longer lifetime; the console still enforces its own session validity. The
+console's UserToken middleware supplies backend Authorization from that session.
+Bearer-only incoming requests cannot pass this console authentication boundary.
+
+The authenticated console user needs hub namespace `get` access to PipelineRuns and Pods,
+`list` access to TaskRuns and Pods, and `get` access to Pod logs. The worker
+credential gets only the additional namespaced TaskRun/Pod/log reads
+needed by the proxy; cluster-wide reads stay unchanged and Secret access remains
+denied. Pod exec for the two test gates uses the spoke administrator client, not
+the worker credential.
+
+The test discovers the admitted TLS Console Route and requires a managed Console
+with `pipelines-console-plugin` enabled. Its ConsolePlugin must register exactly
+one `multicluster-proxy` Service endpoint with `UserToken` authorization. HTTP and
+WebSocket requests use the exact console-facing base
+`/api/proxy/plugin/pipelines-console-plugin/multicluster-proxy` and proxy v0.1.1
+`resolve`, `taskruns`, `pods` and `logs/stream` endpoints. The runner must trust
+the console ingress certificate (use the standard `SSL_CERT_FILE`/`SSL_CERT_DIR`
+trust configuration for a private ingress CA). TLS verification is never
+disabled. Redirects, login HTML, invalid JSON and failed upgrades fail the spec.
+
+Live-cluster invocation:
 
 ```bash
-ginkgo run --procs=1 --grace-period=25m --label-filter='tekton-kueue && workload' ./tests/tektonkueue -- \
+export MULTICLUSTER_CONSOLE_TOKEN_FILE=/secure/path/hub-user-oauth-token
+export MULTICLUSTER_CONSOLE_SESSION_FILE=/secure/path/console-session-cookies.json
+go run github.com/onsi/ginkgo/v2/ginkgo run \
+  --procs=1 --timeout=8h --grace-period=25m --fail-on-empty \
+  --label-filter='tekton-kueue && proxy-logs' ./tests/tektonkueue -- \
   --kubeconfig /path/to/hub \
   --spoke-kubeconfig /path/to/spoke-1 \
   --spoke-kubeconfig /path/to/spoke-2
 ```
 
-Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one matching `--spoke-context` per spoke. The workload test makes every configured spoke eligible, creates a PipelineRun on the hub, verifies execution and marker-bearing step logs on exactly one spoke, and verifies that terminal status returns to the hub.
+Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one matching
+`--spoke-context` per spoke. The test subscribes to namespace resource watches before
+hub creation, requires exactly one executing spoke and no hub TaskRuns, and
+resolves the same spoke through the console proxy. It retains PipelineRun,
+TaskRun, Pod and Workload UIDs/owners, including transient create/delete events
+and duplicates, on every target. Execution watch close, error or compaction
+permanently fails closed: unlike readiness it never relists to repair history.
+Unowned candidate Workload copies on eligible workers are UID-pinned for cleanup,
+not counted as execution on those workers.
+The producer emits readiness,
+blocks on FIFO gate 1, echoes a newly generated random challenge after gate 1 is
+released, then blocks on gate 2. Both markers must arrive on the same WebSocket.
+Only after receiving the new marker and verifying nonterminal hub/spoke status
+does the test release gate 2. It requires independently observed spoke success,
+returned hub success, hub Workload completion and worker cleanup. Observation and
+execution cleanup use list/watch snapshots, not sleep-based timing windows.
+Direct spoke clients control gates and verify state but never supply accepted
+log bytes.
+
+For external creation, call `armed, err := environment.Arm(ctx)` **before** the
+trigger, and call `armed.Observe(actualHubRun)` afterward. Arm establishes the
+authenticated console session, all list/watch histories, and environment cleanup
+before returning. Observe binds the actual server-verified hub UID; creation
+already present before arming and replacement identities are rejected. The caller
+must stop/finish its trigger before environment cleanup. Failure before binding
+still permits guarded deletion of test-owned hub runs; cleanup uses the original
+histories and UID preconditions, never a repaired execution history. The run must
+implement the same single-task two-gate producer protocol. No PAC scenario is
+included here.
+
+Console JSON responses have a hard four-MiB cap, including trailing whitespace.
+Errors expose bounded categories/status or close codes, not typed JSON payloads,
+close reason strings, bearer values or session cookies. Cancellation preserves
+its context error identity.
+
+Cluster-free verification:
+
+```bash
+go test -race -shuffle=on -count=1 ./pkg/tektonkueue
+go test -run='^$' -count=0 ./tests/tektonkueue
+go run github.com/onsi/ginkgo/v2/ginkgo run --dry-run --fail-on-empty \
+  --label-filter='tekton-kueue && proxy-logs' ./tests/tektonkueue
+```
+
+Live OpenShift execution is **unverified** in this draft. TLS/WebSocket/SPDY wire
+tests, a real shell FIFO producer test, and deterministic API watch tests do not
+replace a run against provisioned hub/spoke clusters. This is console-facing
+endpoint coverage, not browser rendering or console UI coverage.
 
 The workload test temporarily configures and restores `TektonConfig.spec.scheduler`, Kueue, scoped worker credentials, RBAC, queues, and test-owned network access. Test namespaces and resources are removed even after failure. OLM operator installations remain available, matching the install suite. Secret synchronization, CEL routing, and NetworkPolicy behavior are separate coverage.
 

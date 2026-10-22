@@ -8,6 +8,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
@@ -16,9 +17,10 @@ import (
 var podGVR = schema.GroupVersionResource{Version: "v1", Resource: "pods"}
 
 type readinessSubscription struct {
-	client dynamic.NamespaceableResourceInterface
-	stream watch.Interface
-	name   string
+	client   dynamic.ResourceInterface
+	stream   watch.Interface
+	name     string
+	snapshot *unstructured.UnstructuredList
 }
 
 func (s *readinessSubscription) subscribe(ctx context.Context) error {
@@ -29,6 +31,7 @@ func (s *readinessSubscription) subscribe(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("list %s before readiness watch: %w", s.name, err)
 	}
+	s.snapshot = snapshot
 	s.stream, err = s.client.Watch(ctx, metav1.ListOptions{ResourceVersion: snapshot.GetResourceVersion()})
 	if err != nil {
 		return fmt.Errorf("watch %s: %w", s.name, err)

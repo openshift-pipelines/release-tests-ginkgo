@@ -2,6 +2,7 @@ package tektonkueue_test
 
 import (
 	"context"
+	"os"
 	"strconv"
 	"time"
 
@@ -11,14 +12,18 @@ import (
 	workload "github.com/openshift-pipelines/release-tests-ginkgo/pkg/tektonkueue"
 )
 
-var _ = Describe("Multi-cluster PipelineRun execution", Serial, Label("tekton-kueue", "workload", "admin"), func() {
-	It("executes a hub PipelineRun on one spoke and validates its logs", NodeTimeout(2*time.Hour), func(specCtx SpecContext) {
+var _ = Describe("OpenShift multi-cluster PipelineRun execution", Serial, Label("tekton-kueue", "workload", "proxy-logs", "admin"), func() {
+	It("returns spoke status and live logs through the console proxy", NodeTimeout(2*time.Hour), func(specCtx SpecContext) {
+		Expect(os.Getenv("MULTICLUSTER_CONSOLE_TOKEN_FILE")).NotTo(BeEmpty(), "provide an explicit bounded hub OAuth credential")
+		Expect(os.Getenv("MULTICLUSTER_CONSOLE_SESSION_FILE")).NotTo(BeEmpty(), "provide an out-of-band console session cookie jar")
 		environment := preparedEnvironment(specCtx)
+		Expect(environment.WaitReady(specCtx)).To(Succeed())
+		Expect(environment.AssertReady(specCtx)).To(Succeed())
 		result, err := environment.Execute(specCtx)
 		Expect(err).NotTo(HaveOccurred(), "multi-cluster PipelineRun execution failed")
 		Expect(result.Logs).To(ContainSubstring("multi-cluster-execution-ok"),
 			"selected spoke %s did not return the expected workload log", result.Spoke)
-		GinkgoWriter.Printf("PipelineRun %s executed on %s and completed on the hub; spoke logs:\n%s",
+		GinkgoWriter.Printf("PipelineRun %s executed on %s and completed on the hub; console proxy logs:\n%s",
 			result.PipelineRun, result.Spoke, result.Logs)
 	})
 })
