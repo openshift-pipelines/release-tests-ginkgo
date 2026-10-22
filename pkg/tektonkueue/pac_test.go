@@ -79,7 +79,10 @@ func generatedPACSecret(cluster string) *corev1.Secret {
 	return &corev1.Secret{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"},
 		ObjectMeta: metav1.ObjectMeta{Name: generatedSecret, Namespace: wireRun.namespace, UID: types.UID(cluster + "-auth-uid"),
 			OwnerReferences: []metav1.OwnerReference{{Kind: "PipelineRun", Name: wireRun.name, UID: uid}}},
-		Type: corev1.SecretTypeBasicAuth, Data: map[string][]byte{"username": []byte("user"), "password": []byte(payloadSentinel), "extra": []byte("preserve-all-keys")},
+		Type: corev1.SecretTypeOpaque, Data: map[string][]byte{
+			".gitconfig": []byte("[credential]\nhelper=store\n"), ".git-credentials": []byte(payloadSentinel),
+			"git-provider-token": []byte("token"), "extra": []byte("preserve-all-keys"),
+		},
 	}
 }
 
@@ -124,7 +127,7 @@ func TestPACFixtureReusesExactProducerAndGeneratedSecretMount(t *testing.T) {
 	if task.Volumes[0].Secret.SecretName != "{{ git_auth_secret }}" || !task.Steps[0].VolumeMounts[0].ReadOnly || task.Steps[0].VolumeMounts[0].MountPath != "/pac-auth" {
 		t.Fatal("fixture does not consume the PAC generated Secret")
 	}
-	checks := "test -s /pac-auth/username\ntest -s /pac-auth/password\n"
+	checks := "test -s /pac-auth/.gitconfig\ntest -s /pac-auth/.git-credentials\ntest -s /pac-auth/git-provider-token\n"
 	if !strings.Contains(task.Steps[0].Script, checks) || strings.Replace(task.Steps[0].Script, checks, "", 1) != producerScript {
 		t.Fatal("fixture changed the causal producer protocol")
 	}

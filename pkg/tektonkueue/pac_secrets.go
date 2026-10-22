@@ -141,6 +141,12 @@ func (p *pacExecution) record(cluster string, kind watch.EventType, object *unst
 	if secret.UID == "" || current.secret != nil && (current.secret.UID != secret.UID || current.deleted) {
 		current.conflict = true
 	}
+	if current.secret != nil && !current.conflict {
+		if err := comparePACSecrets(current.secret, &secret); err != nil {
+			current.conflict = true
+			return err
+		}
+	}
 	current.secret = secret.DeepCopy()
 	current.deleted = kind == watch.Deleted
 	if p.name == name && p.reference != nil {
@@ -224,7 +230,7 @@ func comparePACSecrets(source, copy *corev1.Secret) error {
 	if source.Type != copy.Type {
 		return fmt.Errorf("secret %s type mismatch", name)
 	}
-	for _, key := range []string{"username", "password"} {
+	for _, key := range []string{".gitconfig", ".git-credentials", "git-provider-token"} {
 		if len(source.Data[key]) == 0 {
 			return fmt.Errorf("secret %s has an empty required key %s", name, key)
 		}

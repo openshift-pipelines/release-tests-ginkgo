@@ -38,7 +38,8 @@ func (e *Environment) PACPipelineRun(correlation string) ([]byte, error) {
 	task.Volumes = []corev1.Volume{{Name: "pac-auth", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "{{ git_auth_secret }}"}}}}
 	step := &task.Steps[0]
 	step.VolumeMounts = []corev1.VolumeMount{{Name: "pac-auth", MountPath: "/pac-auth", ReadOnly: true}}
-	step.Script = strings.Replace(producerScript, "set -eu\n", "set -eu\ntest -s /pac-auth/username\ntest -s /pac-auth/password\n", 1)
+	step.Script = strings.Replace(producerScript, "set -eu\n",
+		"set -eu\ntest -s /pac-auth/.gitconfig\ntest -s /pac-auth/.git-credentials\ntest -s /pac-auth/git-provider-token\n", 1)
 	return json.Marshal(run)
 }
 

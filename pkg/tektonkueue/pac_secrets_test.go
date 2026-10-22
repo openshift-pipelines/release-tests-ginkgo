@@ -20,7 +20,7 @@ func TestPACSecretValidationRejectsMissingWrongBaselineAndPayloadWithoutLeaks(t 
 			case "keys":
 				delete(copy.Data, "extra")
 			case "bytes":
-				copy.Data["password"] = []byte("wrong-" + payloadSentinel)
+				copy.Data[".git-credentials"] = []byte("wrong-" + payloadSentinel)
 			case "wrong owner":
 				copy.OwnerReferences = nil
 			case "hub UID owner":
@@ -77,7 +77,7 @@ func TestPACSecretIdentityAndPayloadHistoryRemainPinnedAfterVerification(t *test
 				secret.SetUID("replacement")
 				_, err = client.Create(armed.ctx, secret, metav1.CreateOptions{})
 			case "payload mutation":
-				secret.Object["data"] = map[string]any{"password": "c2Vuc2l0aXZl"}
+				secret.Object["data"] = map[string]any{".git-credentials": "c2Vuc2l0aXZl"}
 				_, err = client.Update(armed.ctx, secret, metav1.UpdateOptions{})
 			case "early deletion":
 				err = client.Delete(armed.ctx, generatedSecret, metav1.DeleteOptions{})
@@ -93,6 +93,26 @@ func TestPACSecretIdentityAndPayloadHistoryRemainPinnedAfterVerification(t *test
 				t.Fatal("history error leaked Secret bytes")
 			}
 		})
+	}
+}
+
+func TestPACSecretPayloadHistoryIsPinnedBeforeVerification(t *testing.T) {
+	f, armed := preparePACFixture(t, nil)
+	publishSecret(t, f, "hub", generatedPACSecret("hub"))
+	client := f.dynamic["hub"].Resource(secretGVR).Namespace(wireRun.namespace)
+	secret, err := client.Get(armed.ctx, generatedSecret, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := secret.Object["data"].(map[string]any)
+	data["git-provider-token"] = "Y2hhbmdlZA=="
+	if _, err := client.Update(armed.ctx, secret, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := armed.watches.wait(armed.ctx, func() (bool, error) { return true, nil }); err == nil {
+		t.Fatal("accepted a pre-verification Secret payload mutation")
+	} else if strings.Contains(err.Error(), payloadSentinel) {
+		t.Fatal("pre-verification history error leaked Secret bytes")
 	}
 }
 

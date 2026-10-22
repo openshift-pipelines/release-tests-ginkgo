@@ -413,8 +413,9 @@ disposable public GitHub repository and a genuine `pull_request` webhook event;
 PAC, not the test client, creates the PipelineRun. The definition committed at
 `.tekton/pull-request.yaml` has PAC matching annotations, an independent random
 correlation label, the environment queue label, and a read-only Secret volume
-named `{{ git_auth_secret }}`. The producer checks mounted `username` and
-`password` files are nonempty before running the parent's exact two-gate protocol.
+named `{{ git_auth_secret }}`. The producer checks PAC's mounted `.gitconfig`,
+`.git-credentials`, and `git-provider-token` files are nonempty before running
+the parent's exact two-gate protocol.
 It never prints credential contents or performs a substitute run creation.
 
 Credential and relay inputs:
