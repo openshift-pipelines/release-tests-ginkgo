@@ -239,6 +239,9 @@ func workerWriteRole(name string) *rbacv1.Role {
 			{APIGroups: []string{"kueue.x-k8s.io"}, Resources: []string{"workloads/status"}, Verbs: []string{"get", "patch", "update"}},
 			{APIGroups: []string{"tekton.dev"}, Resources: []string{"pipelineruns"}, Verbs: []string{"create", "delete", "get", "list", "patch", "update", "watch"}},
 			{APIGroups: []string{"tekton.dev"}, Resources: []string{"pipelineruns/status"}, Verbs: []string{"get", "patch", "update"}},
+			{APIGroups: []string{"tekton.dev"}, Resources: []string{"taskruns"}, Verbs: []string{"list"}},
+			{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get", "list"}},
+			{APIGroups: []string{""}, Resources: []string{"pods/log"}, Verbs: []string{"get"}},
 		},
 	}
 }
@@ -280,6 +283,29 @@ func verifyWorkerCredentialScope(ctx context.Context, kubeconfig []byte, namespa
 	}
 	if canReadSecrets {
 		return fmt.Errorf("worker credential can read Secrets")
+	}
+	for _, attributes := range []authorizationv1.ResourceAttributes{
+		{Verb: "list", Group: "tekton.dev", Resource: "taskruns"},
+		{Verb: "get", Resource: "pods"},
+		{Verb: "list", Resource: "pods"},
+		{Verb: "get", Resource: "pods", Subresource: "log"},
+	} {
+		attributes.Namespace = namespace
+		granted, err := allowed(attributes)
+		if err != nil {
+			return err
+		}
+		if !granted {
+			return fmt.Errorf("worker credential lacks namespaced %s %s/%s", attributes.Verb, attributes.Resource, attributes.Subresource)
+		}
+		attributes.Namespace = "default"
+		granted, err = allowed(attributes)
+		if err != nil {
+			return err
+		}
+		if granted {
+			return fmt.Errorf("worker proxy permission extends outside the test namespace")
+		}
 	}
 	return nil
 }
