@@ -97,3 +97,30 @@ func TestExecutionCancellationAndPartialFailureStopStreams(t *testing.T) {
 		})
 	}
 }
+
+func TestCleanupContinuesAfterExecutionHistoryFailure(t *testing.T) {
+	for _, historyErr := range []error{
+		errors.New("execution history discontinuity"),
+		context.DeadlineExceeded,
+	} {
+		t.Run(historyErr.Error(), func(t *testing.T) {
+			f := executionEnvironment(t)
+			continued := false
+			f.environment.addCleanup(func(context.Context) error {
+				continued = true
+				return nil
+			})
+			armed := armFixture(t, f, proxyWire(t, func(w http.ResponseWriter, r *http.Request) { proxyJSON(t, w, r) }))
+			f.start()
+			armed.root = f.run.DeepCopy()
+			armed.watches.discontinuity = historyErr
+
+			if err := f.environment.Cleanup(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			if !continued {
+				t.Fatal("execution history failure blocked remaining cleanup")
+			}
+		})
+	}
+}
