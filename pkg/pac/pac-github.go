@@ -23,7 +23,6 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
-	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/k8s"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
 )
 
@@ -182,22 +181,6 @@ func deleteGitHubK8sResources(c *clients.Clients, namespace, repoName string) er
 	)
 }
 
-func waitForGitHubRepoReady(ctx context.Context, owner, repo string) error {
-	deadline := time.Now().Add(60 * time.Second)
-	for time.Now().Before(deadline) {
-		_, resp, err := ghClient.Repositories.Get(ctx, owner, repo)
-		if err == nil {
-			return nil
-		}
-		if resp != nil && resp.StatusCode == 404 {
-			time.Sleep(2 * time.Second)
-			continue
-		}
-		return err
-	}
-	return fmt.Errorf("timed out waiting for github repo %s/%s to be ready", owner, repo)
-}
-
 func ensureDefaultBranchMain(ctx context.Context, owner, repo, defaultBranch string) error {
 	if defaultBranch == "" || defaultBranch == "main" {
 		return nil
@@ -242,26 +225,26 @@ func sanitizeGitHubK8sName(in string) string {
 	return res
 }
 
-func createBranchWithGitHub(ctx context.Context, owner, repo, baseBranch, newBranch, message string, files map[string]string) error {
+func createBranchWithGitHub(ctx context.Context, owner, repo, baseBranch, newBranch, message string, files map[string]string) (string, error) {
 	baseRef, _, err := ghClient.Git.GetRef(ctx, owner, repo, "refs/heads/"+baseBranch)
 	if err != nil {
-		return err
+		return "", err
 	}
 	baseCommitSHA := baseRef.GetObject().GetSHA()
 	if baseCommitSHA == "" {
-		return fmt.Errorf("base branch %q has empty SHA", baseBranch)
+		return "", fmt.Errorf("base branch %q has empty SHA", baseBranch)
 	}
 
 	baseCommit, _, err := ghClient.Git.GetCommit(ctx, owner, repo, baseCommitSHA)
 	if err != nil {
-		return err
+		return "", err
 	}
 	baseTreeSHA := ""
 	if baseCommit.Tree != nil {
 		baseTreeSHA = baseCommit.Tree.GetSHA()
 	}
 	if baseTreeSHA == "" {
-		return fmt.Errorf("base commit %s has empty tree SHA", baseCommitSHA)
+		return "", fmt.Errorf("base commit %s has empty tree SHA", baseCommitSHA)
 	}
 
 	entries := make([]*github.TreeEntry, 0, len(files))
@@ -278,7 +261,7 @@ func createBranchWithGitHub(ctx context.Context, owner, repo, baseBranch, newBra
 
 	newTree, _, err := ghClient.Git.CreateTree(ctx, owner, repo, baseTreeSHA, entries)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	commit := &github.Commit{
@@ -288,11 +271,11 @@ func createBranchWithGitHub(ctx context.Context, owner, repo, baseBranch, newBra
 	}
 	newCommit, _, err := ghClient.Git.CreateCommit(ctx, owner, repo, commit, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	newCommitSHA := newCommit.GetSHA()
 	if newCommitSHA == "" {
-		return fmt.Errorf("created commit has empty SHA")
+		return "", fmt.Errorf("created commit has empty SHA")
 	}
 
 	ref := &github.Reference{
@@ -302,7 +285,7 @@ func createBranchWithGitHub(ctx context.Context, owner, repo, baseBranch, newBra
 		},
 	}
 	_, _, err = ghClient.Git.CreateRef(ctx, owner, repo, ref)
-	return err
+	return newCommitSHA, err
 }
 
 // SetupGitHubProject creates a new GitHub repository, configures the webhook secret,
@@ -382,9 +365,8 @@ func SetupGitHubProject(c *clients.Clients, namespace, smeeURL string) (owner, r
 		rollbackOwner = owner
 	}
 
-	if waitErr := waitForGitHubRepoReady(ctx, owner, repoName); waitErr != nil {
-		return "", "", waitErr
-	}
+	// The successful Create response establishes repository existence; do not
+	// poll a second endpoint before using that disposable repository.
 	if branchErr := ensureDefaultBranchMain(ctx, owner, repoName, created.GetDefaultBranch()); branchErr != nil {
 		return "", "", fmt.Errorf("failed to rename default branch to main: %w", branchErr)
 	}
@@ -443,16 +425,34 @@ func ConfigurePreviewChangesGitHub(owner, repo string) (prURL string, prNumber i
 	pushData, pushErr := os.ReadFile(filepath.Clean(pushPath))
 	hasPush := pushErr == nil
 
-	branchName := fmt.Sprintf("preview-%08d", time.Now().UnixNano()%1e8)
 	files := map[string]string{
 		".tekton/pull-request.yaml": string(prData),
 	}
 	if hasPush {
 		files[".tekton/push.yaml"] = string(pushData)
 	}
+	pr, err := configurePreviewGitHub(ctx, owner, repo, files)
+	if err != nil {
+		return "", 0, err
+	}
+	return pr.GetHTMLURL(), pr.GetNumber(), nil
+}
 
-	if branchErr := createBranchWithGitHub(ctx, owner, repo, "main", branchName, "ci(pac): add pipelines-as-code definitions", files); branchErr != nil {
-		return "", 0, fmt.Errorf("failed to create branch %q: %w", branchName, branchErr)
+// ConfigurePreviewPipelineGitHub commits the caller's complete pull-request
+// definition and opens a genuine pull_request event. Head.SHA is checked against
+// the created commit so callers can correlate the exact admitted PAC run.
+func ConfigurePreviewPipelineGitHub(ctx context.Context, owner, repo string, pipeline []byte) (*github.PullRequest, error) {
+	if len(pipeline) == 0 {
+		return nil, fmt.Errorf("pull-request definition is empty")
+	}
+	return configurePreviewGitHub(ctx, owner, repo, map[string]string{".tekton/pull-request.yaml": string(pipeline)})
+}
+
+func configurePreviewGitHub(ctx context.Context, owner, repo string, files map[string]string) (*github.PullRequest, error) {
+	branchName := "preview-" + strings.ToLower(rand.Text())
+	sha, branchErr := createBranchWithGitHub(ctx, owner, repo, "main", branchName, "ci(pac): add pipelines-as-code definitions", files)
+	if branchErr != nil {
+		return nil, fmt.Errorf("failed to create preview branch: %w", branchErr)
 	}
 
 	newPR := &github.NewPullRequest{
@@ -462,11 +462,13 @@ func ConfigurePreviewChangesGitHub(owner, repo string) (prURL string, prNumber i
 	}
 	pr, _, prCreateErr := ghClient.PullRequests.Create(ctx, owner, repo, newPR)
 	if prCreateErr != nil {
-		return "", 0, fmt.Errorf("failed to create PR: %w", prCreateErr)
+		return nil, fmt.Errorf("failed to create PR: %w", prCreateErr)
 	}
-
+	if pr.GetHead().GetSHA() != sha || pr.GetNumber() <= 0 {
+		return nil, fmt.Errorf("pull request does not identify the created commit")
+	}
 	log.Printf("Pull Request Created: %s", pr.GetHTMLURL())
-	return pr.GetHTMLURL(), pr.GetNumber(), nil
+	return pr, nil
 }
 
 // TriggerPushOnGitHubMain waits for the PR to become mergeable and squash-merges it,
@@ -558,7 +560,7 @@ func CleanupPACGitHub(c *clients.Clients, namespace, smeeDeploymentName, owner, 
 			errs = append(errs, fmt.Errorf("failed to delete github repository %s/%s: %w", owner, repo, deleteErr))
 		}
 	}
-	if err := k8s.DeleteDeployment(c, namespace, smeeDeploymentName); err != nil {
+	if err := c.KubeClient.Kube.AppsV1().Deployments(namespace).Delete(context.Background(), smeeDeploymentName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		errs = append(errs, fmt.Errorf("failed to delete smee deployment: %w", err))
 	}
 	return errors.Join(errs...)
