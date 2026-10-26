@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 
@@ -24,7 +25,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/client-go/util/retry"
 )
 
 var (
@@ -62,8 +62,15 @@ func (e *Environment) createNamespace(ctx context.Context, cluster Cluster) erro
 		if !e.owns(current.Labels) || (uid != "" && current.UID != uid) {
 			return fmt.Errorf("refusing to delete replacement namespace %s on %s", e.Namespace, cluster.Name)
 		}
-		if err := ignoreNotFound(namespaces.Delete(cleanupCtx, e.Namespace, metav1.DeleteOptions{})); err != nil {
+		options := metav1.DeleteOptions{}
+		if e.routingWaits {
+			options.Preconditions = &metav1.Preconditions{UID: &current.UID}
+		}
+		if err := ignoreNotFound(namespaces.Delete(cleanupCtx, e.Namespace, options)); err != nil {
 			return err
+		}
+		if e.routingWaits {
+			return routingObjectGone(cleanupCtx, cluster.Clients.Dynamic.Resource(schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}), e.Namespace)
 		}
 		return waitForNotFound(cleanupCtx, 10*time.Minute, func(ctx context.Context) error {
 			_, err := namespaces.Get(ctx, e.Namespace, metav1.GetOptions{})
@@ -76,6 +83,12 @@ func (e *Environment) createNamespace(ctx context.Context, cluster Cluster) erro
 		return err
 	}
 	uid = created.UID
+	if e.routingWaits {
+		if e.routingNamespaceUIDs == nil {
+			e.routingNamespaceUIDs = map[string]types.UID{}
+		}
+		e.routingNamespaceUIDs[cluster.Name] = uid
+	}
 	return nil
 }
 
@@ -134,8 +147,13 @@ func (e *Environment) createQueues(ctx context.Context, cluster Cluster, hub boo
 		return err
 	}
 
-	localQueue := object("LocalQueue", e.Prefix, e.Namespace, map[string]any{"clusterQueue": e.Prefix})
-	return e.createDynamic(ctx, cluster, localQueueGVR, localQueue)
+	for _, name := range []string{e.Prefix, e.explicitQueueName()} {
+		localQueue := object("LocalQueue", name, e.Namespace, map[string]any{"clusterQueue": e.Prefix})
+		if err := e.createDynamic(ctx, cluster, localQueueGVR, localQueue); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e *Environment) createWorkerCredential(ctx context.Context, spoke Cluster) error {
@@ -177,7 +195,20 @@ func (e *Environment) createWorkerCredential(ctx context.Context, spoke Cluster)
 	}
 	var ca []byte
 	configMaps := spoke.Clients.KubeClient.Kube.CoreV1().ConfigMaps(e.Namespace)
-	if err := wait.PollUntilContextTimeout(ctx, time.Second, 2*time.Minute, true, func(ctx context.Context) (bool, error) {
+	if e.routingWaits {
+		if err := watchRoutingResource(ctx, spoke.Clients.Dynamic.Resource(schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}).Namespace(e.Namespace), func(items []unstructured.Unstructured) (bool, error) {
+			for _, item := range items {
+				if item.GetName() == "kube-root-ca.crt" {
+					value, _, err := unstructured.NestedString(item.Object, "data", "ca.crt")
+					ca = []byte(value)
+					return len(ca) != 0, err
+				}
+			}
+			return false, nil
+		}); err != nil {
+			return err
+		}
+	} else if err := wait.PollUntilContextTimeout(ctx, time.Second, 2*time.Minute, true, func(ctx context.Context) (bool, error) {
 		configMap, getErr := configMaps.Get(ctx, "kube-root-ca.crt", metav1.GetOptions{})
 		if getErr != nil {
 			return false, nil
@@ -191,8 +222,10 @@ func (e *Environment) createWorkerCredential(ctx context.Context, spoke Cluster)
 	if err != nil {
 		return err
 	}
-	if err := verifyWorkerCredentialScope(ctx, kubeconfig, e.Namespace); err != nil {
-		return err
+	if !e.routingWaits {
+		if err := verifyWorkerCredentialScope(ctx, kubeconfig, e.Namespace); err != nil {
+			return err
+		}
 	}
 	hubSecrets := e.Hub.Clients.KubeClient.Kube.CoreV1().Secrets(kueueNamespace)
 	var hubSecretUID types.UID
@@ -244,6 +277,17 @@ func workerWriteRole(name string) *rbacv1.Role {
 }
 
 func verifyWorkerCredentialScope(ctx context.Context, kubeconfig []byte, namespace string) error {
+	return verifyWorkerScope(ctx, workerScope{kubeconfig: kubeconfig, namespace: namespace, poll: true})
+}
+
+type workerScope struct {
+	kubeconfig []byte
+	namespace  string
+	poll       bool
+}
+
+func verifyWorkerScope(ctx context.Context, scope workerScope) error {
+	kubeconfig, namespace := scope.kubeconfig, scope.namespace
 	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
 		return fmt.Errorf("parse scoped worker credential: %w", err)
@@ -261,9 +305,17 @@ func verifyWorkerCredentialScope(ctx context.Context, kubeconfig []byte, namespa
 		}
 		return review.Status.Allowed, nil
 	}
-	err = wait.PollUntilContextTimeout(ctx, time.Second, 30*time.Second, true, func(context.Context) (bool, error) {
-		return allowed(authorizationv1.ResourceAttributes{Verb: "create", Group: "tekton.dev", Resource: "pipelineruns", Namespace: namespace})
-	})
+	if scope.poll {
+		err = wait.PollUntilContextTimeout(ctx, time.Second, 30*time.Second, true, func(context.Context) (bool, error) {
+			return allowed(authorizationv1.ResourceAttributes{Verb: "create", Group: "tekton.dev", Resource: "pipelineruns", Namespace: namespace})
+		})
+	} else {
+		canCreate, checkErr := allowed(authorizationv1.ResourceAttributes{Verb: "create", Group: "tekton.dev", Resource: "pipelineruns", Namespace: namespace})
+		err = checkErr
+		if err == nil && !canCreate {
+			err = fmt.Errorf("worker credential cannot create PipelineRuns")
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("worker credential cannot create PipelineRuns in the test namespace: %w", err)
 	}
@@ -415,9 +467,17 @@ func intPort(port int) *intstr.IntOrString {
 }
 
 func (e *Environment) waitForKueueResources(ctx context.Context) error {
+	if e.routingWaits {
+		return e.waitForRoutingQueues(ctx)
+	}
 	for _, cluster := range e.clusters() {
 		if err := waitForActive(ctx, cluster, clusterQueueGVR, "", e.Prefix); err != nil {
 			return fmt.Errorf("ClusterQueue on %s: %w", cluster.Name, err)
+		}
+		for _, name := range []string{e.Prefix, e.explicitQueueName()} {
+			if err := waitForActive(ctx, cluster, localQueueGVR, e.Namespace, name); err != nil {
+				return fmt.Errorf("LocalQueue %s on %s: %w", name, cluster.Name, err)
+			}
 		}
 	}
 	if err := waitForActive(ctx, e.Hub, admissionCheckGVR, "", e.Prefix); err != nil {
@@ -470,8 +530,16 @@ func (e *Environment) createDynamic(ctx context.Context, cluster Cluster, gvr sc
 		if !e.owns(current.GetLabels()) || (uid != "" && current.GetUID() != uid) {
 			return fmt.Errorf("refusing to delete replacement %s %s on %s", object.GetKind(), object.GetName(), cluster.Name)
 		}
-		if err := ignoreNotFound(resource.Delete(cleanupCtx, object.GetName(), metav1.DeleteOptions{})); err != nil {
+		options := metav1.DeleteOptions{}
+		if e.routingWaits {
+			currentUID := current.GetUID()
+			options.Preconditions = &metav1.Preconditions{UID: &currentUID}
+		}
+		if err := ignoreNotFound(resource.Delete(cleanupCtx, object.GetName(), options)); err != nil {
 			return err
+		}
+		if e.routingWaits {
+			return routingObjectGone(cleanupCtx, resource, object.GetName())
 		}
 		return waitForNotFound(cleanupCtx, 5*time.Minute, func(ctx context.Context) error {
 			_, err := resource.Get(ctx, object.GetName(), metav1.GetOptions{})
@@ -538,7 +606,7 @@ func (e *Environment) createClusterRoleBinding(ctx context.Context, cluster Clus
 	binding.Labels = e.ownedLabels()
 	var uid types.UID
 	e.addCleanup(func(cleanupCtx context.Context) error {
-		return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		return e.retryCleanupConflict(cleanupCtx, func() error {
 			current, getErr := bindings.Get(cleanupCtx, binding.Name, metav1.GetOptions{})
 			if apierrors.IsNotFound(getErr) {
 				return nil
@@ -549,11 +617,20 @@ func (e *Environment) createClusterRoleBinding(ctx context.Context, cluster Clus
 			if !e.owns(current.Labels) || (uid != "" && current.UID != uid) {
 				return fmt.Errorf("refusing to delete replacement ClusterRoleBinding %s on %s", binding.Name, cluster.Name)
 			}
+			if e.routingWaits && len(current.Subjects) != 0 && !slices.Equal(current.Subjects, binding.Subjects) {
+				return fmt.Errorf("refusing to remove foreign subjects from ClusterRoleBinding %s on %s", binding.Name, cluster.Name)
+			}
 			current.Subjects = nil
-			if _, updateErr := bindings.Update(cleanupCtx, current, metav1.UpdateOptions{}); updateErr != nil {
+			updated, updateErr := bindings.Update(cleanupCtx, current, metav1.UpdateOptions{})
+			if updateErr != nil {
 				return updateErr
 			}
-			return ignoreNotFound(bindings.Delete(cleanupCtx, binding.Name, metav1.DeleteOptions{}))
+			options := metav1.DeleteOptions{}
+			if e.routingWaits {
+				updatedUID, updatedVersion := updated.UID, updated.ResourceVersion
+				options.Preconditions = &metav1.Preconditions{UID: &updatedUID, ResourceVersion: &updatedVersion}
+			}
+			return ignoreNotFound(bindings.Delete(cleanupCtx, binding.Name, options))
 		})
 	})
 	created, err := bindings.Create(ctx, binding, metav1.CreateOptions{})

@@ -45,9 +45,9 @@ type Environment struct {
 	Prefix    string
 	Namespace string
 
-	runName      string
-	workloadName string
-	cleanups     []cleanupFunc
+	cleanups             []cleanupFunc
+	routingWaits         bool
+	routingNamespaceUIDs map[string]types.UID
 }
 
 // NewEnvironment creates a test environment. Setup performs validation before mutating clusters.
@@ -180,6 +180,9 @@ func (e *Environment) ensureKueue(ctx context.Context, cluster Cluster) error {
 			if err := ignoreNotFound(resource.Delete(cleanupCtx, "cluster", metav1.DeleteOptions{})); err != nil {
 				return err
 			}
+			if e.routingWaits {
+				return routingObjectGone(cleanupCtx, resource, "cluster")
+			}
 			return waitForNotFound(cleanupCtx, 10*time.Minute, func(ctx context.Context) error {
 				_, err := resource.Get(ctx, "cluster", metav1.GetOptions{})
 				return err
@@ -204,10 +207,13 @@ func (e *Environment) ensureKueue(ctx context.Context, cluster Cluster) error {
 		return nil
 	}
 	e.addCleanup(func(cleanupCtx context.Context) error {
-		return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		return e.retryCleanupConflict(cleanupCtx, func() error {
 			current, getErr := resource.Get(cleanupCtx, "cluster", metav1.GetOptions{})
 			if getErr != nil {
 				return getErr
+			}
+			if e.routingWaits && current.GetUID() != existing.GetUID() {
+				return fmt.Errorf("refusing to restore replacement Kueue on %s", cluster.Name)
 			}
 			changed := false
 			for _, path := range changedPaths {
@@ -298,6 +304,9 @@ func isPipelineRunFramework(item any) bool {
 }
 
 func (e *Environment) waitForKueue(ctx context.Context, cluster Cluster) error {
+	if e.routingWaits {
+		return routingCondition(ctx, cluster.Clients.Dynamic.Resource(kueueOperatorGVR), resourceCondition{"cluster", "Available"})
+	}
 	resource := cluster.Clients.Dynamic.Resource(kueueOperatorGVR)
 	var last string
 	err := wait.PollUntilContextTimeout(ctx, pollInterval, 10*time.Minute, true, func(ctx context.Context) (bool, error) {
@@ -317,6 +326,9 @@ func (e *Environment) waitForKueue(ctx context.Context, cluster Cluster) error {
 }
 
 func (e *Environment) enableScheduler(ctx context.Context, cluster Cluster, role operatorv1alpha1.MultiClusterRole) error {
+	if e.routingWaits {
+		return e.enableRoutingScheduler(ctx, cluster, role)
+	}
 	client := cluster.Clients.TektonConfig()
 	current, err := client.Get(ctx, "config", metav1.GetOptions{})
 	if err != nil {
