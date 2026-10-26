@@ -229,6 +229,55 @@ LABEL_FILTER='triggers && sanity' ./scripts/run-tests.sh
 
 Provide one hub kubeconfig and at least one spoke kubeconfig. Test-binary flags must follow `--`.
 
+#### OpenShift Multicluster prerequisite readiness
+
+Run the prerequisite Story independently of PipelineRun execution:
+
+```bash
+ginkgo run --procs=1 --timeout=6h --grace-period=25m \
+  --label-filter='tekton-kueue && prerequisites' ./tests/tektonkueue -- \
+  --kubeconfig /path/to/hub --context hub-context \
+  --spoke-kubeconfig /path/to/spoke-1 --spoke-context spoke-1-context \
+  --spoke-kubeconfig /path/to/spoke-2 --spoke-context spoke-2-context
+```
+
+Every explicit hub/spoke target requires cluster-admin credentials and OLM with
+the configured operator catalogs. Distinct API servers are required; a hub
+registered as its own worker does not satisfy this spec. Context overrides are
+optional, but if supplied there must be one per spoke kubeconfig.
+
+The `install`, `workload`, and `prerequisites` specs share target construction and
+discovery-aware `EnsurePrerequisites`: they install or reuse OpenShift Pipelines,
+cert-manager, and Red Hat Kueue on each target, waiting for each API to be served.
+Existing OLM subscriptions retain their channels and catalog sources.
+
+The prerequisite spec uses the existing `Environment` to enable Hub/Spoke
+Multicluster roles, configure Kueue and queues, and register real spoke workers
+with scoped credentials. `Environment.AssertReady(ctx)` checks the current state:
+
+* Kueue `Available`, TektonConfig and TektonScheduler `Ready` on every target,
+  plus hub TektonMulticlusterProxyAAE and SyncerService `Ready`, with no degraded
+  or terminating resources. Kueue and SyncerService must report current
+  `status.observedGeneration`; queues, admission checks and workers must report
+  current condition `observedGeneration`. The pinned v0.80 TektonConfig,
+  TektonScheduler and proxy controllers do not publish generation observations:
+  their evidence is the desired Hub/Spoke configuration, scheduler spec
+  propagation, component target namespace, Deployment rollouts and live proxy
+  readiness, not an unsupported CR-generation requirement.
+* Each component's matching Deployments in its CR's target namespace are
+  observed, updated, and available with a nonzero desired replica count.
+* Test ClusterQueues and LocalQueues are `Active`, the hub AdmissionCheck and
+  every registered MultiKueueCluster are `Active`, and ResourceFlavors and the
+  MultiKueueConfig exist.
+* Only after worker readiness, the hub proxy's actual `/ready` endpoint returns
+  HTTP 200 through the API pod proxy, using its Deployment selector and HTTP
+  readiness probe port.
+
+Failures are test failures, not successful skips. This readiness spec does not
+submit a PipelineRun; use `workload` below for execution coverage. Cleanup uses
+the existing restoration and ownership checks to restore scheduler/Kueue
+configuration and remove test-owned resources. OLM installations are kept.
+
 Bootstrap the required operators:
 
 ```bash
