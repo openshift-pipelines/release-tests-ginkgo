@@ -16,6 +16,7 @@ replace (
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v74 v74.0.0
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
 	github.com/openshift-pipelines/manual-approval-gate v0.9.0
@@ -159,3 +160,7 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.3 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+require k8s.io/streaming v0.36.3
+
+require github.com/moby/spdystream v0.5.1 // indirect
