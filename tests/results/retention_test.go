@@ -15,7 +15,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
-var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFailure, Label("results", "retention", "e2e"), func() {
+var _ = Describe("Results Retention Policy: PIPELINES-43", Ordered, ContinueOnFailure, Label("results", "retention", "e2e"), func() {
 
 	// Ensure retention policy is restored even if tests are interrupted
 	BeforeAll(func() {
@@ -30,7 +30,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 
 	// Group 1: Default Retention (Fallback)
 
-	Describe("TC03: defaultRetention (Primary Fallback): PIPELINES-26-TC03", Label("sanity"), Ordered, func() {
+	Describe("TC01: defaultRetention (Primary Fallback): PIPELINES-43-TC01", Label("sanity"), Ordered, func() {
 		var prName string
 
 		It("configures retention policy with defaultRetention", func() {
@@ -64,7 +64,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC04: maxRetention (Backward Compatibility): PIPELINES-26-TC04", Ordered, func() {
+	Describe("TC02: maxRetention (Backward Compatibility): PIPELINES-43-TC02", Ordered, func() {
 		var prName string
 
 		It("configures retention policy with maxRetention only", func() {
@@ -96,7 +96,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 
 	// Group 2: Single-Selector Policies
 
-	Describe("TC05: matchNamespaces: PIPELINES-26-TC05", Ordered, func() {
+	Describe("TC03: matchNamespaces: PIPELINES-43-TC03", Ordered, func() {
 		var testNS string
 		var defaultNS string
 
@@ -149,7 +149,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC06: matchLabels: PIPELINES-26-TC06", Ordered, func() {
+	Describe("TC04: matchLabels: PIPELINES-43-TC04", Ordered, func() {
 		var prName string
 
 		It("configures retention policy with matchLabels", func() {
@@ -178,7 +178,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC07: matchAnnotations: PIPELINES-26-TC07", Ordered, func() {
+	Describe("TC05: matchAnnotations: PIPELINES-43-TC05", Ordered, func() {
 		var prName string
 
 		It("configures retention policy with matchAnnotations", func() {
@@ -207,7 +207,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC08: matchStatuses (Failed): PIPELINES-26-TC08", Ordered, func() {
+	Describe("TC06: matchStatuses (Failed): PIPELINES-43-TC06", Ordered, func() {
 		var failedPR string
 		var succeededPR string
 
@@ -247,7 +247,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC09: Standalone TaskRun: PIPELINES-26-TC09", Ordered, func() {
+	Describe("TC07: Standalone TaskRun: PIPELINES-43-TC07", Ordered, func() {
 		It("configures retention policy with matchLabels for TaskRun", func() {
 			policy := `    - name: "label-test"
       selector:
@@ -272,7 +272,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 
 	// Group 3: Complex Logic (AND / OR / Order)
 
-	Describe("TC10: Combined Selectors (AND Logic): PIPELINES-26-TC10", Ordered, func() {
+	Describe("TC08: Combined Selectors (AND Logic): PIPELINES-43-TC08", Ordered, func() {
 		var prodNS string
 		var defaultNS string
 
@@ -329,7 +329,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC11: Selector List (OR Logic): PIPELINES-26-TC11", Ordered, func() {
+	Describe("TC09: Selector List (OR Logic): PIPELINES-43-TC09", Ordered, func() {
 		var frontendPR string
 		var backendPR string
 
@@ -371,7 +371,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC12: Policy Order (First Match Wins): PIPELINES-26-TC12", Ordered, func() {
+	Describe("TC10: Policy Order (First Match Wins): PIPELINES-43-TC10", Ordered, func() {
 		var prodNS string
 		var failedPRName string
 		var succeededPRName string
@@ -431,7 +431,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 
 	// Group 4: CustomRun Support (MAG Integration)
 
-	Describe("TC13: CustomRun Basic Retention (MAG): PIPELINES-26-TC13", Label("customrun"), Ordered, func() {
+	Describe("TC11: CustomRun Basic Retention (MAG): PIPELINES-43-TC11", Label("customrun"), Ordered, func() {
 		var prName string
 
 		It("configures retention policy with defaultRetention", func() {
