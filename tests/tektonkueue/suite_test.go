@@ -9,6 +9,7 @@ import (
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	_ "github.com/openshift-pipelines/release-tests-ginkgo/pkg/hooks"
 )
 
 var (

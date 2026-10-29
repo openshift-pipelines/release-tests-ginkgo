@@ -14,11 +14,12 @@ import (
 type TCSpecMap map[string]string
 
 // LoadTCSpecMap loads the tc_spec_map.json file from the repo root
-func LoadTCSpecMap() (TCSpecMap, error) {
+// Returns both the spec map and the repo root directory
+func LoadTCSpecMap() (TCSpecMap, string, error) {
 	// Find repo root by looking for tc_spec_map.json
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get working directory: %w", err)
+		return nil, "", fmt.Errorf("failed to get working directory: %w", err)
 	}
 
 	// Search up the directory tree for tc_spec_map.json
@@ -28,21 +29,21 @@ func LoadTCSpecMap() (TCSpecMap, error) {
 			// Found it, load the file
 			data, err := os.ReadFile(mapPath)
 			if err != nil {
-				return nil, fmt.Errorf("failed to read tc_spec_map.json: %w", err)
+				return nil, "", fmt.Errorf("failed to read tc_spec_map.json: %w", err)
 			}
 
 			var m TCSpecMap
 			if err := json.Unmarshal(data, &m); err != nil {
-				return nil, fmt.Errorf("failed to parse tc_spec_map.json: %w", err)
+				return nil, "", fmt.Errorf("failed to parse tc_spec_map.json: %w", err)
 			}
-			return m, nil
+			return m, wd, nil
 		}
 
 		// Move up one directory
 		parent := filepath.Dir(wd)
 		if parent == wd {
 			// Reached root without finding file
-			return nil, fmt.Errorf("tc_spec_map.json not found in repo root")
+			return nil, "", fmt.Errorf("tc_spec_map.json not found in repo root")
 		}
 		wd = parent
 	}
@@ -54,18 +55,18 @@ func LoadTCSpecMap() (TCSpecMap, error) {
 // 3. The TC-IDs in the file match the TC-IDs in the spec map for that file
 // This is designed to run once from hooks at suite initialization.
 func ValidateTestFileAgainstSpecMap(testFilePath string) error {
-	specs, err := LoadTCSpecMap()
+	specs, repoRoot, err := LoadTCSpecMap()
 	if err != nil {
 		return fmt.Errorf("failed to load tc_spec_map.json: %w", err)
 	}
 
-	// Normalize the test file path for comparison
-	testFileNormalized := normalizeFilePath(testFilePath)
+	// Normalize the test file path for comparison using the repo root
+	testFileNormalized := normalizeFilePathWithRoot(testFilePath, repoRoot)
 
 	// Find which TC-IDs are registered for this file
 	registeredTCIDs := make([]string, 0)
 	for tcID, filePath := range specs {
-		if normalizeFilePath(filePath) == testFileNormalized {
+		if normalizeFilePathWithRoot(filepath.Join(repoRoot, filePath), repoRoot) == testFileNormalized {
 			registeredTCIDs = append(registeredTCIDs, tcID)
 		}
 	}
@@ -100,9 +101,10 @@ func ValidateTestFileAgainstSpecMap(testFilePath string) error {
 		)
 	}
 
-	// Check if all found TC-IDs are registered
+	// Check if all found TC-IDs are registered and belong to this file
 	for tcID := range foundTCIDs {
-		if _, exists := specs[tcID]; !exists {
+		mappedFile, exists := specs[tcID]
+		if !exists {
 			return fmt.Errorf(
 				"TC-ID '%s' found in '%s' but not registered in tc_spec_map.json\n\n"+
 					"SOLUTION: Please add this TC-ID to tc_spec_map.json:\n"+
@@ -110,6 +112,22 @@ func ValidateTestFileAgainstSpecMap(testFilePath string) error {
 					"    \"%s\": \"%s\"\n"+
 					"  }",
 				tcID, testFilePath, tcID, testFileNormalized,
+			)
+		}
+
+		// Verify the TC-ID is mapped to THIS file, not another file
+		mappedFileNormalized := normalizeFilePathWithRoot(filepath.Join(repoRoot, mappedFile), repoRoot)
+		if mappedFileNormalized != testFileNormalized {
+			return fmt.Errorf(
+				"TC-ID '%s' found in '%s' but is registered to '%s' in tc_spec_map.json\n\n"+
+					"SOLUTION: Either:\n"+
+					"  1. Use a different TC-ID in this file\n"+
+					"  2. Update tc_spec_map.json to register '%s' to '%s':\n"+
+					"     {\n"+
+					"       \"%s\": \"%s\"\n"+
+					"     }",
+				tcID, testFileNormalized, mappedFileNormalized,
+				tcID, testFileNormalized, tcID, testFileNormalized,
 			)
 		}
 	}
@@ -130,30 +148,63 @@ func ValidateTestFileAgainstSpecMap(testFilePath string) error {
 	return nil
 }
 
-// extractAllTCIDsFromContent extracts all TC-IDs from file content
+// extractAllTCIDsFromContent extracts all TC-IDs from Ginkgo Describe blocks only
+// This ensures TC-IDs in comments or other code don't count as "used"
 func extractAllTCIDsFromContent(content string) map[string]bool {
 	found := make(map[string]bool)
-	// Match only PIPELINES-NN format TC-IDs
-	re := regexp.MustCompile(`\b(PIPELINES-\d+)\b`)
-	matches := re.FindAllStringSubmatch(content, -1)
-	for _, match := range matches {
+
+	// Extract all Describe block descriptions
+	// Matches: Describe("description with TC-ID", func() { ... })
+	//          var _ = Describe("description", ...)
+	describeRe := regexp.MustCompile(`Describe\s*\(\s*"([^"]*)"`)
+	describeMatches := describeRe.FindAllStringSubmatch(content, -1)
+
+	// Now extract PIPELINES-* IDs from each Describe description
+	tcIDRe := regexp.MustCompile(`\b(PIPELINES-\d+)\b`)
+	for _, match := range describeMatches {
 		if len(match) > 1 {
-			found[match[1]] = true
+			// match[1] is the description text from Describe("...")
+			tcIDMatches := tcIDRe.FindAllStringSubmatch(match[1], -1)
+			for _, tcIDMatch := range tcIDMatches {
+				if len(tcIDMatch) > 1 {
+					found[tcIDMatch[1]] = true
+				}
+			}
 		}
 	}
 	return found
 }
 
-// normalizeFilePath normalizes file paths for comparison
+// normalizeFilePathWithRoot normalizes file paths relative to the repo root
+// This correctly handles cases where "/tests/" appears in parent directories
+func normalizeFilePathWithRoot(absPath, repoRoot string) string {
+	absPath = strings.TrimSpace(absPath)
+	absPath = strings.ReplaceAll(absPath, "\\", "/")
+
+	repoRoot = strings.TrimSpace(repoRoot)
+	repoRoot = strings.ReplaceAll(repoRoot, "\\", "/")
+
+	// Use filepath.Rel to compute relative path from repo root
+	if relPath, err := filepath.Rel(repoRoot, absPath); err == nil {
+		// Convert to forward slashes for consistency
+		return strings.ReplaceAll(relPath, "\\", "/")
+	}
+
+	// Fallback to string heuristic if filepath.Rel fails
+	return normalizeFilePath(absPath)
+}
+
+// normalizeFilePath normalizes file paths for comparison (fallback method)
 // Converts absolute paths to relative paths for matching against tc_spec_map.json
+// Uses string heuristic: extracts from last occurrence of "/tests/"
 func normalizeFilePath(path string) string {
 	// Convert to forward slashes and remove leading/trailing spaces
 	path = strings.TrimSpace(path)
 	path = strings.ReplaceAll(path, "\\", "/")
 
 	// If path is absolute, try to convert to relative path
-	// Look for common patterns like "tests/..." and extract from there
-	if idx := strings.Index(path, "/tests/"); idx != -1 {
+	// Use LastIndex to find the LAST /tests/ (handles nested tests/ dirs)
+	if idx := strings.LastIndex(path, "/tests/"); idx != -1 {
 		// Extract from /tests/ onwards (e.g., tests/chains/chains_test.go)
 		path = path[idx+1:] // Skip the leading /
 	}
