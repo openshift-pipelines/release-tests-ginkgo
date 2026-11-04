@@ -41,5 +41,7 @@
     "PIPELINES-40": "tests/tls/scan_test.go",
     "PIPELINES-41": "tests/tektonkueue/tekton_kueue_test.go",
     "PIPELINES-42": "tests/tektonkueue/workload_test.go",
-    "PIPELINES-43": "tests/results/retention_test.go"
+    "PIPELINES-43": "tests/results/retention_test.go",
+    "PIPELINES-44": "tests/pipelines/pipelines_in_pipelines_test.go",
+    "PIPELINES-45": "tests/pipelines/pipelines_in_pipelines_negative_test.go"
 }
