@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pip-runner
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-child
+spec:
+  params:
+    - name: message
+      type: string
+  tasks:
+    - name: leaf
+      params:
+        - name: message
+          value: $(params.message)
+      taskSpec:
+        params:
+          - name: message
+            type: string
+        steps:
+          - name: check
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            env:
+              - name: MESSAGE
+                value: $(params.message)
+            script: |
+              #!/bin/sh
+              set -eu
+              test "$MESSAGE" = named-value
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  taskRunTemplate:
+    serviceAccountName: pip-runner
+  pipelineSpec:
+    tasks:
+      - name: child
+        pipelineRef:
+          name: pip-child
+        params:
+          - name: message
+            value: named-value

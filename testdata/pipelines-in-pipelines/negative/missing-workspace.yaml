@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-child
+spec:
+  workspaces:
+    - name: required-data
+  tasks:
+    - name: read
+      workspaces:
+        - name: required-data
+          workspace: required-data
+      taskSpec:
+        workspaces:
+          - name: required-data
+        steps:
+          - name: read
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            script: |
+              #!/bin/sh
+              test -d "$(workspaces.required-data.path)"
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  pipelineSpec:
+    tasks:
+      - name: child
+        pipelineRef:
+          name: pip-child

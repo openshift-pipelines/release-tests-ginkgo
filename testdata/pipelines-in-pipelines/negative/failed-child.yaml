@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  pipelineSpec:
+    tasks:
+      - name: child
+        pipelineSpec:
+          tasks:
+            - name: fail
+              taskSpec:
+                steps:
+                  - name: fail
+                    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                    script: |
+                      #!/bin/sh
+                      exit 7
+      - name: after-child
+        runAfter: [child]
+        taskSpec:
+          steps:
+            - name: must-not-run
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              script: |
+                #!/bin/sh
+                exit 0

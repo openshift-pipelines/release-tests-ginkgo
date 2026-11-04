@@ -1,0 +1,38 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+  labels:
+    pip.example.test/scenario: inline
+  annotations:
+    pip.example.test/metadata: propagated
+spec:
+  pipelineSpec:
+    tasks:
+      - name: child
+        params:
+          - name: message
+            value: inline-value
+        pipelineSpec:
+          params:
+            - name: message
+              type: string
+          tasks:
+            - name: leaf
+              params:
+                - name: message
+                  value: $(params.message)
+              taskSpec:
+                params:
+                  - name: message
+                    type: string
+                steps:
+                  - name: check
+                    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                    env:
+                      - name: MESSAGE
+                        value: $(params.message)
+                    script: |
+                      #!/bin/sh
+                      set -eu
+                      test "$MESSAGE" = inline-value
