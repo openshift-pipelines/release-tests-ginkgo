@@ -26,6 +26,13 @@ cert-manager and Kueue images by digest; the Operator release pins its image
 and embedded payload. Installation checks the Pipelines and scheduler versions.
 Review compatibility before changing any pin.
 
+The Operator's embedded scheduler image digest is not available from its
+registry. The overlay sets `IMAGE_SCHEDULER_MANAGER` and
+`IMAGE_SCHEDULER_WEBHOOK` on the lifecycle controller to the digest published in
+the [scheduler v0.3.1 release](https://github.com/tektoncd/tekton-kueue/releases/download/v0.3.1/release-v0.3.1.yaml).
+That image supports anonymous pulls on AMD64 and ARM64. This is an explicit pin,
+not a fallback to a different scheduler version.
+
 Operator autoinstall is disabled in the rendered manifest before deployment.
 Individual `TektonPipeline` and `TektonScheduler` CRs install the components.
 `TektonConfig` Hub mode is deliberately not used: the v0.80.0 Kubernetes

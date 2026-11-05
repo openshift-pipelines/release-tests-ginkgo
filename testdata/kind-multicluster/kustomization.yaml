@@ -27,3 +27,25 @@ patches:
         path: /data/AUTOINSTALL_COMPONENTS
         value: "false"
   - path: kueue-config.yaml
+  # Operator v0.80.0 embeds a scheduler digest that is no longer published.
+  # Use the image from the scheduler's own v0.3.1 release manifest.
+  - target:
+      kind: Deployment
+      name: tekton-operator
+      namespace: tekton-operator
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: tekton-operator
+        namespace: tekton-operator
+      spec:
+        template:
+          spec:
+            containers:
+              - name: tekton-operator-lifecycle
+                env:
+                  - name: IMAGE_SCHEDULER_MANAGER
+                    value: quay.io/openshift-pipeline/kueue-rhel9@sha256:15c12da19c678f2d08c4074d17e121907e0bcc00997d5829a9a5f2bd977ae03f
+                  - name: IMAGE_SCHEDULER_WEBHOOK
+                    value: quay.io/openshift-pipeline/kueue-rhel9@sha256:15c12da19c678f2d08c4074d17e121907e0bcc00997d5829a9a5f2bd977ae03f
