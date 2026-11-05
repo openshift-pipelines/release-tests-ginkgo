@@ -4,3 +4,4 @@ metadata:
   name: pipeline
 spec:
   targetNamespace: tekton-pipelines
+  options: {}

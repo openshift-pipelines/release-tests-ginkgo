@@ -32,6 +32,7 @@ metadata:
   name: tektonscheduler
 spec:
   targetNamespace: tekton-pipelines
+  options: {}
   disabled: false
   multi-cluster-disabled: false
   multi-cluster-role: $role
