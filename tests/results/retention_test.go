@@ -15,7 +15,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
-var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFailure, Label("results", "retention", "e2e"), func() {
+var _ = Describe("Results Retention Policy: PIPELINES-43", Ordered, ContinueOnFailure, Label("results", "retention", "e2e"), func() {
 
 	// Ensure retention policy is restored even if tests are interrupted
 	BeforeAll(func() {
@@ -30,7 +30,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 
 	// Group 1: Default Retention (Fallback)
 
-	Describe("TC03: defaultRetention (Primary Fallback): PIPELINES-26-TC03", Label("sanity"), Ordered, func() {
+	Describe("TC01: defaultRetention (Primary Fallback): PIPELINES-43-TC01", Label("sanity"), Ordered, func() {
 		var prName string
 
 		It("configures retention policy with defaultRetention", func() {
@@ -55,12 +55,16 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 
 		It("waits for retention period and verifies result is deleted", func() {
-			err := operator.VerifyResultDeletedWithTimeout("pipelinerun", prName, store.Namespace(), 150*time.Second)
+			// 3.5m margin for 1m retention: the results pruner is an async, ~1-minute
+			// cron, and ConfigureRetentionPolicy's reschedule adds further lag — worst
+			// case ≈ retention + next-tick + reschedule. The poll returns as soon as the
+			// result is deleted, so the extra margin only guards against cron jitter.
+			err := operator.VerifyResultDeletedWithTimeout("pipelinerun", prName, store.Namespace(), 210*time.Second)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 
-	Describe("TC04: maxRetention (Backward Compatibility): PIPELINES-26-TC04", Ordered, func() {
+	Describe("TC02: maxRetention (Backward Compatibility): PIPELINES-43-TC02", Ordered, func() {
 		var prName string
 
 		It("configures retention policy with maxRetention only", func() {
@@ -92,7 +96,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 
 	// Group 2: Single-Selector Policies
 
-	Describe("TC05: matchNamespaces: PIPELINES-26-TC05", Ordered, func() {
+	Describe("TC03: matchNamespaces: PIPELINES-43-TC03", Ordered, func() {
 		var testNS string
 		var defaultNS string
 
@@ -135,7 +139,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		It("waits and verifies test-ns result is deleted, default is kept", func() {
 			testNSPRName, err := pipelines.GetLatestPipelinerun(sharedClients, testNS)
 			Expect(err).NotTo(HaveOccurred())
-			err = operator.VerifyResultDeletedWithTimeout("pipelinerun", testNSPRName, testNS, 90*time.Second)
+			err = operator.VerifyResultDeletedWithTimeout("pipelinerun", testNSPRName, testNS, 150*time.Second) // 2.5m for 1m retention + CronJob delay
 			Expect(err).NotTo(HaveOccurred())
 
 			defaultNSPRName, err := pipelines.GetLatestPipelinerun(sharedClients, defaultNS)
@@ -145,7 +149,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC06: matchLabels: PIPELINES-26-TC06", Ordered, func() {
+	Describe("TC04: matchLabels: PIPELINES-43-TC04", Ordered, func() {
 		var prName string
 
 		It("configures retention policy with matchLabels", func() {
@@ -174,7 +178,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC07: matchAnnotations: PIPELINES-26-TC07", Ordered, func() {
+	Describe("TC05: matchAnnotations: PIPELINES-43-TC05", Ordered, func() {
 		var prName string
 
 		It("configures retention policy with matchAnnotations", func() {
@@ -203,7 +207,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC08: matchStatuses (Failed): PIPELINES-26-TC08", Ordered, func() {
+	Describe("TC06: matchStatuses (Failed): PIPELINES-43-TC06", Ordered, func() {
 		var failedPR string
 		var succeededPR string
 
@@ -243,7 +247,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC09: Standalone TaskRun: PIPELINES-26-TC09", Ordered, func() {
+	Describe("TC07: Standalone TaskRun: PIPELINES-43-TC07", Ordered, func() {
 		It("configures retention policy with matchLabels for TaskRun", func() {
 			policy := `    - name: "label-test"
       selector:
@@ -268,7 +272,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 
 	// Group 3: Complex Logic (AND / OR / Order)
 
-	Describe("TC10: Combined Selectors (AND Logic): PIPELINES-26-TC10", Ordered, func() {
+	Describe("TC08: Combined Selectors (AND Logic): PIPELINES-43-TC08", Ordered, func() {
 		var prodNS string
 		var defaultNS string
 
@@ -325,7 +329,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC11: Selector List (OR Logic): PIPELINES-26-TC11", Ordered, func() {
+	Describe("TC09: Selector List (OR Logic): PIPELINES-43-TC09", Ordered, func() {
 		var frontendPR string
 		var backendPR string
 
@@ -367,7 +371,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 		})
 	})
 
-	Describe("TC12: Policy Order (First Match Wins): PIPELINES-26-TC12", Ordered, func() {
+	Describe("TC10: Policy Order (First Match Wins): PIPELINES-43-TC10", Ordered, func() {
 		var prodNS string
 		var failedPRName string
 		var succeededPRName string
@@ -427,7 +431,7 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 
 	// Group 4: CustomRun Support (MAG Integration)
 
-	Describe("TC13: CustomRun Basic Retention (MAG): PIPELINES-26-TC13", Label("customrun"), Ordered, func() {
+	Describe("TC11: CustomRun Basic Retention (MAG): PIPELINES-43-TC11", Label("customrun"), Ordered, func() {
 		var prName string
 
 		It("configures retention policy with defaultRetention", func() {
@@ -449,11 +453,18 @@ var _ = Describe("Results Retention Policy: PIPELINES-26", Ordered, ContinueOnFa
 			Expect(prName).NotTo(BeEmpty(), "PipelineRun name is empty")
 		})
 
-		It("approves the approval task as user", func() {
+		It("approves the approval task as user1", func() {
+			// Since SRVKP-12172, system:authenticated no longer inherits cluster-wide
+			// ApprovalTask access, so the approver needs an explicit namespace RoleBinding
+			// to the manual-approval-gate-approver ClusterRole. The MAG suite wires this
+			// via an approvalgate-users BeforeEach; the results suite does not, so grant it
+			// here for the per-Describe namespace before approving as user1.
+			approvalgate.EnsureApproverRoleBindings(lastNamespace)
+
 			tasks, err := approvalgate.ListApprovalTask(sharedClients)
 			Expect(err).NotTo(HaveOccurred(), "Failed to list approval tasks")
 			Expect(tasks).NotTo(BeEmpty(), "No approval tasks found")
-			approvalgate.PerformApprovalTaskActionAsUser("user", "approve", tasks[0].Name, lastNamespace, "")
+			approvalgate.PerformApprovalTaskActionAsUser("user1", "approve", tasks[0].Name, lastNamespace, "")
 		})
 
 		It("waits for PipelineRun to succeed (contains CustomRun)", func() {

@@ -10,6 +10,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/diagnostics"
+	_ "github.com/openshift-pipelines/release-tests-ginkgo/pkg/hooks"
 )
 
 var sharedClients *clients.Clients

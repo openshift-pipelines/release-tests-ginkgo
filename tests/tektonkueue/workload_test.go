@@ -14,8 +14,8 @@ import (
 	workload "github.com/openshift-pipelines/release-tests-ginkgo/pkg/tektonkueue"
 )
 
-var _ = Describe("Multi-cluster PipelineRun execution", Serial, Label("tekton-kueue", "workload", "webhook", "admin", "e2e"), func() {
-	It("defaults and preserves queue labels while executing hub PipelineRuns on a spoke", NodeTimeout(2*time.Hour), func(specCtx SpecContext) {
+var _ = Describe("Multi-cluster PipelineRun execution: PIPELINES-42", Serial, Label("tekton-kueue", "workload", "webhook", "admin", "e2e"), func() {
+	It("defaults and preserves queue labels while executing hub PipelineRuns on a spoke: PIPELINES-42-TC01", NodeTimeout(2*time.Hour), func(specCtx SpecContext) {
 		prefix := "rtg-mk-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 		type target struct {
 			name   string

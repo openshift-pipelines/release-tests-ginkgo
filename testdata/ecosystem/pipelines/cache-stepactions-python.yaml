@@ -84,7 +84,7 @@ spec:
           - name: CACHE_PATH
             value: $(workspaces.source.path)/cache/lib
           - name: WORKING_DIR
-            value: $(workspaces.source.path)/repo
+            value: $(workspaces.source.path)
       - name: check-fetch-result
         image: $(params.image):$(params.version)
         results:
@@ -140,7 +140,7 @@ spec:
           - name: CACHE_PATH
             value: $(workspaces.source.path)/cache/lib
           - name: WORKING_DIR
-            value: $(workspaces.source.path)/repo
+            value: $(workspaces.source.path)
           - name: FORCE_CACHE_UPLOAD
             value: $(params.force-cache-upload)
           - name: FETCHED
