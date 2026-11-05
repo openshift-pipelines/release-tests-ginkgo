@@ -1,0 +1,60 @@
+name: Kind multicluster admission
+
+on:
+  pull_request:
+    branches: ["main", "release-*"]
+  workflow_dispatch:
+  push:
+    branches: ["test-multicluster-workload-scenarios"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kind-multicluster-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    env:
+      ARTIFACTS_DIR: ${{ github.workspace }}/artifacts/kind-multicluster
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Unit and shell checks
+        run: |
+          for script in scripts/kind-multicluster.sh scripts/kind-multicluster/*.sh; do
+            bash -n "$script"
+          done
+          go test -race -shuffle=on -count=1 ./pkg/kindmulticluster
+          go test -c -o "$RUNNER_TEMP/kind-multicluster.test" ./tests/kindmulticluster
+      - name: Install pinned Kind and compatible kubectl
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --location --silent --show-error --max-time 180 \
+            -o kind https://kind.sigs.k8s.io/dl/v0.31.0/kind-linux-amd64
+          echo "eb244cbafcc157dff60cf68693c14c9a75c4e6e6fedaf9cd71c58117cb93e3fa  kind" | sha256sum --check
+          sudo install -m 0755 kind /usr/local/bin/kind
+          curl --fail --location --silent --show-error --max-time 180 \
+            -o kubectl https://dl.k8s.io/release/v1.35.0/bin/linux/amd64/kubectl
+          curl --fail --location --silent --show-error --max-time 180 \
+            -o kubectl.sha256 https://dl.k8s.io/release/v1.35.0/bin/linux/amd64/kubectl.sha256
+          echo "$(tr -d '\n' < kubectl.sha256)  kubectl" | sha256sum --check
+          sudo install -m 0755 kubectl /usr/local/bin/kubectl
+      - name: Real Kind admission smoke test
+        timeout-minutes: 50
+        run: bash scripts/kind-multicluster.sh
+      - name: Upload non-secret diagnostics and JUnit
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kind-multicluster-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.ARTIFACTS_DIR }}
+          if-no-files-found: warn
+          retention-days: 7

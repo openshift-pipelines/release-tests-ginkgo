@@ -262,6 +262,21 @@ Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one mat
 
 The workload test temporarily configures and restores `TektonConfig.spec.scheduler`, Kueue, scoped worker credentials, RBAC, queues, and test-owned network access. Test namespaces and resources are removed even after failure. OLM operator installations remain available, matching the install suite. Secret synchronization, CEL routing, and NetworkPolicy behavior are separate coverage.
 
+### Running the Kind multicluster admission smoke
+
+No existing OpenShift clusters or kubeconfig secrets are required:
+
+```bash
+bash scripts/kind-multicluster.sh
+```
+
+The script creates a disposable hub and spoke, installs pinned released
+controllers, and runs both queue-defaulting and queue-preservation cases through
+the real API admission chain. It verifies remote execution, status return, and
+direct spoke logs, then exports diagnostics and deletes its clusters.
+The `Kind multicluster admission` GitHub Actions workflow runs the same command.
+See [prerequisites, component pins, and coverage boundaries](testdata/kind-multicluster/README.md).
+
 ### Running the Chains suite
 
 The Chains suite has two test cases with different requirements:
