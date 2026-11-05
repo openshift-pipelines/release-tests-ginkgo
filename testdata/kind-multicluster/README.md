@@ -23,7 +23,9 @@ two control planes and their controller stacks; this is not a measured minimum.
 These are reused from PR #115 source `d3235eb8`. `artifacts.lock` verifies
 complete release manifest bytes with SHA256. The Kustomize overlay pins
 cert-manager and Kueue images by digest; the Operator release pins its image
-and embedded payload. Installation checks the Pipelines and scheduler versions.
+and embedded payload. Installation checks the Pipelines version and both
+deployed scheduler images. The Operator payload lacks `scheduler-info`, so its
+scheduler status version is unknown and cannot verify the scheduler release.
 Review compatibility before changing any pin.
 
 The Operator's embedded scheduler image digest is not available from its
