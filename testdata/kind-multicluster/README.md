@@ -100,7 +100,7 @@ for script in scripts/kind-multicluster.sh scripts/kind-multicluster/*.sh; do
   bash -n "$script" || exit
 done
 go test -race -shuffle=on -count=1 ./pkg/kindmulticluster
-go test -c -o /tmp/kind-multicluster.test ./tests/kindmulticluster
+go test ./tests/kindmulticluster -ginkgo.dry-run
 golangci-lint run ./pkg/kindmulticluster/... ./tests/kindmulticluster/...
 actionlint .github/workflows/kind-multicluster.yaml # when installed
 ```

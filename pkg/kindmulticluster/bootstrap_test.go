@@ -19,7 +19,7 @@ import (
 
 func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
 	var cases []struct{ shell, stage string }
-	stages := []string{"download", "compile", "create", "node-ready", "install", "configure", "suite", "cleanup", "success", "suite-cleanup", "diagnostics"}
+	stages := []string{"download", "compile", "dry-run", "create", "node-ready", "install", "configure", "suite", "cleanup", "success", "suite-cleanup", "diagnostics"}
 	for _, stage := range stages {
 		cases = append(cases, struct{ shell, stage string }{"bash", stage})
 	}
@@ -85,7 +85,7 @@ func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
 					runDir = filepath.Dir(filepath.Dir(fields[len(fields)-1]))
 				}
 			}
-			provisioned := stage != "download" && stage != "compile"
+			provisioned := stage != "download" && stage != "compile" && stage != "dry-run"
 			if provisioned && (created == "" || deleted != created || !strings.HasPrefix(created, "rtg-")) {
 				t.Fatalf("partial cluster was not cleaned: %s", calls)
 			}
@@ -207,7 +207,7 @@ case "$tool:$1" in
     if [[ $FAIL_AT == compile ]]; then exit 42; fi
     while [[ $# -gt 0 ]]; do
       if [[ $1 == -o ]]; then
-        printf '#!/usr/bin/env bash\nif [[ $FAIL_AT == suite || $FAIL_AT == suite-cleanup ]]; then exit 42; fi\n' > "$2"
+        printf '#!/usr/bin/env bash\nif [[ $* == *-ginkgo.dry-run* ]]; then\n  if [[ $FAIL_AT == dry-run ]]; then exit 42; fi\n  exit 0\nfi\nif [[ $FAIL_AT == suite || $FAIL_AT == suite-cleanup ]]; then exit 42; fi\n' > "$2"
         chmod 700 "$2"
         break
       fi
