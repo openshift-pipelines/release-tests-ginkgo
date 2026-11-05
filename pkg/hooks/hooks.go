@@ -5,7 +5,6 @@ package hooks
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -67,10 +66,12 @@ func CleanupNamespaces() {
 //	})
 //
 // This will automatically:
-// - Create a namespace when entering a new Ordered Describe block
-// - Share that namespace across all It blocks in the Describe
-// - Clean up the namespace when leaving the Describe (unless tests failed)
-// - Update testNS variable for each test so diagnostics can access it.
+//   - Create a namespace when entering a new Ordered Describe block
+//   - Share that namespace across all It blocks in the Describe
+//   - Reuse the same namespace on a per-spec flake retry (BeforeAll is not
+//     re-run on retry, so a fresh namespace would be empty of all setup)
+//   - Clean up the namespace when leaving the Describe (unless tests failed)
+//   - Update testNS variable for each test so diagnostics can access it.
 //
 // No need to add hooks to individual Describe blocks!
 func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.Clients) bool {
@@ -79,18 +80,23 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 	BeforeEach(func() {
 		spec := CurrentSpecReport()
 
-		// Build container path from hierarchy (exclude the It block itself)
-		// Include NumAttempts so retries get a fresh namespace
-		baseContainerPath := strings.Join(spec.ContainerHierarchyTexts, " > ")
-		containerPath := baseContainerPath
-		if spec.NumAttempts > 1 {
-			// This is a retry - append attempt number to get unique key
-			log.Printf("Retry detected: Attempt #%d for '%s'", spec.NumAttempts, baseContainerPath)
-			containerPath = fmt.Sprintf("%s [attempt-%d]", baseContainerPath, spec.NumAttempts)
-		}
+		// Build container path from hierarchy (exclude the It block itself).
+		// Retries intentionally map to the SAME container path (and therefore the
+		// same namespace): an Ordered Describe's BeforeAll is not re-run on a
+		// per-spec flake retry, so a fresh namespace would be empty of all setup
+		// (deployments, PipelineRuns, etc.) and the retry could never pass.
+		// Reusing the namespace lets the retry see the real BeforeAll state.
+		containerPath := strings.Join(spec.ContainerHierarchyTexts, " > ")
 
 		manager.mu.Lock()
 		defer manager.mu.Unlock()
+
+		// On a retry, clear any prior failure mark so a now-passing attempt lets
+		// the namespace be cleaned up normally instead of staying flagged failed.
+		if spec.NumAttempts > 1 {
+			log.Printf("Retry detected: Attempt #%d for '%s' - reusing namespace", spec.NumAttempts, containerPath)
+			manager.containerFailed[containerPath] = false
+		}
 
 		// Detect if we've moved to a different container - clean up previous
 		if manager.lastContainerPath != "" && manager.lastContainerPath != containerPath {
@@ -128,14 +134,10 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 			return
 		}
 
-		// Check if we're in a new container that doesn't have a namespace yet
-		// For retries, containerPath includes attempt number, so this will be true
+		// Create a namespace only when this container doesn't have one yet.
+		// Retries reuse the existing namespace (see containerPath note above).
 		if _, exists := manager.containerToNS[containerPath]; !exists {
-			if spec.NumAttempts > 1 {
-				log.Printf("AutoNamespacePerDescribe: Creating fresh namespace for retry attempt #%d", spec.NumAttempts)
-			} else {
-				log.Printf("AutoNamespacePerDescribe: New Describe block detected: %s", containerPath)
-			}
+			log.Printf("AutoNamespacePerDescribe: New Describe block detected: %s", containerPath)
 
 			// Get clients
 			cs := clientsFunc()
@@ -178,12 +180,8 @@ func AutoNamespacePerDescribe(namespacePtr *string, clientsFunc func() *clients.
 	AfterEach(func() {
 		spec := CurrentSpecReport()
 		if spec.Failed() {
-			// Use same containerPath calculation as BeforeEach to match the namespace key
-			baseContainerPath := strings.Join(spec.ContainerHierarchyTexts, " > ")
-			containerPath := baseContainerPath
-			if spec.NumAttempts > 1 {
-				containerPath = fmt.Sprintf("%s [attempt-%d]", baseContainerPath, spec.NumAttempts)
-			}
+			// Use same containerPath calculation as BeforeEach to match the namespace key.
+			containerPath := strings.Join(spec.ContainerHierarchyTexts, " > ")
 
 			manager.mu.Lock()
 			manager.containerFailed[containerPath] = true
