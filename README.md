@@ -223,7 +223,7 @@ LABEL_FILTER='triggers && sanity' ./scripts/run-tests.sh
 | Hub | `hub` | `tests/hub/` |
 | Metrics | `metrics` | `tests/metrics/` |
 | Versions | `versions` | `tests/versions/` |
-| Tekton Kueue | `tekton-kueue`, `install`, `workload`, `admin` | `tests/tektonkueue/` |
+| Tekton Kueue | `tekton-kueue`, `install`, `workload`, `webhook`, `admin`, `e2e` | `tests/tektonkueue/` |
 | TLS Scanner | `tls-scan` | `tests/tls/` |
 
 ## Test Case ID Mapping
@@ -258,9 +258,24 @@ ginkgo run --procs=1 --grace-period=25m --label-filter='tekton-kueue && workload
   --spoke-kubeconfig /path/to/spoke-2
 ```
 
-Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one matching `--spoke-context` per spoke. The workload test makes every configured spoke eligible, creates a PipelineRun on the hub, verifies execution and marker-bearing step logs on exactly one spoke, and verifies that terminal status returns to the hub.
+Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one matching `--spoke-context` per spoke. The workload test makes every configured spoke eligible and submits two hub PipelineRuns: one without a queue label and one with a distinct valid queue label. It verifies webhook defaulting and preservation, worker `managedBy` removal, Running and terminal status propagation, execution on exactly one spoke, and marker-bearing step logs.
 
 The workload test temporarily configures and restores `TektonConfig.spec.scheduler`, Kueue, scoped worker credentials, RBAC, queues, and test-owned network access. Test namespaces and resources are removed even after failure. OLM operator installations remain available, matching the install suite. Secret synchronization, CEL routing, and NetworkPolicy behavior are separate coverage.
+
+### Running the Kind multicluster admission smoke
+
+No existing OpenShift clusters or kubeconfig secrets are required:
+
+```bash
+bash scripts/kind-multicluster.sh
+```
+
+The script creates a disposable hub and spoke, installs pinned released
+controllers, and runs both queue-defaulting and queue-preservation cases through
+the real API admission chain. It verifies remote execution, status return, and
+direct spoke logs, then exports diagnostics and deletes its clusters.
+The `Kind multicluster admission` GitHub Actions workflow runs the same command.
+See [prerequisites, component pins, and coverage boundaries](testdata/kind-multicluster/README.md).
 
 ### Running the Chains suite
 
