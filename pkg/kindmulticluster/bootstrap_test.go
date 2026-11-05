@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	operatorv1alpha1 "github.com/tektoncd/operator/pkg/apis/operator/v1alpha1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
 func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
@@ -32,6 +37,7 @@ func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
 			dir := t.TempDir()
 			artifacts := filepath.Join(dir, "public")
 			logPath := filepath.Join(dir, "calls")
+			manifestsPath := filepath.Join(dir, "schedulers.yaml")
 			for _, name := range []string{"kind", "docker", "curl", "go", "kubectl", "jq", "sha256sum"} {
 				if err := os.WriteFile(filepath.Join(dir, name), []byte(fakeProvisioner), 0o700); err != nil {
 					t.Fatal(err)
@@ -45,7 +51,7 @@ func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
 			defer cancel()
 			command := exec.CommandContext(ctx, tc.shell, script)
 			command.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
-				"CALLS="+logPath, "FAIL_AT="+stage, "ARTIFACTS_DIR="+artifacts)
+				"CALLS="+logPath, "FAIL_AT="+stage, "ARTIFACTS_DIR="+artifacts, "MANIFESTS="+manifestsPath)
 
 			// When downloading, compiling, or partially creating a cluster fails.
 			output, runErr := command.CombinedOutput()
@@ -88,6 +94,34 @@ func TestBootstrapCleansOnlyOwnedClustersWhenProvisioningFails(t *testing.T) {
 			}
 			if strings.Contains(string(calls), "delete cluster --name unrelated-cluster") {
 				t.Fatal("foreign cluster deleted")
+			}
+			if stage == "success" {
+				manifests, err := os.Open(manifestsPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() {
+					if err := manifests.Close(); err != nil {
+						t.Error(err)
+					}
+				}()
+				decoder := k8syaml.NewYAMLOrJSONDecoder(manifests, 4096)
+				for range 2 {
+					var scheduler unstructured.Unstructured
+					if err := decoder.Decode(&scheduler); err != nil {
+						t.Fatal(err)
+					}
+					if scheduler.GetName() != operatorv1alpha1.TektonSchedulerResourceName {
+						t.Fatalf("scheduler name %q is ignored by the released Operator", scheduler.GetName())
+					}
+					if _, found, err := unstructured.NestedMap(scheduler.Object, "spec", "options"); err != nil || !found {
+						t.Fatalf("required scheduler options missing: %v", err)
+					}
+				}
+				var extra unstructured.Unstructured
+				if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+					t.Fatalf("unexpected extra scheduler: %v", err)
+				}
 			}
 			if runDir == "" {
 				t.Fatal("no isolated artifact directory was used")
@@ -184,7 +218,8 @@ case "$tool:$1" in
     if [[ $* == *'apply --server-side'* && $FAIL_AT == install ]]; then exit 42; fi
     if [[ $* == *'queues.yaml'* && $FAIL_AT == configure ]]; then exit 42; fi
     if [[ $* == *'apply -f -' ]]; then
-      while IFS= read -r line; do :; done
+      printf -- '---\n' >> "$MANIFESTS"
+      while IFS= read -r line; do printf '%s\n' "$line" >> "$MANIFESTS"; done
     elif [[ $* == *'create token'* ]]; then printf 'secret-sentinel\n'
     elif [[ $* == *'get tektonpipeline/'* ]]; then printf v1.12.0
     elif [[ $* == *'get tektonscheduler/'* ]]; then printf v0.3.1

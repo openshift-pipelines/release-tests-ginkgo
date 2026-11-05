@@ -29,7 +29,7 @@ for kubeconfig in "$hub" "$spoke"; do
 apiVersion: operator.tekton.dev/v1alpha1
 kind: TektonScheduler
 metadata:
-  name: tektonscheduler
+  name: scheduler
 spec:
   targetNamespace: tekton-pipelines
   options: {}
@@ -41,8 +41,8 @@ spec:
     multiKueueOverride: $override
 EOF
   kubectl --kubeconfig "$kubeconfig" --request-timeout=60s wait \
-    --for=condition=Ready tektonscheduler/tektonscheduler --timeout=10m
-  [[ $(kubectl --kubeconfig "$kubeconfig" --request-timeout=60s get tektonscheduler/tektonscheduler \
+    --for=condition=Ready tektonscheduler/scheduler --timeout=10m
+  [[ $(kubectl --kubeconfig "$kubeconfig" --request-timeout=60s get tektonscheduler/scheduler \
     -o jsonpath='{.status.version}') == v0.3.1 ]]
   kubectl --kubeconfig "$kubeconfig" --request-timeout=60s wait \
     --for=jsonpath='{.webhooks[0].clientConfig.caBundle}' \
