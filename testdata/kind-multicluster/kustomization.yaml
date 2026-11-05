@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - operator.yaml
+  - cert-manager.yaml
+  - kueue.yaml
+images:
+  - name: quay.io/jetstack/cert-manager-cainjector
+    newTag: v1.19.2
+    digest: sha256:1a24f9848e7ae83a787187f4e75fdf5e9adf401f44de2f156c09c6fae1bf046e
+  - name: quay.io/jetstack/cert-manager-controller
+    newTag: v1.19.2
+    digest: sha256:d4ffb81a6d89a0e690ee80d07fcdcb6cccb99118010e3eb0808442e506e18ab0
+  - name: quay.io/jetstack/cert-manager-webhook
+    newTag: v1.19.2
+    digest: sha256:2ba4918d1581ed29bd5d68a017244560b353bcaf9932c814a8713887589bda6c
+  - name: registry.k8s.io/kueue/kueue
+    newTag: v0.16.1
+    digest: sha256:87bdbcb7ab69c5364459710b90b329d51b369c17b21d670f6436fe3f6864a78f
+patches:
+  - target:
+      kind: ConfigMap
+      name: tekton-config-defaults
+      namespace: tekton-operator
+    patch: |
+      - op: replace
+        path: /data/AUTOINSTALL_COMPONENTS
+        value: "false"
+  - path: kueue-config.yaml
