@@ -33,6 +33,7 @@ jobs:
           done
           go test -race -shuffle=on -count=1 ./pkg/kindmulticluster
           go test -c -o "$RUNNER_TEMP/kind-multicluster.test" ./tests/kindmulticluster
+          "$RUNNER_TEMP/kind-multicluster.test" -ginkgo.dry-run
       - name: Install pinned Kind and compatible kubectl
         run: |
           set -euo pipefail

@@ -57,6 +57,7 @@ source "$ROOT/scripts/kind-multicluster/install.sh"
 download_artifacts
 cd "$ROOT"
 go test -c -o "$RUN_DIR/kind.test" ./tests/kindmulticluster
+"$RUN_DIR/kind.test" -ginkgo.dry-run
 
 suffix=$(basename "$RUN_DIR" | tr '[:upper:]' '[:lower:]')
 suffix=${suffix#.kind-multicluster.}
