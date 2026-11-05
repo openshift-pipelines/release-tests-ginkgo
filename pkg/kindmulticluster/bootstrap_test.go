@@ -222,7 +222,7 @@ case "$tool:$1" in
       while IFS= read -r line; do printf '%s\n' "$line" >> "$MANIFESTS"; done
     elif [[ $* == *'create token'* ]]; then printf 'secret-sentinel\n'
     elif [[ $* == *'get tektonpipeline/'* ]]; then printf v1.12.0
-    elif [[ $* == *'get tektonscheduler/'* ]]; then printf v0.3.1
+    elif [[ $* == *'get tektonscheduler/'* ]]; then printf unknown
     elif [[ $* == *'get deployments'* ]]; then printf 'deployment/controller\n'
     elif [[ $* == *' logs '* ]]; then printf 'controller log\ntoken: secret-sentinel\n'
     fi ;;

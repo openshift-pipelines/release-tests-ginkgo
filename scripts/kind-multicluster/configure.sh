@@ -42,8 +42,13 @@ spec:
 EOF
   kubectl --kubeconfig "$kubeconfig" --request-timeout=60s wait \
     --for=condition=Ready tektonscheduler/scheduler --timeout=10m
-  [[ $(kubectl --kubeconfig "$kubeconfig" --request-timeout=60s get tektonscheduler/scheduler \
-    -o jsonpath='{.status.version}') == v0.3.1 ]]
+  # This Operator payload lacks scheduler-info and reports an unknown version.
+  # Verify the deployed release image instead of relying on that missing metadata.
+  kubectl --kubeconfig "$kubeconfig" --request-timeout=60s get deployments \
+    tekton-kueue-controller-manager tekton-kueue-webhook -n tekton-pipelines -o json |
+    jq -e --arg image quay.io/openshift-pipeline/kueue-rhel9@sha256:15c12da19c678f2d08c4074d17e121907e0bcc00997d5829a9a5f2bd977ae03f \
+      '[.items[].spec.template.spec.containers[].image] == [$image, $image]' ||
+    { printf 'Unexpected scheduler deployment images\n' >&2; exit 1; }
   kubectl --kubeconfig "$kubeconfig" --request-timeout=60s wait \
     --for=jsonpath='{.webhooks[0].clientConfig.caBundle}' \
     mutatingwebhookconfiguration/tekton-kueue-mutating-webhook-configuration --timeout=5m
