@@ -134,8 +134,13 @@ func (e *Environment) createQueues(ctx context.Context, cluster Cluster, hub boo
 		return err
 	}
 
-	localQueue := object("LocalQueue", e.Prefix, e.Namespace, map[string]any{"clusterQueue": e.Prefix})
-	return e.createDynamic(ctx, cluster, localQueueGVR, localQueue)
+	for _, name := range []string{e.Prefix, e.explicitQueueName()} {
+		localQueue := object("LocalQueue", name, e.Namespace, map[string]any{"clusterQueue": e.Prefix})
+		if err := e.createDynamic(ctx, cluster, localQueueGVR, localQueue); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e *Environment) createWorkerCredential(ctx context.Context, spoke Cluster) error {
@@ -418,6 +423,11 @@ func (e *Environment) waitForKueueResources(ctx context.Context) error {
 	for _, cluster := range e.clusters() {
 		if err := waitForActive(ctx, cluster, clusterQueueGVR, "", e.Prefix); err != nil {
 			return fmt.Errorf("ClusterQueue on %s: %w", cluster.Name, err)
+		}
+		for _, name := range []string{e.Prefix, e.explicitQueueName()} {
+			if err := waitForActive(ctx, cluster, localQueueGVR, e.Namespace, name); err != nil {
+				return fmt.Errorf("LocalQueue %s on %s: %w", name, cluster.Name, err)
+			}
 		}
 	}
 	if err := waitForActive(ctx, e.Hub, admissionCheckGVR, "", e.Prefix); err != nil {
