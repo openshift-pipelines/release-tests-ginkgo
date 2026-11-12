@@ -12,8 +12,8 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Label("e2e", "pipelines", "pipelines-in-pipelines", "non-admin", "negative"), func() {
-	BeforeEach(func(ctx SpecContext) { requireNestedPipelineFeature(ctx) })
+var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Ordered, Serial, Label("e2e", "pipelines", "pipelines-in-pipelines", "admin", "negative"), func() {
+	BeforeAll(func(ctx SpecContext) { requireNestedPipelineFeature(ctx) })
 
 	for _, tc := range []struct {
 		id, fixture string
@@ -32,6 +32,7 @@ var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Label("e2e", "
 			dependents, err := sharedClients.TaskRunClient.List(ctx, metav1.ListOptions{LabelSelector: "tekton.dev/pipelineTask=after-child"})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dependents.Items).To(BeEmpty())
+			expectNestedRuns(ctx, parent, child)
 		}},
 		{"PIPELINES-45-TC02", "missing-child", func(_ context.Context, parent *v1.PipelineRun) {
 			condition := parent.Status.GetCondition(apis.ConditionSucceeded)
@@ -58,6 +59,55 @@ var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Label("e2e", "
 				parent := runNestedPipeline(bounded, "testdata/pipelines-in-pipelines/negative/"+tc.fixture+".yaml")
 				expectNestedState(parent, corev1.ConditionFalse)
 				tc.check(bounded, parent)
+			})
+		})
+	}
+	for _, tc := range []struct {
+		id, fixture string
+		childStatus corev1.ConditionStatus
+		mainStatus  string
+		exitCode    int32
+	}{
+		{"PIPELINES-45-TC05", "parent-main-finally", corev1.ConditionTrue, "Succeeded", 11},
+		{"PIPELINES-45-TC06", "child-main-finally", corev1.ConditionFalse, "Failed", 7},
+	} {
+		Describe(tc.id, func() {
+			It("completes child-local cleanup without hiding the original main failure", SpecTimeout(12*time.Minute), func(ctx SpecContext) {
+				parent := runNestedPipeline(ctx, "testdata/pipelines-in-pipelines/negative/"+tc.fixture+".yaml")
+				expectNestedState(parent, corev1.ConditionFalse)
+				Expect(parent.Status.GetCondition(apis.ConditionSucceeded).Reason).To(Equal(v1.PipelineRunReasonFailed.String()))
+				child := nestedChild(ctx, parent, "child")
+				expectNestedState(child, tc.childStatus)
+				cleanup := nestedTask(ctx, child, "cleanup")
+				Expect(cleanup.Status.Results).To(ContainElement(v1.TaskRunResult{
+					Name: "cleaned", Type: v1.ResultsTypeString, Value: *v1.NewStructuredValues(tc.mainStatus),
+				}))
+				failedRun := parent
+				if tc.childStatus == corev1.ConditionFalse {
+					failedRun = child
+					Expect(parent.Status.SkippedTasks).To(ContainElement(HaveField("Name", "after-child")))
+					dependents, err := sharedClients.TaskRunClient.List(ctx, metav1.ListOptions{LabelSelector: "tekton.dev/pipelineTask=after-child"})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(dependents.Items).To(BeEmpty())
+				} else {
+					nestedTask(ctx, child, "main")
+				}
+				Expect(failedRun.Status.GetCondition(apis.ConditionSucceeded).Reason).To(Equal(v1.PipelineRunReasonFailed.String()))
+				tasks, err := sharedClients.TaskRunClient.List(ctx, metav1.ListOptions{LabelSelector: "tekton.dev/pipelineTask=main"})
+				Expect(err).NotTo(HaveOccurred())
+				var failures []v1.TaskRun
+				for _, task := range tasks.Items {
+					if owner := metav1.GetControllerOf(&task); owner != nil && owner.UID == failedRun.UID {
+						failures = append(failures, task)
+					}
+				}
+				Expect(failures).To(HaveLen(1))
+				Expect(failures[0].Status.GetCondition(apis.ConditionSucceeded)).NotTo(BeNil())
+				Expect(failures[0].Status.GetCondition(apis.ConditionSucceeded).Status).To(Equal(corev1.ConditionFalse))
+				Expect(failures[0].Status.Steps).To(HaveLen(1))
+				Expect(failures[0].Status.Steps[0].Terminated).NotTo(BeNil())
+				Expect(failures[0].Status.Steps[0].Terminated.ExitCode).To(Equal(tc.exitCode))
+				expectNestedRuns(ctx, parent, child)
 			})
 		})
 	}

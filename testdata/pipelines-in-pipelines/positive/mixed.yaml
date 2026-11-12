@@ -3,21 +3,41 @@ kind: Task
 metadata:
   name: pip-leaf
 spec:
+  params:
+    - name: message
+      type: string
+      default: regular-value
+  results:
+    - name: observed
+      type: string
   steps:
     - name: complete
       image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+      env:
+        - name: MESSAGE
+          value: $(params.message)
       script: |
         #!/bin/sh
         set -eu
-        printf 'completed\n'
+        case "$MESSAGE" in
+          regular-value|referenced-value|inline-value|joined-value) ;;
+          *) exit 1 ;;
+        esac
+        printf '%s' "$MESSAGE" > "$(results.observed.path)"
 ---
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   name: pip-child
 spec:
+  params:
+    - name: message
+      type: string
   tasks:
     - name: leaf
+      params:
+        - name: message
+          value: $(params.message)
       taskRef:
         name: pip-leaf
 ---
@@ -33,12 +53,31 @@ spec:
           name: pip-leaf
       - name: referenced
         runAfter: [regular]
+        params:
+          - name: message
+            value: referenced-value
         pipelineRef:
           name: pip-child
       - name: inline
-        runAfter: [referenced]
+        runAfter: [regular]
+        params:
+          - name: message
+            value: inline-value
         pipelineSpec:
+          params:
+            - name: message
+              type: string
           tasks:
             - name: grandchild
+              params:
+                - name: message
+                  value: $(params.message)
               pipelineRef:
                 name: pip-child
+      - name: join
+        runAfter: [referenced, inline]
+        params:
+          - name: message
+            value: joined-value
+        taskRef:
+          name: pip-leaf

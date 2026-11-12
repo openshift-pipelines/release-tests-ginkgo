@@ -140,15 +140,15 @@ ginkgo run --label-filter='!install && !upgrade && !uninstall' --timeout=60m ./t
 ### Pipelines in Pipelines backend coverage
 
 The `pipelines-in-pipelines` label selects six execution scenarios
-(`PIPELINES-44`) and four failure scenarios (`PIPELINES-45`):
+(`PIPELINES-44`) and six failure scenarios (`PIPELINES-45`):
 
 | Coverage | Observable behavior |
 |----------|---------------------|
-| Inline and named children | Parameters consumed by child steps; child ownership, metadata and service-account inheritance |
-| Mixed tasks and nesting | Ordinary tasks and child/grandchild PipelineRuns complete in dependency order |
-| Shared PVC workspace | A child reads the exact bytes written by its parent |
-| Conditional and finally children | A false `when` creates no child; a finally child runs after the main task |
-| Failure handling | Child step failure, missing Pipeline, recursion, and missing required child workspace fail the expected runs |
+| Inline and named children | Submitted inline spec and parameters preserved; child references, ownership and metadata; configured service-account inheritance |
+| Mixed tasks and nesting | Independent sibling inputs and a dependent join; every immediate parent/child edge checked |
+| Shared PVC workspace | Exact bytes pass from parent to child and back to an ordinary parent reader on the same PVC |
+| Conditional and finally children | False and true `when` branches with ordinary continuation; finally children run after main tasks |
+| Failure handling | Child step failure, missing Pipeline, recursion, and missing workspace; child-local cleanup preserves parent-main and child-main failures |
 
 Prerequisites beyond the standard suite setup:
 
@@ -157,9 +157,10 @@ Prerequisites beyond the standard suite setup:
   Acceptance of preview API fields alone is not sufficient. Verify the actual
   target release/controller image; these tests do not establish release support
   merely by compiling against the client library.
-* `feature-flags` in `openshift-pipelines` must have
-  `enable-api-fields: alpha`, with inline specs allowed. The tests do not change
-  cluster-wide flags. An absent alpha prerequisite is reported as a skip.
+* The tests require cluster-admin access to `TektonConfig/config`. Each serial
+  test group enables alpha API fields and inline specs in `spec.pipeline`,
+  watches for the resulting `feature-flags` configuration, and restores the
+  original values during cleanup, including after failures.
 * A default StorageClass must provision a ReadWriteOnce PVC for the workspace
   scenario, and nodes must be able to pull the fixture container images.
   That fixture co-locates parent and child pods on one node through inherited
@@ -182,22 +183,22 @@ the existing per-scenario namespace lifecycle: successful namespaces are removed
 failed namespaces are retained for diagnosis. Completion is observed through API
 watches, not fixed sleeps.
 
-For an upstream Tekton installation, set
-`TEKTON_PIPELINES_NAMESPACE=tekton-pipelines` to read feature prerequisites from
-its namespace instead of the default `openshift-pipelines`. The same scenarios
-then validate upstream execution; that run is not OpenShift release evidence.
+Set `TEKTON_PIPELINES_NAMESPACE` if the operator manages Pipelines in a namespace
+other than `openshift-pipelines`.
 
 Local checks that do not require a cluster:
 
 ```bash
-go test -run='TestNested' ./tests/pipelines/
+go test -race -run='TestNested' ./pkg/pipelines/
 go run github.com/onsi/ginkgo/v2/ginkgo run --dry-run \
   --label-filter=pipelines-in-pipelines ./tests/pipelines/
 ```
 
 Compilation, a dry-run, and an all-skipped suite are **not** live E2E evidence.
 For a release sign-off, retain the installed controller/operator versions and
-JUnit report showing all ten selected scenarios actually executed. Child-result
+JUnit report showing all twelve selected scenarios actually executed.
+Service-account fields verify configuration inheritance, not Pod identity or
+RBAC permissions. Resolver namespace allow/deny policies, child-result
 propagation, inherited timeout/retry budgets, matrix fan-out, and cancellation
 cascade are outside this coverage.
 
