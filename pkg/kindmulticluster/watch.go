@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -61,7 +62,9 @@ func completed(ctx context.Context, events watch.Interface) (*pipelinev1.Pipelin
 			}
 			switch event.Type {
 			case watch.Added, watch.Modified:
-			case watch.Error, watch.Deleted:
+			case watch.Error:
+				return nil, fmt.Errorf("completion watch API error: %w", apierrors.FromObject(event.Object))
+			case watch.Deleted:
 				return nil, fmt.Errorf("completion watch received %s before success", event.Type)
 			case watch.Bookmark:
 				continue

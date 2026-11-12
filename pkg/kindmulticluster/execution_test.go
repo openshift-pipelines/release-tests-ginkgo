@@ -14,6 +14,8 @@ import (
 
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"knative.dev/pkg/apis"
 	duckv1 "knative.dev/pkg/apis/duck/v1"
@@ -165,5 +167,39 @@ func TestWorkloadCompletesOnlyAfterFIFORelease(t *testing.T) {
 	// Then the marker is emitted and execution exits successfully.
 	if releaseErr != nil || readErr != nil || waitErr != nil || string(remaining) != "unique-marker\n" {
 		t.Fatalf("release=%v read=%v wait=%v output=%q", releaseErr, readErr, waitErr, remaining)
+	}
+}
+
+func TestCompletedRejectsInterruptedWatch(t *testing.T) {
+	for _, scenario := range []string{"closed", "API error", "canceled"} {
+		t.Run(scenario, func(t *testing.T) {
+			// Given an interrupted watch with no successful completion.
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			events := watch.NewRaceFreeFake()
+			defer events.Stop()
+			switch scenario {
+			case "closed":
+				events.Stop()
+			case "API error":
+				events.Error(&metav1.Status{Status: metav1.StatusFailure, Reason: metav1.StatusReasonExpired, Code: 410})
+			case "canceled":
+				cancel()
+			}
+			// When completion observes the interruption.
+			bounded, stop := context.WithTimeout(ctx, time.Second)
+			defer stop()
+			run, err := completed(bounded, events)
+			// Then it fails promptly rather than accepting success or timing out.
+			if run != nil || err == nil || errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("run=%v error=%v", run, err)
+			}
+			if scenario == "API error" && !apierrors.IsResourceExpired(err) {
+				t.Fatalf("API error cause lost: %v", err)
+			}
+			if scenario == "canceled" && !errors.Is(err, context.Canceled) {
+				t.Fatalf("cancellation cause lost: %v", err)
+			}
+		})
 	}
 }
