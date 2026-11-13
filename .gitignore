@@ -5,6 +5,7 @@ vendor/
 *.xml
 test-reports/
 artifacts/
+.kind-multicluster.*/
 
 # Compiled test binaries produced by 'go test -c' or 'ginkgo build'
 *.test
