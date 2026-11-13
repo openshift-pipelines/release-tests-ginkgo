@@ -140,7 +140,8 @@ ginkgo run --label-filter='!install && !upgrade && !uninstall' --timeout=60m ./t
 ### Pipelines in Pipelines backend coverage
 
 The `pipelines-in-pipelines` label selects six execution scenarios
-(`PIPELINES-44`) and six failure scenarios (`PIPELINES-45`):
+(`PIPELINES-44`), six failure scenarios (`PIPELINES-45`), and four cluster
+resolver policy scenarios (`PIPELINES-47`):
 
 | Coverage | Observable behavior |
 |----------|---------------------|
@@ -149,6 +150,8 @@ The `pipelines-in-pipelines` label selects six execution scenarios
 | Shared PVC workspace | Exact bytes pass from parent to child and back to an ordinary parent reader on the same PVC |
 | Conditional and finally children | False and true `when` branches with ordinary continuation; finally children run after main tasks |
 | Failure handling | Child step failure, missing Pipeline, recursion, and missing workspace; child-local cleanup preserves parent-main and child-main failures |
+| Cluster resolution | Same-namespace and cross-namespace allowed resolution; explicit block overrides allow; an unlisted namespace is denied |
+| Resolver identity | The resolver pod service account can GET the source Pipeline while the leaf service account cannot; successful execution uses the leaf identity in the actual Pod |
 
 Prerequisites beyond the standard suite setup:
 
@@ -167,6 +170,20 @@ Prerequisites beyond the standard suite setup:
   pod affinity, since their separate affinity assistants can otherwise place
   them on different nodes and block the shared RWO volume.
   Per-PipelineRun node isolation is incompatible with this co-location.
+* Run the resolver-policy group only on a dedicated test cluster with healthy
+  resolver pods. It temporarily enables the cluster resolver and restricts
+  `spec.pipeline.cluster-resolver-config` to test-owned namespaces. After
+  observing the ConfigMaps, it replaces the resolver pods and watches until
+  all old pod UIDs are gone and their replacements are Ready. This ensures
+  the policy is loaded before execution and supports Deployments and
+  StatefulSets. Cleanup restores the original policy and enablement, reloads
+  the resolver pods again, and deletes the four test-owned namespaces.
+  Other resolution requests on the cluster can be affected during this group.
+* The cluster resolver has no immutable revision parameter. These cases create
+  their own source Pipelines with different literal source markers, check the
+  exact executed child spec and result, and require each source UID,
+  resourceVersion, and spec to remain unchanged. The leaf image is pinned by
+  digest. No external catalogs, Git branches, or shared source Pipelines are used.
 
 Run from the repository root using the module-matched Ginkgo version:
 
@@ -178,7 +195,7 @@ go run github.com/onsi/ginkgo/v2/ginkgo run \
   --context=my-context
 ```
 
-Omit `--context` when the kubeconfig has the intended current context. Tests use
+Omit `--context` when the kubeconfig has the intended current context. The original tests use
 the existing per-scenario namespace lifecycle: successful namespaces are removed;
 failed namespaces are retained for diagnosis. Completion is observed through API
 watches, not fixed sleeps.
@@ -189,18 +206,19 @@ other than `openshift-pipelines`.
 Local checks that do not require a cluster:
 
 ```bash
-go test -race -run='TestNested' ./pkg/pipelines/
+go test -race ./pkg/pipelines/
 go run github.com/onsi/ginkgo/v2/ginkgo run --dry-run \
   --label-filter=pipelines-in-pipelines ./tests/pipelines/
 ```
 
 Compilation, a dry-run, and an all-skipped suite are **not** live E2E evidence.
 For a release sign-off, retain the installed controller/operator versions and
-JUnit report showing all twelve selected scenarios actually executed.
-Service-account fields verify configuration inheritance, not Pod identity or
-RBAC permissions. Resolver namespace allow/deny policies, child-result
-propagation, inherited timeout/retry budgets, matrix fan-out, and cancellation
-cascade are outside this coverage.
+JUnit report showing all sixteen selected scenarios actually executed.
+The named-child case checks service-account configuration inheritance; the
+resolver-policy cases separately check actual resolver and leaf Pod identities
+and Kubernetes authorization with SubjectAccessReviews. They do not establish
+broader workload security. Child-result propagation, inherited timeout/retry
+budgets, matrix fan-out, and cancellation cascade are outside this coverage.
 
 ## Running Tests on a Fresh Cluster
 
