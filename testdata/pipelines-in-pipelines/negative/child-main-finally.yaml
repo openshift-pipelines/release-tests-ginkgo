@@ -1,0 +1,50 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  pipelineSpec:
+    tasks:
+      - name: child
+        pipelineSpec:
+          tasks:
+            - name: main
+              taskSpec:
+                steps:
+                  - name: fail
+                    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                    script: |
+                      #!/bin/sh
+                      exit 7
+          finally:
+            - name: cleanup
+              params:
+                - name: main-status
+                  value: $(tasks.main.status)
+              taskSpec:
+                params:
+                  - name: main-status
+                    type: string
+                results:
+                  - name: cleaned
+                    type: string
+                steps:
+                  - name: cleanup
+                    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                    env:
+                      - name: MAIN_STATUS
+                        value: $(params.main-status)
+                    script: |
+                      #!/bin/sh
+                      set -eu
+                      test "$MAIN_STATUS" = Failed
+                      printf '%s' "$MAIN_STATUS" > "$(results.cleaned.path)"
+      - name: after-child
+        runAfter: [child]
+        taskSpec:
+          steps:
+            - name: must-not-run
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              script: |
+                #!/bin/sh
+                exit 0

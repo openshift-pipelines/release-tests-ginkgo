@@ -4,6 +4,8 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
+	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // Gomega convention
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	occmd "github.com/openshift-pipelines/release-tests-ginkgo/pkg/oc"
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/pipelines"
@@ -45,11 +47,19 @@ var _ = Describe("Cancel pipelinerun: PIPELINES-03-TC06", Label("e2e", "pipeline
 	})
 })
 
-var _ = Describe("Pipelinerun with pipelinespec and taskspec: PIPELINES-03-TC07", Label("e2e", "pipelines", "integration", "non-admin"), func() {
-	It("should run pipelinerun with pipelinespec and taskspec", func() {
+var _ = Describe("Pipelinerun with pipelinespec and taskspec: PIPELINES-03-TC07", Label("e2e", "pipelines", "integration", "non-admin", "pipelines-in-pipelines-regression"), func() {
+	It("should run pipelinerun with pipelinespec and taskspec", SpecTimeout(10*time.Minute), func(ctx SpecContext) {
 		ns := lastNamespace
 		oc.Create("testdata/v1beta1/pipelinerun/pipelinerun-with-pipelinespec-and-taskspec.yaml", ns)
 		pipelines.ValidatePipelineRun(sharedClients, "pipelinerun-with-pipelinespec-taskspec-vb", "successful", ns)
+		parent, err := sharedClients.PipelineRunClient.Get(ctx, "pipelinerun-with-pipelinespec-taskspec-vb", metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		expectNestedRuns(ctx, parent)
+		task := nestedTask(ctx, parent, "echo-message")
+		tasks, err := sharedClients.TaskRunClient.List(ctx, metav1.ListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(tasks.Items).To(HaveLen(1), "the ordinary control must execute only its own TaskRun")
+		Expect(tasks.Items[0].UID).To(Equal(task.UID))
 	})
 })
 
