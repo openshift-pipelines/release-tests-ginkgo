@@ -22,7 +22,7 @@ import (
 )
 
 func TestCancelNestedTaskRunsPreservesDiagnosticsAndForeignRuns(t *testing.T) {
-	for _, scenario := range []string{"stopped", "closed", "forbidden", "canceled"} {
+	for _, scenario := range []string{"stopped", "completed-before-patch", "missing-before-patch", "replaced-before-patch", "closed", "forbidden", "canceled"} {
 		t.Run(scenario, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
@@ -50,12 +50,34 @@ func TestCancelNestedTaskRunsPreservesDiagnosticsAndForeignRuns(t *testing.T) {
 				if request.Spec.Status != v1.TaskRunSpecStatusCancelled {
 					t.Fatalf("cleanup status=%q", request.Spec.Status)
 				}
+				if request.UID != leaf.UID {
+					t.Fatalf("cleanup must bind cancellation to the observed UID, got %q", request.UID)
+				}
 				patched = true
+				if scenario == "missing-before-patch" {
+					if err := client.Tracker().Delete(v1.SchemeGroupVersion.WithResource("taskruns"), "test", leaf.Name); err != nil {
+						t.Fatal(err)
+					}
+					stream.Stop()
+					return true, nil, apierrors.NewNotFound(v1.Resource("taskruns"), leaf.Name)
+				}
 				done := leaf.DeepCopy()
 				done.Spec.Status = request.Spec.Status
 				done.Status.SetConditions([]apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionFalse}})
+				if scenario == "completed-before-patch" {
+					done.Spec.Status = ""
+				}
+				if scenario == "replaced-before-patch" {
+					done.UID = "replacement-uid"
+				}
 				if err := client.Tracker().Update(v1.SchemeGroupVersion.WithResource("taskruns"), done, "test"); err != nil {
 					t.Fatal(err)
+				}
+				if scenario == "completed-before-patch" {
+					return true, nil, apierrors.NewBadRequest("TaskRun completed before cancellation")
+				}
+				if scenario == "replaced-before-patch" {
+					return true, nil, apierrors.NewBadRequest("TaskRun UID changed")
 				}
 				switch scenario {
 				case "stopped":
@@ -71,12 +93,20 @@ func TestCancelNestedTaskRunsPreservesDiagnosticsAndForeignRuns(t *testing.T) {
 			})
 
 			uids, err := CancelNestedTaskRuns(ctx, client.TektonV1().TaskRuns("test"), []types.UID{parent.UID})
-			if scenario == "stopped" {
+			if scenario == "stopped" || scenario == "completed-before-patch" || scenario == "missing-before-patch" {
 				if err != nil || !patched || !slices.Contains(uids, leaf.UID) || slices.Contains(uids, foreign.UID) {
 					t.Fatalf("uids=%v patched=%v error=%v", uids, patched, err)
 				}
 				retained, err := client.TektonV1().TaskRuns("test").Get(ctx, leaf.Name, metav1.GetOptions{})
-				if err != nil || retained.Spec.Status != v1.TaskRunSpecStatusCancelled {
+				var expectedStatus v1.TaskRunSpecStatus = v1.TaskRunSpecStatusCancelled
+				if scenario == "completed-before-patch" {
+					expectedStatus = ""
+				}
+				if scenario == "missing-before-patch" {
+					if !apierrors.IsNotFound(err) {
+						t.Fatalf("deleted resource=%v error=%v", retained, err)
+					}
+				} else if err != nil || retained.Spec.Status != expectedStatus {
 					t.Fatalf("diagnostic resource=%v error=%v", retained, err)
 				}
 				untouched, err := client.TektonV1().TaskRuns("test").Get(ctx, foreign.Name, metav1.GetOptions{})

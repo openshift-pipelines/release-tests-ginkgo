@@ -47,9 +47,25 @@ func CancelNestedTaskRuns(ctx context.Context, client typed.TaskRunInterface, ow
 		return nil, err
 	}
 	defer stream.Stop()
-	patch := []byte(fmt.Sprintf(`{"spec":{"status":%q}}`, v1.TaskRunSpecStatusCancelled))
-	for _, name := range pending {
-		if _, err := client.Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	for uid, name := range pending {
+		patch := []byte(fmt.Sprintf(`{"metadata":{"uid":%q},"spec":{"status":%q}}`, uid, v1.TaskRunSpecStatusCancelled))
+		if _, err := client.Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
+			if apierrors.IsNotFound(err) {
+				delete(pending, uid)
+				continue
+			}
+			if !apierrors.IsBadRequest(err) && !apierrors.IsInvalid(err) && !apierrors.IsConflict(err) {
+				return nil, err
+			}
+			current, getErr := client.Get(ctx, name, metav1.GetOptions{})
+			if getErr != nil {
+				return nil, getErr
+			}
+			condition := current.Status.GetCondition(apis.ConditionSucceeded)
+			if current.UID == uid && condition != nil && condition.Status != corev1.ConditionUnknown {
+				delete(pending, uid)
+				continue
+			}
 			return nil, err
 		}
 	}
