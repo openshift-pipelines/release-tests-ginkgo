@@ -46,5 +46,7 @@
     "PIPELINES-45": "tests/pipelines/pipelines_in_pipelines_negative_test.go",
     "PIPELINES-47": "tests/pipelines/pipelines_in_pipelines_resolver_test.go",
     "PIPELINES-48": "tests/pipelines/pipelines_in_pipelines_parameters_test.go",
-    "PIPELINES-49": "tests/pipelines/pipelines_in_pipelines_contract_test.go"
+    "PIPELINES-49": "tests/pipelines/pipelines_in_pipelines_contract_test.go",
+    "PIPELINES-50": "tests/pipelines/pipelines_in_pipelines_lifecycle_test.go",
+    "PIPELINES-51": "tests/pipelines/pipelines_in_pipelines_cleanup_test.go"
 }
