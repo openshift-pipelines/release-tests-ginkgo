@@ -21,7 +21,7 @@ func ReadNestedWatch(ctx context.Context, events <-chan watch.Event, name string
 			return nil, fmt.Errorf("watch PipelineRun %s: %w", name, ctx.Err())
 		case event, open := <-events:
 			if !open {
-				return nil, fmt.Errorf("PipelineRun %s watch closed before completion", name)
+				return nil, fmt.Errorf("PipelineRun %s: %w", name, ErrNestedWatchClosed)
 			}
 			if event.Type == watch.Error {
 				return nil, fmt.Errorf("watch PipelineRun %s: %w", name, apierrors.FromObject(event.Object))

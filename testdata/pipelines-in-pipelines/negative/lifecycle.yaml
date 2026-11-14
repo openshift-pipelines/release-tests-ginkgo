@@ -1,0 +1,21 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  timeouts:
+    pipeline: 3m
+  pipelineSpec:
+    tasks:
+      - name: child
+        pipelineSpec:
+          tasks:
+            - name: leaf
+              taskSpec:
+                steps:
+                  - name: wait-for-cancel
+                    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                    script: |
+                      #!/bin/sh
+                      set -eu
+                      exec tail -f /dev/null
