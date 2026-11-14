@@ -104,7 +104,13 @@ var _ = Describe("Pipelines-in-Pipelines: PIPELINES-44", Ordered, Serial, Label(
 			Expect(child.Spec.PipelineRef).NotTo(BeNil())
 			Expect(child.Spec.PipelineRef.Name).To(Equal("pip-child"))
 			Expect(child.Spec.TaskRunTemplate.ServiceAccountName).To(Equal("pip-runner"))
-			Expect(nestedTask(ctx, child, "leaf").Spec.ServiceAccountName).To(Equal("pip-runner"))
+			leaf := nestedTask(ctx, child, "leaf")
+			Expect(leaf.Spec.ServiceAccountName).To(Equal("pip-runner"))
+			pod, err := sharedClients.KubeClient.Kube.CoreV1().Pods(parent.Namespace).Get(ctx, leaf.Status.PodName, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(pod.Spec.ServiceAccountName).To(Equal("pip-runner"))
+			Expect(metav1.GetControllerOf(pod)).NotTo(BeNil())
+			Expect(metav1.GetControllerOf(pod).UID).To(Equal(leaf.UID))
 			expectNestedRuns(ctx, parent, child)
 		}},
 		{"PIPELINES-44-TC03", "mixed", func(ctx context.Context, parent *v1.PipelineRun) {

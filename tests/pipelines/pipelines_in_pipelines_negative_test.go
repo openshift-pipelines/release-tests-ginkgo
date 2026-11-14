@@ -34,10 +34,15 @@ var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Ordered, Seria
 			Expect(dependents.Items).To(BeEmpty())
 			expectNestedRuns(ctx, parent, child)
 		}},
-		{"PIPELINES-45-TC02", "missing-child", func(_ context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-45-TC02", "missing-child", func(ctx context.Context, parent *v1.PipelineRun) {
 			condition := parent.Status.GetCondition(apis.ConditionSucceeded)
 			Expect(condition.Reason).To(Equal(v1.PipelineRunReasonCouldntGetPipeline.String()))
 			Expect(condition.Message).To(ContainSubstring("pip-missing"))
+			Expect(nestedChild(ctx, parent, "child")).To(BeNil())
+			expectNestedRuns(ctx, parent)
+			tasks, err := sharedClients.TaskRunClient.List(ctx, metav1.ListOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tasks.Items).To(BeEmpty(), "a missing child must not execute any TaskRuns")
 		}},
 		{"PIPELINES-45-TC03", "self-cycle", func(ctx context.Context, parent *v1.PipelineRun) {
 			Expect(parent.Status.GetCondition(apis.ConditionSucceeded).Message).To(ContainSubstring("detected cycle in pipeline-in-pipeline"))
