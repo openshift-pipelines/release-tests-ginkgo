@@ -47,7 +47,7 @@ var _ = Describe("Cancel pipelinerun: PIPELINES-03-TC06", Label("e2e", "pipeline
 	})
 })
 
-var _ = Describe("Pipelinerun with pipelinespec and taskspec: PIPELINES-03-TC07", Label("e2e", "pipelines", "integration", "non-admin", "pipelines-in-pipelines-regression"), func() {
+var _ = Describe("Pipelinerun with pipelinespec and taskspec: PIPELINES-03-TC07", Label("e2e", "pipelines", "integration", "non-admin"), func() {
 	It("should run pipelinerun with pipelinespec and taskspec", SpecTimeout(10*time.Minute), func(ctx SpecContext) {
 		ns := lastNamespace
 		oc.Create("testdata/v1beta1/pipelinerun/pipelinerun-with-pipelinespec-and-taskspec.yaml", ns)

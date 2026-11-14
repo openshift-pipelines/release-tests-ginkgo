@@ -82,10 +82,7 @@ var _ = hooks.AutoNamespacePerDescribe(&lastNamespace, func() *clients.Clients {
 var _ = AfterSuite(func() {
 	hooks.CleanupNamespaces()
 	CleanupClusterResolverNamespaces() // Cleanup shared namespaces for cluster resolver tests
-	// The failure probe shares this repository scratch directory with its parent.
-	if os.Getenv("PIP_FAILURE_PROBE") != "1" {
-		_ = config.RemoveTempDir()
-	}
+	_ = config.RemoveTempDir()
 })
 
 func requireNestedPipelineFeature(ctx context.Context) {

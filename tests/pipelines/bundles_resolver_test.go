@@ -7,7 +7,7 @@ import (
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/store"
 )
 
-var _ = Describe("Test bundles resolver functionality: PIPELINES-25-TC01", Label("e2e", "pipelines-in-pipelines-regression"), func() {
+var _ = Describe("Test bundles resolver functionality: PIPELINES-25-TC01", Label("e2e"), func() {
 	var ns string
 
 	BeforeEach(func() {
@@ -21,7 +21,7 @@ var _ = Describe("Test bundles resolver functionality: PIPELINES-25-TC01", Label
 	})
 })
 
-var _ = Describe("Test bundles resolver with parameter: PIPELINES-25-TC02", Label("e2e", "sanity", "pipelines-in-pipelines-regression"), func() {
+var _ = Describe("Test bundles resolver with parameter: PIPELINES-25-TC02", Label("e2e", "sanity"), func() {
 	var ns string
 
 	BeforeEach(func() {

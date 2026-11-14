@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -14,7 +13,6 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/apis"
@@ -133,9 +131,6 @@ func submitNestedResolverRun(ctx context.Context, namespace, name string, source
 	}, metav1.CreateOptions{})
 	Expect(err).NotTo(HaveOccurred())
 	run, err := pipelines.ReadNestedWatch(bounded, stream.ResultChan(), name)
-	if errors.Is(err, pipelines.ErrNestedWatchClosed) || apierrors.IsResourceExpired(err) {
-		run, err = pipelines.ResumeNestedPipelineRun(bounded, client, name)
-	}
 	Expect(err).NotTo(HaveOccurred())
 	return run
 }

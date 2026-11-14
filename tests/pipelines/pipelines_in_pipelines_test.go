@@ -2,7 +2,6 @@ package pipelines_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -15,7 +14,6 @@ import (
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // Gomega convention
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
 
@@ -38,9 +36,6 @@ func runNestedPipeline(ctx context.Context, fixture string) *v1.PipelineRun {
 	By(fmt.Sprintf("Create %s in namespace %s and wait for pip-parent", fixture, lastNamespace))
 	oc.Create(fixture, lastNamespace)
 	run, err := pipelines.ReadNestedWatch(ctx, stream.ResultChan(), "pip-parent")
-	if errors.Is(err, pipelines.ErrNestedWatchClosed) || apierrors.IsResourceExpired(err) {
-		run, err = pipelines.ResumeNestedPipelineRun(ctx, sharedClients.PipelineRunClient, "pip-parent")
-	}
 	Expect(err).NotTo(HaveOccurred())
 	By(fmt.Sprintf("PipelineRun %s completed: %+v", run.Name, run.Status.Conditions))
 	return run
