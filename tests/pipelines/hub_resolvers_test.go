@@ -8,7 +8,7 @@ import (
 )
 
 // Hub resolvers spec had no Polarion test case ID in the original Gauge spec.
-var _ = Describe("Test hub resolver functionality: PIPELINES-17", Label("e2e", "sanity"), func() {
+var _ = Describe("Test hub resolver functionality: PIPELINES-17", Label("e2e", "sanity", "pipelines-in-pipelines-regression"), func() {
 	var ns string
 
 	BeforeEach(func() {
