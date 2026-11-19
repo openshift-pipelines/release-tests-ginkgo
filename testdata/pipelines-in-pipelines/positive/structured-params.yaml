@@ -1,0 +1,88 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-child
+spec:
+  params:
+    - name: items
+      type: array
+    - name: details
+      type: object
+      properties:
+        left:
+          type: string
+        right:
+          type: string
+  tasks:
+    - name: leaf
+      params:
+        - name: items
+          value: ["$(params.items[*])"]
+        - name: details
+          value: $(params.details[*])
+      taskSpec:
+        params:
+          - name: items
+            type: array
+          - name: details
+            type: object
+            properties:
+              left:
+                type: string
+              right:
+                type: string
+        results:
+          - name: observed
+            type: string
+        steps:
+          - name: check-boundaries
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            args:
+              - $(params.items[*])
+              - $(params.details.left)
+              - $(params.details.right)
+            script: |
+              #!/bin/sh
+              set -eu
+              test "$#" -eq 6
+              test "$1" = 'alpha beta'
+              test "$2" = '  padded  '
+              test "$3" = ''
+              test "$4" = "$(printf 'tab\tvalue')"
+              test "$5" = 'left right'
+              test "$6" = '  object padded  '
+              printf 'array[1]=<%s>\narray[2]=<%s>\narray[3]=<%s>\narray[4]=<%s>\nobject.left=<%s>\nobject.right=<%s>\n' \
+                "$1" "$2" "$3" "$4" "$5" "$6" > "$(results.observed.path)"
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  params:
+    - name: items
+      value: ["alpha beta", "  padded  ", "", "tab\tvalue"]
+    - name: details
+      value:
+        left: "left right"
+        right: "  object padded  "
+  pipelineSpec:
+    params:
+      - name: items
+        type: array
+      - name: details
+        type: object
+        properties:
+          left:
+            type: string
+          right:
+            type: string
+    tasks:
+      - name: child
+        params:
+          - name: items
+            value: ["$(params.items[*])"]
+          - name: details
+            value: $(params.details[*])
+        pipelineRef:
+          name: pip-child

@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-cycle-a
+spec:
+  tasks:
+    - name: child-b
+      pipelineRef:
+        name: pip-cycle-b
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-cycle-b
+spec:
+  tasks:
+    - name: child-a
+      pipelineRef:
+        name: pip-cycle-a
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  pipelineRef:
+    name: pip-cycle-a

@@ -1,0 +1,37 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: pip-leaf
+spec:
+  steps:
+    - name: complete
+      image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+      script: |
+        #!/bin/sh
+        set -eu
+        printf 'completed\n'
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-child
+spec:
+  tasks:
+    - name: leaf
+      taskRef:
+        name: pip-leaf
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  pipelineSpec:
+    tasks:
+      - name: main
+        taskRef:
+          name: pip-leaf
+    finally:
+      - name: child
+        pipelineRef:
+          name: pip-child

@@ -1,0 +1,35 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  pipelineSpec:
+    tasks:
+      - name: child
+        pipelineSpec:
+          results:
+            - name: produced
+              value: $(tasks.producer.results.produced)
+          tasks:
+            - name: producer
+              taskSpec:
+                results:
+                  - name: produced
+                steps:
+                  - name: produce
+                    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                    script: |
+                      #!/bin/sh
+                      printf child-value > "$(results.produced.path)"
+      - name: consumer
+        params:
+          - name: value
+            value: $(tasks.child.results.produced)
+        taskSpec:
+          params:
+            - name: value
+          steps:
+            - name: consume
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              args: ["$(params.value)"]
+              command: ["echo"]

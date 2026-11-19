@@ -1,0 +1,53 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-child
+spec:
+  params:
+    - name: message
+      type: string
+      default: child-default-value
+  tasks:
+    - name: leaf
+      params:
+        - name: message
+          value: $(params.message)
+      taskSpec:
+        params:
+          - name: message
+            type: string
+            default: leaf-fallback-value
+        results:
+          - name: observed
+            type: string
+        steps:
+          - name: check-override
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            env:
+              - name: MESSAGE
+                value: $(params.message)
+            script: |
+              #!/bin/sh
+              set -eu
+              test "$MESSAGE" = parent-override-value
+              printf '%s' "$MESSAGE" > "$(results.observed.path)"
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  params:
+    - name: message
+      value: parent-override-value
+  pipelineSpec:
+    params:
+      - name: message
+        type: string
+    tasks:
+      - name: child
+        params:
+          - name: message
+            value: $(params.message)
+        pipelineRef:
+          name: pip-child
