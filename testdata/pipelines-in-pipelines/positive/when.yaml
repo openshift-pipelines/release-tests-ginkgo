@@ -1,0 +1,49 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-child
+spec:
+  tasks:
+    - name: leaf
+      taskSpec:
+        steps:
+          - name: complete
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            script: |
+              #!/bin/sh
+              exit 0
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+spec:
+  pipelineSpec:
+    tasks:
+      - name: child
+        when:
+          - input: run
+            operator: in
+            values: ["never"]
+        pipelineRef:
+          name: pip-child
+      - name: true-child
+        when:
+          - input: run
+            operator: in
+            values: ["run"]
+        pipelineRef:
+          name: pip-child
+      - name: continuation
+        runAfter: [true-child]
+        taskSpec:
+          results:
+            - name: continued
+              type: string
+          steps:
+            - name: complete
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              script: |
+                #!/bin/sh
+                set -eu
+                printf '%s' continued > "$(results.continued.path)"

@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pip-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pip-child
+spec:
+  workspaces:
+    - name: shared
+  tasks:
+    - name: reader
+      workspaces:
+        - name: shared
+          workspace: shared
+      taskSpec:
+        workspaces:
+          - name: shared
+        steps:
+          - name: check-bytes
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            script: |
+              #!/bin/sh
+              set -eu
+              actual="$(od -An -tx1 "$(workspaces.shared.path)/payload" | tr -d ' \n')"
+              test "$actual" = 6e657374656420706970656c696e650a7365636f6e64206c696e650a
+              printf 'child write-back\n' >> "$(workspaces.shared.path)/payload"
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: pip-parent
+  labels:
+    pip.example.test/workspace: shared-rwo
+spec:
+  taskRunTemplate:
+    podTemplate:
+      # Parent and child assistants must share a node for the RWO volume.
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  pip.example.test/workspace: shared-rwo
+              topologyKey: kubernetes.io/hostname
+  workspaces:
+    - name: shared
+      persistentVolumeClaim:
+        claimName: pip-data
+  pipelineSpec:
+    workspaces:
+      - name: shared
+    tasks:
+      - name: writer
+        workspaces:
+          - name: shared
+            workspace: shared
+        taskSpec:
+          workspaces:
+            - name: shared
+          steps:
+            - name: write-bytes
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              script: |
+                #!/bin/sh
+                set -eu
+                printf 'nested pipeline\nsecond line\n' > "$(workspaces.shared.path)/payload"
+      - name: child
+        runAfter: [writer]
+        pipelineRef:
+          name: pip-child
+        workspaces:
+          - name: shared
+            workspace: shared
+      - name: reader
+        runAfter: [child]
+        workspaces:
+          - name: shared
+            workspace: shared
+        taskSpec:
+          workspaces:
+            - name: shared
+          results:
+            - name: bytes
+              type: string
+          steps:
+            - name: check-writeback
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              script: |
+                #!/bin/sh
+                set -eu
+                actual="$(od -An -tx1 "$(workspaces.shared.path)/payload" | tr -d ' \n')"
+                test "$actual" = 6e657374656420706970656c696e650a7365636f6e64206c696e650a6368696c642077726974652d6261636b0a
+                printf '%s' "$actual" > "$(results.bytes.path)"
