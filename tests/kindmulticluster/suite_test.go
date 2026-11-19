@@ -1,6 +1,7 @@
 package kindmulticluster_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -22,7 +23,9 @@ var _ = Describe("PipelineRun admission and spoke execution: PIPELINES-46", Seri
 			hub, spoke := os.Getenv("KIND_HUB_KUBECONFIG"), os.Getenv("KIND_SPOKE_KUBECONFIG")
 			Expect(hub).NotTo(BeEmpty(), "run through bash scripts/kind-multicluster.sh")
 			Expect(spoke).NotTo(BeEmpty(), "run through bash scripts/kind-multicluster.sh")
+			By(fmt.Sprintf("[hub -> spoke] validating admission and remote execution; explicit queue=%t", prelabelled))
 			Expect(kindmulticluster.Execute(ctx, hub, spoke, prelabelled)).To(Succeed())
+			GinkgoWriter.Printf("[hub -> spoke] multicluster setup configured successfully; admission, remote execution, logs, and returned status verified\n")
 		},
 		Entry("defaults an absent queue label: PIPELINES-46-TC01", false, NodeTimeout(10*time.Minute)),
 		Entry("preserves a distinct explicit LocalQueue: PIPELINES-46-TC02", true, NodeTimeout(10*time.Minute)),

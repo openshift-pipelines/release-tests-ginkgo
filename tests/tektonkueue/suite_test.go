@@ -2,6 +2,8 @@ package tektonkueue_test
 
 import (
 	"encoding/json"
+	"flag"
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
@@ -31,6 +33,17 @@ type suiteConfig struct {
 }
 
 func TestTektonKueue(t *testing.T) {
+	// This suite exercises unreleased multicluster features. Other suites retain
+	// the global released-catalog default; explicit flags and environment win.
+	catalogSpecified := os.Getenv("CATALOG_SOURCE") != ""
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "catalogsource" {
+			catalogSpecified = true
+		}
+	})
+	if !catalogSpecified {
+		config.Flags.CatalogSource = "custom-operators"
+	}
 	config.MustLoadEnvironment()
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Tekton Kueue Suite", Label("tekton-kueue"))

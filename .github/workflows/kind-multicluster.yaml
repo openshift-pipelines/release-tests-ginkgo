@@ -50,7 +50,10 @@ jobs:
           sudo install -m 0755 kubectl /usr/local/bin/kubectl
       - name: Real Kind admission smoke test
         timeout-minutes: 50
-        run: bash scripts/kind-multicluster.sh
+        run: |
+          # Both Kind nodes share the runner kernel's inotify limits.
+          sudo sysctl -w fs.inotify.max_user_instances=8192 fs.inotify.max_user_watches=524288
+          bash scripts/kind-multicluster.sh
       - name: Upload non-secret diagnostics and JUnit
         if: always()
         uses: actions/upload-artifact@v7

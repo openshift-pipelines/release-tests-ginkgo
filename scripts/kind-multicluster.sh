@@ -72,6 +72,7 @@ for cluster in "$HUB" "$SPOKE"; do
 done
 for cluster in "$HUB" "$SPOKE"; do
   # Include partial Kind creations in cleanup, but never an existing cluster.
+  printf '[%s] creating cluster and installing pinned components\n' "$cluster"
   CLUSTERS+=("$cluster")
   kind create cluster --name "$cluster" --kubeconfig "$RUN_DIR/$cluster.kubeconfig" \
     --image kindest/node:v1.35.0@sha256:452d707d4862f52530247495d180205e029056831160e22870e37e3f6c1ac31f \
@@ -84,6 +85,7 @@ done
 
 bash "$ROOT/scripts/kind-multicluster/configure.sh" \
   "$RUN_DIR/$HUB.kubeconfig" "$RUN_DIR/$SPOKE.kubeconfig" "$SPOKE" "$RUN_DIR"
+printf '[hub -> spoke] multicluster setup configured successfully; readiness checks passed\n'
 
 KIND_HUB_KUBECONFIG="$RUN_DIR/$HUB.kubeconfig" \
 KIND_SPOKE_KUBECONFIG="$RUN_DIR/$SPOKE.kubeconfig" \

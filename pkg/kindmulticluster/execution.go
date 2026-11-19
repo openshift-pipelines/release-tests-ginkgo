@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log"
 	"os/exec"
 	"reflect"
 	"strings"
@@ -43,6 +44,7 @@ func Execute(ctx context.Context, hubPath, spokePath string, prelabelled bool) (
 		return fmt.Errorf("hub and spoke must have distinct API servers")
 	}
 	input, queue := pipelineRun("admission-"+strings.ToLower(rand.Text()[:12]), prelabelled)
+	log.Printf("[hub] creating PipelineRun %s; expected queue=%s", input.Name, queue)
 	run, err := hub.PipelineRunClient.Create(ctx, input, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("create hub PipelineRun: %w", err)
@@ -55,6 +57,7 @@ func Execute(ctx context.Context, hubPath, spokePath string, prelabelled bool) (
 	if err := validateAdmission(run, queue); err != nil {
 		return err
 	}
+	log.Printf("[hub] PipelineRun %s admission mutations verified", run.Name)
 	_, err = observe(ctx, hub.Dynamic.Resource(workloads).Namespace(namespace), func(object *unstructured.Unstructured) (bool, error) {
 		for _, owner := range object.GetOwnerReferences() {
 			if owner.UID == run.UID {
@@ -67,6 +70,7 @@ func Execute(ctx context.Context, hubPath, spokePath string, prelabelled bool) (
 	if err != nil {
 		return fmt.Errorf("observe hub Workload selected spoke: %w", err)
 	}
+	log.Printf("[hub] PipelineRun %s selected release-spoke", run.Name)
 	pod, err := observe(ctx, spoke.Dynamic.Resource(pods).Namespace(namespace), func(object *unstructured.Unstructured) (bool, error) {
 		if object.GetLabels()["tekton.dev/pipelineRun"] != run.Name {
 			return false, nil
@@ -93,6 +97,7 @@ func Execute(ctx context.Context, hubPath, spokePath string, prelabelled bool) (
 	if err != nil {
 		return fmt.Errorf("observe execution pod on spoke: %w", err)
 	}
+	log.Printf("[spoke] PipelineRun %s executing in pod %s", run.Name, pod.GetName())
 	workerRun, err := spoke.PipelineRunClient.Get(ctx, run.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -118,6 +123,7 @@ func Execute(ctx context.Context, hubPath, spokePath string, prelabelled bool) (
 		return err
 	}
 	defer hubWatch.Stop()
+	log.Printf("[hub/spoke] PipelineRun %s completion watches registered", run.Name)
 	logs, err := spoke.KubeClient.Kube.CoreV1().Pods(namespace).GetLogs(pod.GetName(),
 		&corev1.PodLogOptions{Container: container, Follow: true}).Stream(ctx)
 	if err != nil {
@@ -156,6 +162,7 @@ func Execute(ctx context.Context, hubPath, spokePath string, prelabelled bool) (
 	if err := assertHubIdle(ctx, hub, run.Name); err != nil {
 		return err
 	}
+	log.Printf("[hub] PipelineRun %s mirrors Running status without local execution", run.Name)
 	marker := "execution-" + rand.Text()
 	command := exec.CommandContext(ctx, "kubectl", "--kubeconfig", spokePath, "--request-timeout=60s",
 		"-n", namespace, "exec", pod.GetName(), "-c", container, "--",
@@ -166,6 +173,7 @@ func Execute(ctx context.Context, hubPath, spokePath string, prelabelled bool) (
 	if err := readMarker(scanner, marker); err != nil {
 		return err
 	}
+	log.Printf("[spoke] PipelineRun %s execution marker received; waiting for completion", run.Name)
 	workerDone, err := completed(ctx, spokeWatch)
 	if err != nil {
 		return fmt.Errorf("spoke completion: %w", err)
@@ -178,6 +186,7 @@ func Execute(ctx context.Context, hubPath, spokePath string, prelabelled bool) (
 		!reflect.DeepEqual(hubDone.Status.ChildReferences, workerDone.Status.ChildReferences) {
 		return fmt.Errorf("hub status did not return the spoke TaskRun reference")
 	}
+	log.Printf("[hub] PipelineRun %s succeeded with the spoke TaskRun reference", run.Name)
 	return assertHubIdle(ctx, hub, run.Name)
 }
 
