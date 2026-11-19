@@ -210,7 +210,7 @@ var _ = Describe("Validate cache uploads with change in revision: PIPELINES-29-T
 		Expect(strings.ToLower(logs1)).To(ContainSubstring("upload /workspace/source/cache/lib content to oci image"))
 
 		// Second run with different revision — should upload again
-		params2 := map[string]string{"revision": "master"}
+		params2 := map[string]string{"revision": "main"}
 		prName2 := opc.StartPipeline("caches-python-pipeline", params2, workspaces, ns, "--use-param-defaults")
 		pipelines.ValidatePipelineRun(sharedClients, prName2, "successful", ns)
 		logs2 := cmd.MustSucceed("oc", "logs", "-l",
