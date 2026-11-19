@@ -9,6 +9,17 @@ compatible with Kubernetes 1.35, curl, jq, Go selected by `go.mod` (Go 1.26),
 and sha256sum or shasum. Start with 8 CPUs and 12 GiB available to Docker for
 two control planes and their controller stacks; this is not a measured minimum.
 
+On Linux, both Kind nodes share the host kernel's inotify limits. The GitHub
+workflow raises these before provisioning to prevent kubelet log-follow failures:
+
+```sh
+sudo sysctl -w fs.inotify.max_user_instances=8192 fs.inotify.max_user_watches=524288
+```
+
+The driver leaves local host settings to the caller. An exhausted instance limit
+can make the pod log stream contain `failed to create fsnotify watcher: too many
+open files` instead of the workload marker.
+
 ## Released components
 
 | Component | Release |
@@ -87,9 +98,8 @@ PEM private keys. Do not upload the private directory or broaden the workflow's
 artifact path to the workspace. Use an empty artifact directory for each run.
 
 `.github/workflows/kind-multicluster.yaml` runs unit checks before the driver.
-It supports PRs to `main` and `release-*`, manual dispatch, and pushes to
-`test-multicluster-workload-scenarios` so a fork can validate before upstream
-workflow approval. It needs only `contents: read`, downloads checksum-verified
+It supports PRs and pushes to `main` and `release-*`, plus manual dispatch.
+It needs only `contents: read`, downloads checksum-verified
 Kind and kubectl, has a bounded 50-minute smoke step, always uploads only the
 artifact directory, and cancels older runs for the same PR/ref.
 
@@ -107,3 +117,7 @@ actionlint .github/workflows/kind-multicluster.yaml # when installed
 
 Lifecycle tests use isolated command fakes, never Docker or a Kubernetes API.
 A live Kind run is still required to verify the released components together.
+
+For nightly or stage OpenShift operators, use the
+[Tekton Kueue suite and custom catalog instructions](../../README.md#running-the-tekton-kueue-suite).
+This Kind smoke intentionally checks the released versions listed above.

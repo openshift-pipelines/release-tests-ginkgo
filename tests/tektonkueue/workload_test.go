@@ -8,8 +8,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck // dot import is idiomatic for Ginkgo
 	. "github.com/onsi/gomega"    //nolint:revive,staticcheck // dot import is idiomatic for Gomega
+	olm "github.com/operator-framework/api/pkg/operators/v1alpha1"
 
 	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
 	olmpkg "github.com/openshift-pipelines/release-tests-ginkgo/pkg/olm"
 	workload "github.com/openshift-pipelines/release-tests-ginkgo/pkg/tektonkueue"
 )
@@ -29,6 +31,8 @@ var _ = Describe("Multi-cluster PipelineRun execution: PIPELINES-42", Serial, La
 
 		configured := make([]workload.Cluster, 0, len(targets))
 		for _, target := range targets {
+			By(fmt.Sprintf("[%s] bootstrapping operators: Pipelines catalog=%s channel=%s",
+				target.name, config.Flags.CatalogSource, config.Flags.PipelineOperatorChannel))
 			clusterClients, err := clients.NewClientsWithContext(
 				target.config.Kubeconfig,
 				target.config.Cluster,
@@ -43,8 +47,23 @@ var _ = Describe("Multi-cluster PipelineRun execution: PIPELINES-42", Serial, La
 				target.config.Context,
 			)
 			Expect(err).NotTo(HaveOccurred(), "failed to create bootstrap client for %s", target.name)
-			Expect((&olmpkg.ClusterBootstrap{Client: controllerClient}).EnsureOperators(specCtx)).To(Succeed(),
+			// EnsureOperator deliberately reuses existing subscriptions. Reject a
+			// different build rather than reporting a nightly/stage test against it.
+			subscriptions := &olm.SubscriptionList{}
+			Expect(controllerClient.List(specCtx, subscriptions)).To(Succeed(), "[%s] list subscriptions", target.name)
+			for _, sub := range subscriptions.Items {
+				if sub.Spec != nil && sub.Spec.Package == config.PipelineOperatorPackageName {
+					Expect(sub.Spec.CatalogSource).To(Equal(config.Flags.CatalogSource),
+						"[%s] existing Pipelines subscription uses a different catalog; install the requested build first", target.name)
+					Expect(sub.Spec.Channel).To(Equal(config.Flags.PipelineOperatorChannel),
+						"[%s] existing Pipelines subscription uses a different channel; install the requested build first", target.name)
+				}
+			}
+			prerequisites := append([]olmpkg.OperatorPrerequisite{olmpkg.PipelinePrerequisite()}, olmpkg.MulticlusterPrerequisites()...)
+			Expect((&olmpkg.ClusterBootstrap{Client: controllerClient}).EnsurePrerequisites(
+				specCtx, clusterClients.KubeClient.Kube.Discovery(), prerequisites)).To(Succeed(),
 				"failed to bootstrap %s", target.name)
+			GinkgoWriter.Printf("[%s] required operators and APIs are ready\n", target.name)
 			configured = append(configured, workload.Cluster{Name: target.name, Clients: clusterClients})
 		}
 
@@ -59,6 +78,7 @@ var _ = Describe("Multi-cluster PipelineRun execution: PIPELINES-42", Serial, La
 		})
 
 		Expect(environment.Setup(specCtx)).To(Succeed(), "failed to configure multi-cluster workload environment")
+		GinkgoWriter.Printf("[hub] multicluster setup configured successfully; all queues, admission checks, and worker connections are Active\n")
 		for _, scenario := range []struct {
 			name        string
 			prelabelled bool
@@ -74,5 +94,6 @@ var _ = Describe("Multi-cluster PipelineRun execution: PIPELINES-42", Serial, La
 			GinkgoWriter.Printf("PipelineRun %s executed on %s and completed on the hub; spoke logs:\n%s",
 				result.PipelineRun, result.Spoke, result.Logs)
 		}
+		GinkgoWriter.Printf("[hub] multicluster workload validation completed successfully on %d spoke(s)\n", len(spokeConfigs))
 	})
 })

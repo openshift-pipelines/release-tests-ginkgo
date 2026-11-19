@@ -241,12 +241,37 @@ When adding new tests:
 
 Provide one hub kubeconfig and at least one spoke kubeconfig. Test-binary flags must follow `--`.
 
+This suite defaults Pipelines subscriptions to `custom-operators` so it can test
+nightly or stage builds. Before running, publish the desired operator index and
+create its CatalogSource on **each hub and spoke**:
+
+```bash
+# Set PIPELINES_INDEX_IMAGE to the nightly or stage index image you want to test.
+oc --kubeconfig /path/to/cluster apply -f - <<EOF
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: custom-operators
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: ${PIPELINES_INDEX_IMAGE:?set the nightly or stage index image}
+EOF
+```
+
+Repeat for every cluster. The index must contain the OpenShift Pipelines package
+and the channel selected with `--pipelines-channel` (default `latest`). Registry
+credentials must already be available to OLM if the index or payload is private.
+Use `--catalogsource` or `CATALOG_SOURCE` to select another prepared catalog.
+Kueue and cert-manager continue to use `redhat-operators`.
+
 Bootstrap the required operators:
 
 ```bash
 ginkgo run --procs=1 --label-filter='tekton-kueue && install' ./tests/tektonkueue -- \
   --kubeconfig /path/to/hub \
-  --spoke-kubeconfig /path/to/spoke-1
+  --spoke-kubeconfig /path/to/spoke-1 \
+  --catalogsource custom-operators --pipelines-channel latest
 ```
 
 Validate multi-cluster PipelineRun execution:
@@ -255,8 +280,14 @@ Validate multi-cluster PipelineRun execution:
 ginkgo run --procs=1 --grace-period=25m --label-filter='tekton-kueue && workload' ./tests/tektonkueue -- \
   --kubeconfig /path/to/hub \
   --spoke-kubeconfig /path/to/spoke-1 \
-  --spoke-kubeconfig /path/to/spoke-2
+  --spoke-kubeconfig /path/to/spoke-2 \
+  --catalogsource custom-operators --pipelines-channel latest
 ```
+
+The workload test rejects an existing Pipelines subscription on a different
+catalog or channel. Prepare the desired build first; the test does not switch an
+administrator's installation. A matching subscription can still select different
+payloads over time, so retain the installed CSV and index digest with your results.
 
 Repeat `--spoke-kubeconfig` for additional spokes and optionally provide one matching `--spoke-context` per spoke. The workload test makes every configured spoke eligible and submits two hub PipelineRuns: one without a queue label and one with a distinct valid queue label. It verifies webhook defaulting and preservation, worker `managedBy` removal, Running and terminal status propagation, execution on exactly one spoke, and marker-bearing step logs.
 
@@ -276,6 +307,8 @@ the real API admission chain. It verifies remote execution, status return, and
 direct spoke logs, then exports diagnostics and deletes its clusters.
 The `Kind multicluster admission` GitHub Actions workflow runs the same command.
 See [prerequisites, component pins, and coverage boundaries](testdata/kind-multicluster/README.md).
+This released-component smoke is separate from the OpenShift nightly/stage
+operator tests above; it does not install an OLM custom catalog.
 
 ### Running the Chains suite
 

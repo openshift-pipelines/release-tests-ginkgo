@@ -25,6 +25,7 @@ kubectl --kubeconfig "$run_dir/internal.kubeconfig" config view --raw -o json |
 for kubeconfig in "$hub" "$spoke"; do
   role=Spoke override=false
   if [[ $kubeconfig == "$hub" ]]; then role=Hub override=true; fi
+  printf '[%s] configuring scheduler, webhook, and queue readiness\n' "$role"
   kubectl --kubeconfig "$kubeconfig" --request-timeout=60s apply -f - <<EOF
 apiVersion: operator.tekton.dev/v1alpha1
 kind: TektonScheduler
