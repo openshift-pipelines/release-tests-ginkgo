@@ -1,0 +1,13 @@
+# Merge patch on the existing queue: one flavor, ten nominal PipelineRun units.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: release-multicluster
+spec:
+  resourceGroups:
+    - coveredResources: ["tekton.dev/pipelineruns"]
+      flavors:
+        - name: release-multicluster
+          resources:
+            - name: tekton.dev/pipelineruns
+              nominalQuota: 10
