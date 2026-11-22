@@ -1,0 +1,87 @@
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueCluster
+metadata:
+  name: release-spoke
+spec:
+  clusterSource:
+    kubeConfig:
+      locationType: Secret
+      location: release-spoke
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: MultiKueueConfig
+metadata:
+  name: release-multicluster
+spec:
+  clusters: [release-spoke]
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: AdmissionCheck
+metadata:
+  name: release-multicluster
+spec:
+  controllerName: kueue.x-k8s.io/multikueue
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: MultiKueueConfig
+    name: release-multicluster
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: release-proxy
+  namespace: tekton-pipelines
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: release-proxy
+  namespace: tekton-pipelines
+spec:
+  secretName: proxy-server-tls
+  dnsNames: [proxy-aae.tekton-pipelines.svc]
+  issuerRef:
+    name: release-proxy
+    kind: Issuer
+---
+apiVersion: operator.tekton.dev/v1alpha1
+kind: TektonMulticlusterProxyAAE
+metadata:
+  name: multicluster-proxy-aae
+spec:
+  targetNamespace: tekton-pipelines
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-log-reader
+  namespace: release-multicluster
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: release-log-reader
+  namespace: release-multicluster
+rules:
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: release-log-reader
+  namespace: release-multicluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: release-log-reader
+subjects:
+  - kind: ServiceAccount
+    name: release-log-reader
+    namespace: release-multicluster
