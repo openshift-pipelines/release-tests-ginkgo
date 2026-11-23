@@ -78,13 +78,13 @@ func expectNestedRuns(ctx context.Context, expected ...*v1.PipelineRun) {
 	Expect(actual).To(ConsistOf(uids), "unexpected descendant PipelineRuns")
 }
 
-var _ = Describe("Pipelines-in-Pipelines: PIPELINES-44", Ordered, Serial, Label("e2e", "pipelines", "pipelines-in-pipelines", "admin"), func() {
+var _ = Describe("Pipelines-in-Pipelines execution and parent-child behavior: PIPELINES-44", Ordered, Serial, Label("e2e", "pipelines", "pipelines-in-pipelines", "admin"), func() {
 	BeforeAll(func(ctx SpecContext) { requireNestedPipelineFeature(ctx) })
 	for _, tc := range []struct {
-		id, fixture string
-		check       func(context.Context, *v1.PipelineRun)
+		id, fixture, description string
+		check                    func(context.Context, *v1.PipelineRun)
 	}{
-		{"PIPELINES-44-TC01", "inline", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-44-TC01", "inline", "runs one inline child with the submitted spec, parameters, and metadata", func(ctx context.Context, parent *v1.PipelineRun) {
 			fixture, err := os.ReadFile(config.Path("testdata/pipelines-in-pipelines/positive/inline.yaml"))
 			Expect(err).NotTo(HaveOccurred())
 			var submitted v1.PipelineRun
@@ -98,7 +98,7 @@ var _ = Describe("Pipelines-in-Pipelines: PIPELINES-44", Ordered, Serial, Label(
 			nestedTask(ctx, child, "leaf")
 			expectNestedRuns(ctx, parent, child)
 		}},
-		{"PIPELINES-44-TC02", "named", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-44-TC02", "named", "runs a named child with the configured service account on its leaf Pod", func(ctx context.Context, parent *v1.PipelineRun) {
 			child := nestedChild(ctx, parent, "child")
 			expectNestedState(child, corev1.ConditionTrue)
 			Expect(child.Spec.PipelineRef).NotTo(BeNil())
@@ -113,7 +113,7 @@ var _ = Describe("Pipelines-in-Pipelines: PIPELINES-44", Ordered, Serial, Label(
 			Expect(metav1.GetControllerOf(pod).UID).To(Equal(leaf.UID))
 			expectNestedRuns(ctx, parent, child)
 		}},
-		{"PIPELINES-44-TC03", "mixed", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-44-TC03", "mixed", "passes distinct inputs to sibling children and waits for both before the join", func(ctx context.Context, parent *v1.PipelineRun) {
 			referenced, inline := nestedChild(ctx, parent, "referenced"), nestedChild(ctx, parent, "inline")
 			expectNestedState(referenced, corev1.ConditionTrue)
 			expectNestedState(inline, corev1.ConditionTrue)
@@ -153,7 +153,7 @@ var _ = Describe("Pipelines-in-Pipelines: PIPELINES-44", Ordered, Serial, Label(
 			}
 			expectNestedRuns(ctx, parent, referenced, inline, grandchild)
 		}},
-		{"PIPELINES-44-TC04", "workspace", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-44-TC04", "workspace", "passes data from parent to child and back through the same PVC", func(ctx context.Context, parent *v1.PipelineRun) {
 			child := nestedChild(ctx, parent, "child")
 			expectNestedState(child, corev1.ConditionTrue)
 			for _, run := range []*v1.PipelineRun{parent, child} {
@@ -171,7 +171,7 @@ var _ = Describe("Pipelines-in-Pipelines: PIPELINES-44", Ordered, Serial, Label(
 			}))
 			expectNestedRuns(ctx, parent, child)
 		}},
-		{"PIPELINES-44-TC05", "when", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-44-TC05", "when", "skips the false child, runs the true child, and executes the parent continuation", func(ctx context.Context, parent *v1.PipelineRun) {
 			Expect(parent.Status.SkippedTasks).To(ConsistOf(HaveField("Name", "child")))
 			Expect(nestedChild(ctx, parent, "child")).To(BeNil())
 			child := nestedChild(ctx, parent, "true-child")
@@ -183,7 +183,7 @@ var _ = Describe("Pipelines-in-Pipelines: PIPELINES-44", Ordered, Serial, Label(
 			}))
 			expectNestedRuns(ctx, parent, child)
 		}},
-		{"PIPELINES-44-TC06", "finally", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-44-TC06", "finally", "runs a nested finally task after the parent main task completes", func(ctx context.Context, parent *v1.PipelineRun) {
 			child := nestedChild(ctx, parent, "child")
 			expectNestedState(child, corev1.ConditionTrue)
 			nestedTask(ctx, child, "leaf")
@@ -192,7 +192,7 @@ var _ = Describe("Pipelines-in-Pipelines: PIPELINES-44", Ordered, Serial, Label(
 		}},
 	} {
 		Describe(tc.id, func() {
-			It("runs "+tc.fixture, SpecTimeout(12*time.Minute), func(ctx SpecContext) {
+			It(tc.description, SpecTimeout(12*time.Minute), func(ctx SpecContext) {
 				bounded, cancel := context.WithTimeout(ctx, 10*time.Minute)
 				defer cancel()
 				parent := runNestedPipeline(bounded, "testdata/pipelines-in-pipelines/positive/"+tc.fixture+".yaml")

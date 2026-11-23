@@ -12,14 +12,14 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Ordered, Serial, Label("e2e", "pipelines", "pipelines-in-pipelines", "admin", "negative"), func() {
+var _ = Describe("Pipelines-in-Pipelines failure handling and cleanup: PIPELINES-45", Ordered, Serial, Label("e2e", "pipelines", "pipelines-in-pipelines", "admin", "negative"), func() {
 	BeforeAll(func(ctx SpecContext) { requireNestedPipelineFeature(ctx) })
 
 	for _, tc := range []struct {
-		id, fixture string
-		check       func(context.Context, *v1.PipelineRun)
+		id, fixture, description string
+		check                    func(context.Context, *v1.PipelineRun)
 	}{
-		{"PIPELINES-45-TC01", "failed-child", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-45-TC01", "failed-child", "fails the parent and skips the dependent task when the child fails", func(ctx context.Context, parent *v1.PipelineRun) {
 			child := nestedChild(ctx, parent, "child")
 			expectNestedState(child, corev1.ConditionFalse)
 			tasks, err := sharedClients.TaskRunClient.List(ctx, metav1.ListOptions{LabelSelector: "tekton.dev/pipelineRun=" + child.Name})
@@ -34,7 +34,7 @@ var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Ordered, Seria
 			Expect(dependents.Items).To(BeEmpty())
 			expectNestedRuns(ctx, parent, child)
 		}},
-		{"PIPELINES-45-TC02", "missing-child", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-45-TC02", "missing-child", "fails without running tasks when the referenced child Pipeline is missing", func(ctx context.Context, parent *v1.PipelineRun) {
 			condition := parent.Status.GetCondition(apis.ConditionSucceeded)
 			Expect(condition.Reason).To(Equal(v1.PipelineRunReasonCouldntGetPipeline.String()))
 			Expect(condition.Message).To(ContainSubstring("pip-missing"))
@@ -44,21 +44,21 @@ var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Ordered, Seria
 			Expect(err).NotTo(HaveOccurred())
 			Expect(tasks.Items).To(BeEmpty(), "a missing child must not execute any TaskRuns")
 		}},
-		{"PIPELINES-45-TC03", "self-cycle", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-45-TC03", "self-cycle", "rejects a self-reference before creating a child PipelineRun", func(ctx context.Context, parent *v1.PipelineRun) {
 			Expect(parent.Status.GetCondition(apis.ConditionSucceeded).Message).To(ContainSubstring("detected cycle in pipeline-in-pipeline"))
 			runs, err := sharedClients.PipelineRunClient.List(ctx, metav1.ListOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(runs.Items).To(HaveLen(1), "a self-reference must fail before creating a child chain")
 			Expect(runs.Items[0].UID).To(Equal(parent.UID))
 		}},
-		{"PIPELINES-45-TC04", "missing-workspace", func(ctx context.Context, parent *v1.PipelineRun) {
+		{"PIPELINES-45-TC04", "missing-workspace", "fails the child and parent when a required child workspace is not bound", func(ctx context.Context, parent *v1.PipelineRun) {
 			child := nestedChild(ctx, parent, "child")
 			expectNestedState(child, corev1.ConditionFalse)
 			Expect(child.Status.GetCondition(apis.ConditionSucceeded).Message).To(ContainSubstring(`workspace with name "required-data"`))
 		}},
 	} {
 		Describe(tc.id, func() {
-			It("fails "+tc.fixture, SpecTimeout(12*time.Minute), func(ctx SpecContext) {
+			It(tc.description, SpecTimeout(12*time.Minute), func(ctx SpecContext) {
 				bounded, cancel := context.WithTimeout(ctx, 10*time.Minute)
 				defer cancel()
 				parent := runNestedPipeline(bounded, "testdata/pipelines-in-pipelines/negative/"+tc.fixture+".yaml")
@@ -68,16 +68,16 @@ var _ = Describe("Pipelines-in-Pipelines failures: PIPELINES-45", Ordered, Seria
 		})
 	}
 	for _, tc := range []struct {
-		id, fixture string
-		childStatus corev1.ConditionStatus
-		mainStatus  string
-		exitCode    int32
+		id, fixture, description string
+		childStatus              corev1.ConditionStatus
+		mainStatus               string
+		exitCode                 int32
 	}{
-		{"PIPELINES-45-TC05", "parent-main-finally", corev1.ConditionTrue, "Succeeded", 11},
-		{"PIPELINES-45-TC06", "child-main-finally", corev1.ConditionFalse, "Failed", 7},
+		{"PIPELINES-45-TC05", "parent-main-finally", "runs child-local cleanup without masking the parent main task failure", corev1.ConditionTrue, "Succeeded", 11},
+		{"PIPELINES-45-TC06", "child-main-finally", "runs child-local cleanup without masking the child main task failure", corev1.ConditionFalse, "Failed", 7},
 	} {
 		Describe(tc.id, func() {
-			It("completes child-local cleanup without hiding the original main failure", SpecTimeout(12*time.Minute), func(ctx SpecContext) {
+			It(tc.description, SpecTimeout(12*time.Minute), func(ctx SpecContext) {
 				parent := runNestedPipeline(ctx, "testdata/pipelines-in-pipelines/negative/"+tc.fixture+".yaml")
 				expectNestedState(parent, corev1.ConditionFalse)
 				Expect(parent.Status.GetCondition(apis.ConditionSucceeded).Reason).To(Equal(v1.PipelineRunReasonFailed.String()))
