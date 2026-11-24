@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 	"time"
@@ -45,9 +46,7 @@ type Environment struct {
 	Prefix    string
 	Namespace string
 
-	runName      string
-	workloadName string
-	cleanups     []cleanupFunc
+	cleanups []cleanupFunc
 }
 
 // NewEnvironment creates a test environment. Setup performs validation before mutating clusters.
@@ -67,17 +66,20 @@ func (e *Environment) Setup(ctx context.Context) error {
 	}
 
 	for _, cluster := range e.clusters() {
+		log.Printf("[%s] configuring Kueue integration", cluster.Name)
 		if err := e.ensureKueue(ctx, cluster); err != nil {
 			return fmt.Errorf("configure Kueue on %s: %w", cluster.Name, err)
 		}
 	}
 	for _, cluster := range e.clusters() {
+		log.Printf("[%s] waiting for Kueue availability", cluster.Name)
 		if err := e.waitForKueue(ctx, cluster); err != nil {
 			return fmt.Errorf("wait for Kueue on %s: %w", cluster.Name, err)
 		}
 	}
 
 	for _, cluster := range e.clusters() {
+		log.Printf("[%s] creating namespace %s and controller RBAC", cluster.Name, e.Namespace)
 		if err := e.createNamespace(ctx, cluster); err != nil {
 			return fmt.Errorf("create namespace on %s: %w", cluster.Name, err)
 		}
@@ -87,6 +89,7 @@ func (e *Environment) Setup(ctx context.Context) error {
 		}
 	}
 	for _, spoke := range e.Spokes {
+		log.Printf("[%s] configuring worker queues and scoped credentials", spoke.Name)
 		if err := e.createQueues(ctx, spoke, false); err != nil {
 			return fmt.Errorf("create queues on %s: %w", spoke.Name, err)
 		}
@@ -109,11 +112,13 @@ func (e *Environment) Setup(ctx context.Context) error {
 		if cluster.Name == e.Hub.Name {
 			role = operatorv1alpha1.MultiClusterRoleHub
 		}
+		log.Printf("[%s] enabling scheduler role=%s queue=%s", cluster.Name, role, e.Prefix)
 		if err := e.enableScheduler(ctx, cluster, role); err != nil {
 			return fmt.Errorf("enable scheduler on %s: %w", cluster.Name, err)
 		}
 	}
 
+	log.Printf("[%s] waiting for Active queues, admission check, and spoke connections", e.Hub.Name)
 	return e.waitForKueueResources(ctx)
 }
 

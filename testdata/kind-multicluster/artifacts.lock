@@ -1,0 +1,4 @@
+# name sha256 URL (complete manifest bytes, not an HTML rendering)
+operator 0d81ef2bdbc87486d144aa9e6559c53a63989b59cb875c437339d40770efce37 https://github.com/tektoncd/operator/releases/download/v0.80.0/release.yaml
+cert-manager c067a20507670f12f37093cbaf187f4f09ac6b36122bef7c0777df100082159e https://github.com/cert-manager/cert-manager/releases/download/v1.19.2/cert-manager.yaml
+kueue 3201a66ff731be440ecfcf3c0fa5979d001b834f68389208fe7ee18017fbcfe8 https://github.com/kubernetes-sigs/kueue/releases/download/v0.16.1/manifests.yaml
