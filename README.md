@@ -225,6 +225,7 @@ LABEL_FILTER='triggers && sanity' ./scripts/run-tests.sh
 | Versions | `versions` | `tests/versions/` |
 | Tekton Kueue | `tekton-kueue`, `install`, `workload`, `admin` | `tests/tektonkueue/` |
 | TLS Scanner | `tls-scan` | `tests/tls/` |
+| Shipwright Build | `shipwright`, `buildah`, `s2i`, `buildpacks`, `buildpacks-extender` | `tests/shipwright/` |
 
 ## Test Case ID Mapping
 
@@ -466,6 +467,7 @@ tests/          # Ginkgo test suites (one directory per area)
   metrics/      #   Prometheus metrics
   versions/     #   Component version verification
   tektonkueue/  #   Multi-cluster operator bootstrap
+  shipwright/   #   Shipwright builds with Red Hat ClusterBuildStrategies
 pkg/            # Shared helper packages
   clients/      #   Kubernetes/Tekton client wrappers
   oc/           #   oc CLI wrappers (Create, Apply, Delete, ...)
@@ -473,6 +475,7 @@ pkg/            # Shared helper packages
   operator/     #   TektonConfig / component validation helpers
   pipelines/    #   PipelineRun validation helpers
   hooks/        #   Auto namespace-per-Describe lifecycle hook
+  shipwright/   #   Shipwright build flow (RunBuild) used by every strategy test
   store/        #   Global current-namespace store
   config/       #   Reads env vars + default.properties
   wait/         #   Polling / retry utilities

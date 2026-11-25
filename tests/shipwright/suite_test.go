@@ -1,0 +1,61 @@
+package shipwright_test
+
+import (
+	"encoding/json"
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/clients"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/config"
+	"github.com/openshift-pipelines/release-tests-ginkgo/pkg/hooks"
+)
+
+var sharedClients *clients.Clients
+
+var lastNamespace string
+
+func TestShipwright(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Shipwright Build Suite", Label("shipwright"))
+}
+
+type clientConfig struct {
+	Kubeconfig      string `json:"kubeconfig"`
+	Cluster         string `json:"cluster"`
+	Context         string `json:"context"`
+	TargetNamespace string `json:"targetNamespace"`
+}
+
+var _ = SynchronizedBeforeSuite(
+	func() []byte {
+		_, err := clients.NewClientsWithContext(
+			config.Flags.Kubeconfig, config.Flags.Cluster, config.Flags.Context, config.TargetNamespace)
+		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients on node 1")
+
+		data, err := json.Marshal(clientConfig{
+			Kubeconfig:      config.Flags.Kubeconfig,
+			Cluster:         config.Flags.Cluster,
+			Context:         config.Flags.Context,
+			TargetNamespace: config.TargetNamespace,
+		})
+		Expect(err).NotTo(HaveOccurred(), "Failed to serialize client config")
+		return data
+	},
+	func(data []byte) {
+		var cfg clientConfig
+		Expect(json.Unmarshal(data, &cfg)).To(Succeed(), "Failed to deserialize client config")
+
+		var err error
+		sharedClients, err = clients.NewClientsWithContext(cfg.Kubeconfig, cfg.Cluster, cfg.Context, cfg.TargetNamespace)
+		Expect(err).NotTo(HaveOccurred(), "Failed to create Kubernetes clients")
+	},
+)
+
+var _ = hooks.AutoNamespacePerDescribe(&lastNamespace, func() *clients.Clients { return sharedClients })
+
+var _ = AfterSuite(func() {
+	hooks.CleanupNamespaces()
+	_ = config.RemoveTempDir()
+})
