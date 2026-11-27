@@ -42,6 +42,14 @@ var _ = Describe("OLM Operator Lifecycle: PIPELINES-09", Serial, Label("olm", "a
 			operator.WaitForOperatorWebhooks(sharedClients)
 		})
 
+		// Match Konflux's TektonConfig: OpenShift Builds (Shipwright, SharedResource)
+		// off and set-security-context false. Without this, a default 5.0.5-930
+		// install never reaches Ready (Shipwright images have no digest, and
+		// SharedResource never gets ready on arm64), so every suite is skipped.
+		It("disables OpenShift Builds like Konflux", func() {
+			oc.UpdateTektonConfig(`{"spec":{"pipeline":{"set-security-context":false},"platforms":{"openshift":{"shipwrightBuild":{"enabled":false},"sharedResource":{"enabled":false}}}}}`)
+		})
+
 		It("defines artifact-hub-api variable", func() {
 			operator.DefineArtifactHubAPIVariable()
 		})
